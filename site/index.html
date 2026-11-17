@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#15132f">
+    <meta name="description" content="Bring your AI agents together with Sonata, an open-source macOS app for coordinating Claude Code, Codex, Grok and OpenCode. Your team, on your Mac.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Sonata — Your AI team, working in concert">
+    <meta property="og:description" content="One place to bring your coding agents together. Coordinate bots, follow their work and build repeatable workflows on your Mac.">
+    <meta property="og:url" content="https://jorgegorka.github.io/sonata/">
+    <meta property="og:image" content="https://jorgegorka.github.io/sonata/assets/app-icon.png">
+    <meta property="og:image:alt" content="Sonata's conductor baton with amber, green and pink bots on a midnight background">
+    <meta name="twitter:card" content="summary">
+    <link rel="canonical" href="https://jorgegorka.github.io/sonata/">
+    <link rel="icon" type="image/svg+xml" href="./assets/app-icon.svg">
+    <link rel="apple-touch-icon" href="./assets/app-icon.png">
+    <link rel="stylesheet" href="./styles.css">
+    <script src="./script.js" defer></script>
+    <title>Sonata — Your AI team, working in concert</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header wrap">
+      <a class="wordmark" href="./" aria-label="Sonata home">
+        <img src="./assets/app-icon.svg" width="44" height="44" alt="">
+        <span>sonata<span class="wordmark-dot">.</span></span>
+      </a>
+      <nav aria-label="Main navigation">
+        <a href="#how-it-works">How it works</a>
+        <a href="#workspace">Your workspace</a>
+        <a class="nav-source" href="https://github.com/jorgegorka/sonata">GitHub <span aria-hidden="true">↗</span></a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero wrap" aria-labelledby="hero-title">
+        <div class="eyebrow"><span class="status-dot"></span> A little orchestration. A lot of possibility.</div>
+        <h1 id="hero-title">Your AI team.<br>Working <em>in concert.</em></h1>
+        <p class="hero-description">Bring your coding agents together in one macOS app.<br class="desktop-break"> Give them a direction. Let Sonata coordinate the work.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#get-started">Get started <span aria-hidden="true">↗</span></a>
+          <a class="button button-secondary" href="https://github.com/jorgegorka/sonata">Explore the source <span aria-hidden="true">↗</span></a>
+        </div>
+        <p class="hero-note">Open source <span>·</span> Apple Silicon <span>·</span> Early development</p>
+
+        <figure class="product-preview">
+          <div class="preview-titlebar">
+            <div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+            <span>Sonata <span class="titlebar-divider">/</span> A team with a shared direction</span>
+            <span class="preview-label">Illustrative preview</span>
+          </div>
+          <div class="preview-body">
+            <aside class="preview-sidebar" aria-label="Example team">
+              <p class="sidebar-label">YOUR ENSEMBLE</p>
+              <div class="team-member selected"><span class="avatar master">M</span><div><strong>Master</strong><small>The coordinator</small></div><span class="member-dot green"></span></div>
+              <div class="sidebar-rule"></div>
+              <div class="team-member"><span class="avatar amber">B</span><div><strong>Builder</strong><small>Claude Code</small></div><span class="member-dot amber"></span></div>
+              <div class="team-member"><span class="avatar green">R</span><div><strong>Reviewer</strong><small>Codex</small></div><span class="member-dot green"></span></div>
+              <div class="team-member"><span class="avatar pink">Q</span><div><strong>QA</strong><small>OpenCode</small></div><span class="member-dot green"></span></div>
+              <div class="sidebar-bottom"><span aria-hidden="true">⌘</span> Your agents. Your Mac.</div>
+            </aside>
+            <div class="preview-main">
+              <div class="preview-heading"><div><span class="mini-label">THE BIG PICTURE</span><h2>Good things take teamwork.</h2></div><span class="live-indicator"><span class="status-dot"></span> In motion</span></div>
+              <div class="request-example"><span class="request-arrow" aria-hidden="true">↳</span><p>“Build the new settings page, review it, and check it works.”</p><span class="request-tag">Your request</span></div>
+              <div class="board">
+                <section class="board-column">
+                  <h3><span class="column-dot amber"></span> In progress <span class="column-count">1</span></h3>
+                  <div class="task-card"><span class="task-type">DEVELOPMENT</span><h4>Make room for the details.</h4><p>Build the settings page with the project’s existing components.</p><div class="task-footer"><span class="avatar amber small">B</span><span>Builder</span><span class="task-status">Working</span></div></div>
+                  <div class="task-activity"><span aria-hidden="true">↳</span> Master handed this to Builder</div>
+                </section>
+                <section class="board-column">
+                  <h3><span class="column-dot lavender"></span> Up next <span class="column-count">1</span></h3>
+                  <div class="task-card"><span class="task-type">CODE REVIEW</span><h4>A fresh pair of eyes.</h4><p>Review the changes and flag anything that needs another pass.</p><div class="task-footer"><span class="avatar green small">R</span><span>Reviewer</span><span class="task-status muted-status">Waiting</span></div></div>
+                </section>
+                <section class="board-column">
+                  <h3><span class="column-dot green"></span> Done <span class="column-count">1</span></h3>
+                  <div class="task-card"><span class="task-type">PLANNING</span><h4>A plan everyone can follow.</h4><p>Break the request into a clear sequence of work.</p><div class="task-footer"><span class="avatar master small">M</span><span>Master</span><span class="done-mark" aria-label="Complete">✓</span></div></div>
+                </section>
+              </div>
+              <div class="preview-bottom"><span><span class="status-dot"></span> One request. Every handoff in view.</span><span aria-hidden="true">↗</span></div>
+            </div>
+          </div>
+          <figcaption>An example team and task board. Choose your own bots, providers and instructions.</figcaption>
+        </figure>
+        <div class="providers">
+          <p>THE TOOLS YOU ALREADY KNOW, TOGETHER.</p>
+          <ul aria-label="Supported coding CLIs">
+            <li><span class="provider-symbol claude" aria-hidden="true">✳</span> Claude Code</li>
+            <li><span class="provider-symbol" aria-hidden="true">⌘</span> Codex</li>
+            <li><span class="provider-symbol" aria-hidden="true">╱</span> Grok</li>
+            <li><span class="provider-symbol opencode" aria-hidden="true">&gt;_</span> OpenCode</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="how-section wrap" id="how-it-works" aria-labelledby="how-title">
+        <div class="section-intro">
+          <p class="eyebrow">LESS TAB SWITCHING. MORE MAKING.</p>
+          <h2 id="how-title">A shared direction.<br>A place for <em>every part.</em></h2>
+          <p>You bring the idea. Master helps turn it into work your bots can do together, while you follow the whole story.</p>
+        </div>
+        <div class="steps">
+          <article class="step"><span class="step-number">01</span><div><h3>Assemble your team.</h3><p>Give each bot a role, a provider and a folder to work in. Add instructions and skills that make it right for the job.</p></div><span class="step-accent amber" aria-hidden="true"></span></article>
+          <article class="step"><span class="step-number">02</span><div><h3>Start with a conversation.</h3><p>Ask Master to coordinate a request, or talk directly to any bot. They can hand work to one another and share results.</p></div><span class="step-accent green" aria-hidden="true"></span></article>
+          <article class="step"><span class="step-number">03</span><div><h3>Keep the whole picture.</h3><p>Follow requests on the board, read the conversation, or open a live terminal to see a bot’s CLI as it works.</p></div><span class="step-accent pink" aria-hidden="true"></span></article>
+        </div>
+      </section>
+
+      <section class="workflow-section" aria-labelledby="workflow-title">
+        <div class="wrap workflow-layout">
+          <div class="workflow-copy">
+            <p class="eyebrow">FIND YOUR RHYTHM</p>
+            <h2 id="workflow-title">Good processes<br>deserve <em>an encore.</em></h2>
+            <p>Turn a useful sequence into a workflow. Connect bots on a visual canvas, branch on the outcome, and give the next request a path to follow.</p>
+            <a class="text-link" href="https://github.com/jorgegorka/sonata#features">Explore what Sonata can do <span aria-hidden="true">↗</span></a>
+          </div>
+          <figure class="workflow-figure" aria-label="Example workflow: Builder passes work to Reviewer. An accepted review proceeds to Done; a revision returns to Builder.">
+            <div class="flow-heading"><span class="mini-label">EXAMPLE WORKFLOW</span><span>Build → review → done</span></div>
+            <div class="flow-node"><span class="avatar amber">B</span><div><strong>Builder</strong><small>Make the first move</small></div><span class="node-kind">BOT</span></div>
+            <div class="flow-connector"><span>Ready for review</span></div>
+            <div class="flow-node"><span class="avatar green">R</span><div><strong>Reviewer</strong><small>Check the work</small></div><span class="node-kind">BOT</span></div>
+            <div class="flow-branches">
+              <div class="flow-branch"><span class="branch-label">Accepted</span><div class="flow-done"><span aria-hidden="true">✓</span> Done</div></div>
+              <div class="flow-branch"><span class="branch-label">Needs a revision</span><div class="flow-retry"><span aria-hidden="true">↶</span> Back to Builder</div></div>
+            </div>
+            <figcaption>A repeatable process, with room for another pass.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="workspace-section wrap" id="workspace" aria-labelledby="workspace-title">
+        <div class="workspace-heading">
+          <p class="eyebrow">RIGHT WHERE YOU WORK</p>
+          <h2 id="workspace-title">A home for the work.<br><em>On your Mac.</em></h2>
+          <p>Sonata keeps its database, logs and skills locally, with no telemetry. Your coding CLIs connect to their providers using the accounts you already have.</p>
+        </div>
+        <div class="feature-grid">
+          <article><span class="feature-glyph" aria-hidden="true">⌘</span><h3>One workspace, more context.</h3><p>Keep a browser beside the conversation. Pick an element, add a comment and send it straight to a bot.</p></article>
+          <article><span class="feature-glyph" aria-hidden="true">↗</span><h3>Skills worth sharing.</h3><p>Build a library of SKILL.md folders. Give bots the same playbook without rewriting your instructions.</p></article>
+          <article><span class="feature-glyph" aria-hidden="true">↻</span><h3>A rhythm for recurring work.</h3><p>Schedule repeat requests in fresh sessions, at a time you choose, while Sonata is running.</p></article>
+          <article><span class="feature-glyph" aria-hidden="true">⇄</span><h3>Take your setup with you.</h3><p>Export bots, skills and workflows to another Mac. Archive conversations and return to them later.</p></article>
+        </div>
+        <div class="language-note"><span aria-hidden="true">◎</span> At home in English, español, Deutsch and français.</div>
+      </section>
+
+      <section class="get-started-section wrap" id="get-started" aria-labelledby="start-title">
+        <div class="start-copy">
+          <img src="./assets/app-icon.svg" alt="" width="88" height="88" loading="lazy">
+          <p class="eyebrow">OPEN SOURCE. OPEN POSSIBILITIES.</p>
+          <h2 id="start-title">Meet your<br><em>next ensemble.</em></h2>
+          <p>Sonata is in early development. Build it from source, try it on your Mac, and help shape what comes next.</p>
+          <a class="button button-primary" href="https://github.com/jorgegorka/sonata#getting-started">Read the setup guide <span aria-hidden="true">↗</span></a>
+        </div>
+        <div class="setup-panel">
+          <span class="mini-label">BRING YOUR OWN TOOLS</span>
+          <ul class="requirements"><li><span aria-hidden="true">✓</span> An Apple Silicon Mac</li><li><span aria-hidden="true">✓</span> A supported coding CLI, installed and signed in</li><li><span aria-hidden="true">✓</span> Rust, Node.js and Xcode Command Line Tools</li></ul>
+          <div class="code-heading"><span>Start from the source</span><button class="copy-button" type="button" hidden>Copy commands</button></div>
+          <pre tabindex="0" aria-label="Setup commands"><code id="setup-commands">git clone https://github.com/jorgegorka/sonata.git
+cd sonata
+scripts/setup.sh</code></pre>
+          <p class="copy-status" role="status" aria-live="polite"></p>
+          <p class="setup-note">The <a href="https://github.com/jorgegorka/sonata#requirements">setup guide</a> covers prerequisites and launching the app.</p>
+          <p class="autonomy-note"><strong>Know what you’re running.</strong> Bots run autonomously with your macOS user’s access to files and commands. Their folders are not sandboxes. Use trusted tasks, skills and configurations. <a href="https://github.com/jorgegorka/sonata#sonata">Read the safety note ↗</a></p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer wrap">
+      <a class="wordmark" href="./"><img src="./assets/app-icon.svg" width="36" height="36" alt=""><span>sonata<span class="wordmark-dot">.</span></span></a>
+      <p>A little harmony for your AI team.</p>
+      <nav aria-label="Footer navigation"><a href="https://github.com/jorgegorka/sonata">Source</a><a href="https://github.com/jorgegorka/sonata/issues">Issues</a><a href="https://github.com/jorgegorka/sonata/blob/master/LICENSE">MIT License</a></nav>
+    </footer>
+  </body>
+</html>

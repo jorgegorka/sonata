@@ -72,6 +72,7 @@ provider with the account you signed in with.
 | `app/src` | React interface |
 | `app/locales` | Interface translations |
 | `scripts` | Setup and secret-scanning scripts |
+| `site` | Standalone homepage published with GitHub Pages |
 
 ## Requirements
 
@@ -143,6 +144,27 @@ the OpenCode model they use. herdr-client's live tests run whenever `SONATA_HERD
 | `SONATA_DATA_DIR` | `~/Library/Application Support/Sonata` | Database, logs, skill library |
 | `SONATA_BOTS_ROOT` | the folder chosen at setup, else `~/Sonata/Bots` | Where bots keep their files |
 | `SONATA_HERDR_BIN` | the `herdr` next to the app's executable | herdr binary for development runs |
+
+## Homepage (GitHub Pages)
+
+The homepage lives in `site/`. It is plain HTML, CSS and JavaScript, with no build step or
+dependencies on the desktop app. Preview it locally from the repository root:
+
+```sh
+python3 -m http.server 8080 --bind 127.0.0.1 --directory site
+```
+
+Open <http://localhost:8080>. The icon assets in `site/assets/` are copies of `app/app-icon.svg`
+and `app/app-icon.png`; refresh both copies when the app icon changes.
+
+To enable publishing, open the repository's **Settings → Pages** and select **GitHub Actions**
+as the source. The `Deploy homepage to GitHub Pages` workflow publishes only `site/` whenever
+that folder or its workflow changes on `master`. It can also be run manually from **Actions**.
+See [GitHub's custom workflow documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+
+After the first successful deployment, the homepage will be available at
+<https://jorgegorka.github.io/sonata/>. If hosting the site under another repository or domain,
+update the canonical and Open Graph URLs in `site/index.html`.
 
 ## Contributing
 
