@@ -31,9 +31,9 @@ and pink) becomes the app's palette, so the app and its icon feel like one produ
 | `--needs-border` | `#fcd9a8` | `#6e5222` |
 | `--shadow` | `rgba(27, 24, 64, 0.14)` | `rgba(5, 4, 20, 0.6)` |
 | `--ok` (new: idle, ready ✓) | `#059669` | `#34d399` |
-| `--busy` (new: working, starting, limited, running) | `#d97706` | `#fbbf24` |
+| `--busy` (new: working, starting, limited, running) | `#c96b05` | `#fbbf24` |
 | `--alert` (new: needs attention, blocked) | `#e11d48` | `#fb7185` |
-| `--waits` (new: waiting/queued ring) | `#d97706` | `#f59e0b` |
+| `--waits` (new: waiting/queued ring) | `#c96b05` | `#f59e0b` |
 | `--console-bg` (new: terminal, task output) | `#0d0b24` | `#0d0b24` |
 | `--console-text` (new) | `#ecebff` | `#ecebff` |
 

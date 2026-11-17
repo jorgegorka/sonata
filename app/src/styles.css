@@ -13,15 +13,16 @@
   --shadow: rgba(27, 24, 64, 0.14);
   --card-shadow: rgba(27, 24, 64, 0.06);
   --ok: #059669;
-  --busy: #d97706;
+  --busy: #c96b05;
   --alert: #e11d48;
-  --waits: #d97706;
+  --waits: #c96b05;
   --console-bg: #0d0b24;
   --console-text: #ecebff;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 14px;
   color: var(--text);
   background: var(--bg);
+  accent-color: var(--accent);
 }
 @media (prefers-color-scheme: dark) {
   :root {
