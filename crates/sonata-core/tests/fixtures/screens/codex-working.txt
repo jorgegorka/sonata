@@ -1,0 +1,40 @@
+
+  >_ OpenAI Codex (v0.166.0)
+     /tmp/sonata-test/bots/codex-rec
+  permissions: YOLO mode
+
+  To get started, describe a task or try one of these commands:
+
+  /init - create an AGENTS.md file with instructions for Codex
+  /status - show current session configuration
+  /permissions - choose what Codex is allowed to do
+  /model - choose what model and reasoning effort to use
+  /review - review any changes and find issues
+
+
+› [Message from user · thread you↔user · language: English]
+  Run the shell command "sleep 25 && echo done" with your shell tool, then reply with the word done.
+
+
+• I’ll run the command and wait for it to finish.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+• Working (17s • esc to interrupt) · 1 background terminal running · /ps to view · /stop to close
+
+
+› Ask Codex to do anything
+
+  GPT-6-Astra xhigh · /tmp/sonata-test/bots/codex-rec · Run delayed …
+  ? for shortcuts

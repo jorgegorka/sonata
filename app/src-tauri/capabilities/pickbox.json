@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "pickbox",
+  "description": "The pick comment box: it hears what it shows; the app's own commands need no permission from a page the app serves",
+  "webviews": ["pickbox"],
+  "permissions": ["core:event:allow-listen", "core:event:allow-unlisten"]
+}

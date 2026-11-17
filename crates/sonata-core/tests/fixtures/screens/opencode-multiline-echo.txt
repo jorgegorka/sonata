@@ -1,0 +1,39 @@
+
+  ┃
+  ┃  [Message from user · thread you↔user · language: English]
+  ┃  Please answer three things.
+  ┃  First: what is the sample label?
+  ┃  Second: what is two plus two?
+  ┃  Third: name a color.
+  ┃  Line six of this message.
+  ┃  Line seven of this message.
+  ┃  Reply with sbot, as your instructions say.
+  ┃
+
+     + Thought · 3.0s
+
+  ┃
+  ┃  $ sbot reply <<'SBOT'
+  ┃  1. The sample label is EXAMPLE.…
+  ┃
+  ┃  Sent.
+  ┃
+
+     + Thought · 671ms
+
+     Sent via sbot reply — the sample label (EXAMPLE), 2+2 (4), and a color (blue).
+
+     Build · GLM-5.3-Flash · 6.3s · 34.5 tok/s
+
+
+
+
+
+
+
+  ┃
+  ┃
+  ┃
+  ┃  Build auto · GLM-5.3-Flash OpenCode Go
+  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+  /…/Bots/scout  8.3K (1%)  ctrl+p commands

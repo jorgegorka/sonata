@@ -1,0 +1,17 @@
+
+  >_ OpenAI Codex (v0.166.0)
+     /tmp/sonata-test/bots/codex-rec
+  permissions: YOLO mode
+
+
+› [Message from user · thread you↔user · language: English]
+  Run the shell command "sleep 25 && echo done" with your shell tool, then reply with the word done.
+
+
+■ You’ve hit your usage limit. Visit https://chatgpt.com/settings/usage to purchase more credits or try again at 3:05 PM.
+
+
+› Ask Codex to do anything
+
+  GPT-6-Astra xhigh · /tmp/sonata-test/bots/codex-rec
+  ? for shortcuts

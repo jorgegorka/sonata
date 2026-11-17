@@ -1,0 +1,40 @@
+
+ ▐▛███▛█   Claude Code v2.1.318
+▝▜██████▀  Opus 5.5 with xhigh effort · Claude Team
+ ▝▝   ▝▝   /tmp/sonata-test/bots/claude-rec
+
+
+❯ [Message from user · thread you↔user · language: English]
+  Run the shell command "sleep 25 && echo done" with your shell tool, then reply with the word done.
+
+⏺ Reading shared memory file
+  ⎿  $ cat MEMORY.md 2>/dev/null || true
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+✶ Architecting… (4s · ↓ 253 tokens · thinking with xhigh effort)
+                                                                                                     ◉ xhigh · /effort
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏵⏵ bypass permissions on (shift+tab to cycle) · esc to interrupt · ← 1 agent

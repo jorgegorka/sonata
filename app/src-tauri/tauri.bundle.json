@@ -1,0 +1,11 @@
+{
+  "build": {
+    "beforeBuildCommand": "sh scripts/prepare-sidecars.sh && npm run build"
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app"],
+    "externalBin": ["binaries/sbot", "binaries/herdr"],
+    "resources": { "licenses/herdr-LICENSE.txt": "licenses/herdr-LICENSE.txt" }
+  }
+}

@@ -1,0 +1,39 @@
+
+     Build · GLM-5.3-Flash · 7.5s · 11.2 tok/s
+
+     ↳ Shell finished · sleep 40; echo BG-DONE > bg.txt
+
+  ┃
+  ┃  $ sbot reply <<'SBOT'
+  ┃  bg finished…
+  ┃
+  ┃  Sent.
+  ┃
+
+     The background command finished (bg.txt written). Replied 'bg finished' via sbot.
+
+     Build · GLM-5.3-Flash · 5.5s · 8.1 tok/s
+
+  ┃
+  ┃  [Message from user] Start two shell commands in the background, without waiting: sleep 30 and sleep 31 . Then
+  ┃  run in the foreground: sleep 12 . Then end your turn without replying.
+  ┃
+
+  ┃
+  ┃  ⠼ sleep 30
+  ┃
+  ┃   Background
+  ┃
+
+  ┃
+  ┃  ⠼ sleep 31
+  ┃
+  ┃   Background
+  ┃
+
+  ┃
+  ┃
+  ┃
+  ┃  Build auto · GLM-5.3-Flash OpenCode Go
+  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+   ⬝⬝⬝⬝⬝⬝⬝⬝ esc interrupt                                                      ↓ 2 shells · 8.9K (1%)  ctrl+p commands

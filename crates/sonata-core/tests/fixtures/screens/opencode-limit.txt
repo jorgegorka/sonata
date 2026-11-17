@@ -1,0 +1,39 @@
+  ┃
+  ┃  [Message from user · thread you↔user · language: English]
+  ┃  Summarize the open tickets.
+  ┃
+
+     + Thought · 1.2s
+
+  ┃
+  ┃ OpenCode Go 5-hour usage limit reached
+  ┃ Resets 3:05 PM today. Switch to a free model with /models to continue.
+  ┃ Or turn on Extra Usage on your Go page to keep going now: https://opencode.ai/console/go
+  ┃
+
+     Build · Kimi K3 · 2.1s
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  ┃
+  ┃
+  ┃
+  ┃  Build auto · Kimi K3 OpenCode Go
+  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+  /…/Bots/scout  9.1K (1%)  ctrl+p commands

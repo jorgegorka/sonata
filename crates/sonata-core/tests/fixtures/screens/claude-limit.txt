@@ -1,0 +1,20 @@
+
+ ▐▛███▛█   Claude Code v2.1.317
+▝▜██████▀  Opus 5.5 with xhigh effort · Claude Team
+ ▝▝   ▝▝   /tmp/sonata-test/bots/claude-rec
+
+
+❯ [Message from user · thread you↔user · language: English]
+  Run the shell command "sleep 25 && echo done" with your shell tool, then reply with the word done.
+
+⏺ Reading shared memory file
+  ⎿  You've hit your 5-hour limit · resets 2:10pm (Europe/Madrid)
+
+⏺ Usage limit reached · continuing automatically at 2:10pm · esc to cancel
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏵⏵ bypass permissions on (shift+tab to cycle)

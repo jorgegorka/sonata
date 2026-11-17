@@ -1,0 +1,10 @@
+title = "Sonata secret detection"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "credential-pair-in-prose"
+description = "Login credentials written as an email and password in prose"
+regex = '''(?i)[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}`?\s*/\s*`?([^`\s<>]{6,})'''
+secretGroup = 1

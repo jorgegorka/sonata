@@ -1,0 +1,44 @@
+{
+  "name": "sonata-ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "test": "vitest run",
+    "tauri": "tauri",
+    "bundle": "tauri build --config src-tauri/tauri.bundle.json",
+    "bundle:unsigned": "env -u APPLE_SIGNING_IDENTITY -u APPLE_ID -u APPLE_PASSWORD -u APPLE_TEAM_ID -u TAURI_SIGNING_PRIVATE_KEY -u TAURI_SIGNING_PRIVATE_KEY_PASSWORD -u APPLE_CERTIFICATE -u APPLE_CERTIFICATE_PASSWORD -u APPLE_API_KEY -u APPLE_API_ISSUER -u APPLE_API_KEY_PATH tauri build --config src-tauri/tauri.bundle.json",
+    "dmg": "sh scripts/make-dmg.sh",
+    "dmg:unsigned": "env -u APPLE_SIGNING_IDENTITY -u APPLE_ID -u APPLE_PASSWORD -u APPLE_TEAM_ID -u APPLE_API_KEY -u APPLE_API_ISSUER -u APPLE_API_KEY_PATH sh scripts/make-dmg.sh"
+  },
+  "dependencies": {
+    "@dagrejs/dagre": "^1.1.8",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2.8.1",
+    "@tauri-apps/plugin-opener": "^2.7.0",
+    "@xterm/xterm": "^5.5.0",
+    "@xyflow/react": "^12.12.1",
+    "i18next": "^23",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-i18next": "^15",
+    "react-markdown": "^9",
+    "remark-gfm": "^4"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "happy-dom": "^21.0.4",
+    "typescript": "^5.5.3",
+    "vite": "^7.3.8",
+    "vitest": "^4.1.12"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": "^20.19.0 || ^22.12.0 || >=24.0.0"
+  }
+}

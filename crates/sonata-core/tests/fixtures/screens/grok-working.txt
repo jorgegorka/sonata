@@ -1,0 +1,39 @@
+
+  /p/v/f/h/k/T/.t/bots/grok-rec                                                               23K / 256K │ [Dashboard]
+
+
+     ❯ [Message from user · thread you↔user · language: English]                                             2:33 PM
+       Run the shell command "sleep 25 && echo done" with your shell tool, then reply with the word done.
+
+
+     ◈ Exploring MEMORY.md, ran 1 command
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   ⠸ Sleep 25 seconds then echo done… 12s                                                         22s ⇣23.0k [↓][stop]
+
+  ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+  │ ❯                                                                                                                │
+  ╰────────────────────────────────────────────────────────────────────────────── Grok 4.7 (xhigh) · always-approve ─╯
+
+  Shift+Tab:mode  │  Ctrl+c:cancel  │  Ctrl+b:send to bg  │  Ctrl+x:shortcuts
