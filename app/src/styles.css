@@ -129,7 +129,7 @@ input, select, textarea { font: inherit; color: inherit; background: var(--bg); 
 .tab-panel { display: flex; flex-direction: column; gap: 18px; }
 .about { margin: auto; max-width: 680px; padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
 .about .logo { display: flex; align-items: center; gap: 32px; margin-bottom: 14px; }
-.about .logo svg { display: block; }
+.about .logo img { display: block; }
 .about h1, .about p { margin: 0; }
 .check { display: flex; gap: 8px; align-items: flex-start; font-weight: 500; }
 .check input { width: auto; margin-top: 3px; }
