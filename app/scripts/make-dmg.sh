@@ -27,8 +27,7 @@ trap 'hdiutil detach "$stage/mount" -quiet 2>/dev/null || true; rm -rf "$stage"'
 mkdir "$stage/files" "$stage/mount"
 ditto "$app" "$stage/files/$name.app"
 ln -s /Applications "$stage/files/Applications"
-swift scripts/volume-icon.swift app-icon.png "$stage/volume.iconset"
-iconutil -c icns -o "$stage/files/.VolumeIcon.icns" "$stage/volume.iconset"
+cp src-tauri/icons/icon.icns "$stage/files/.VolumeIcon.icns"
 mkdir -p "$out"
 hdiutil create -volname "$name" -srcfolder "$stage/files" -format UDRW -fs HFS+ "$stage/rw.dmg" >/dev/null
 hdiutil attach -nobrowse -noautoopen -mountpoint "$stage/mount" "$stage/rw.dmg" >/dev/null
