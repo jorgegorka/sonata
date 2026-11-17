@@ -11,6 +11,7 @@ import {
   showsReadFailed,
   TERMINAL_COLS,
   TERMINAL_ROWS,
+  TERMINAL_THEME,
   type TerminalState,
 } from "../terminal";
 
@@ -38,6 +39,7 @@ export default function TerminalView({ sessionId, onRunning, noteWhenStopped = t
       cursorBlink: false,
       cursorInactiveStyle: "none",
       fontSize: 12,
+      theme: TERMINAL_THEME,
     });
     terminal.open(host.current);
     term.current = terminal;
