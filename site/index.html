@@ -45,43 +45,93 @@
         <p class="hero-note">Open source <span>·</span> Apple Silicon <span>·</span> Early development</p>
 
         <figure class="product-preview">
-          <div class="preview-titlebar">
-            <div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div>
-            <span>Sonata <span class="titlebar-divider">/</span> A team with a shared direction</span>
-            <span class="preview-label">Illustrative preview</span>
-          </div>
-          <div class="preview-body">
-            <aside class="preview-sidebar" aria-label="Example team">
-              <p class="sidebar-label">YOUR ENSEMBLE</p>
-              <div class="team-member selected"><span class="avatar master">M</span><div><strong>Master</strong><small>The coordinator</small></div><span class="member-dot green"></span></div>
-              <div class="sidebar-rule"></div>
-              <div class="team-member"><span class="avatar amber">B</span><div><strong>Builder</strong><small>Claude Code</small></div><span class="member-dot amber"></span></div>
-              <div class="team-member"><span class="avatar green">R</span><div><strong>Reviewer</strong><small>Codex</small></div><span class="member-dot green"></span></div>
-              <div class="team-member"><span class="avatar pink">Q</span><div><strong>QA</strong><small>OpenCode</small></div><span class="member-dot green"></span></div>
-              <div class="sidebar-bottom"><span aria-hidden="true">⌘</span> Your agents. Your Mac.</div>
-            </aside>
-            <div class="preview-main">
-              <div class="preview-heading"><div><span class="mini-label">THE BIG PICTURE</span><h2>Good things take teamwork.</h2></div><span class="live-indicator"><span class="status-dot"></span> In motion</span></div>
-              <div class="request-example"><span class="request-arrow" aria-hidden="true">↳</span><p>“Build the new settings page, review it, and check it works.”</p><span class="request-tag">Your request</span></div>
-              <div class="board">
-                <section class="board-column">
-                  <h3><span class="column-dot amber"></span> In progress <span class="column-count">1</span></h3>
-                  <div class="task-card"><span class="task-type">DEVELOPMENT</span><h4>Make room for the details.</h4><p>Build the settings page with the project’s existing components.</p><div class="task-footer"><span class="avatar amber small">B</span><span>Builder</span><span class="task-status">Working</span></div></div>
-                  <div class="task-activity"><span aria-hidden="true">↳</span> Master handed this to Builder</div>
-                </section>
-                <section class="board-column">
-                  <h3><span class="column-dot lavender"></span> Up next <span class="column-count">1</span></h3>
-                  <div class="task-card"><span class="task-type">CODE REVIEW</span><h4>A fresh pair of eyes.</h4><p>Review the changes and flag anything that needs another pass.</p><div class="task-footer"><span class="avatar green small">R</span><span>Reviewer</span><span class="task-status muted-status">Waiting</span></div></div>
-                </section>
-                <section class="board-column">
-                  <h3><span class="column-dot green"></span> Done <span class="column-count">1</span></h3>
-                  <div class="task-card"><span class="task-type">PLANNING</span><h4>A plan everyone can follow.</h4><p>Break the request into a clear sequence of work.</p><div class="task-footer"><span class="avatar master small">M</span><span>Master</span><span class="done-mark" aria-label="Complete">✓</span></div></div>
-                </section>
+          <div class="preview-window" role="img" aria-label="Illustrative Sonata task board with a compact bot sidebar. Builder is working on a settings page, Reviewer is asking for a decision, and Master has finished the plan.">
+            <div class="preview-screen" inert aria-hidden="true">
+              <div class="preview-titlebar">
+                <div class="window-dots"><i></i><i></i><i></i></div>
+                <span>Sonata</span>
               </div>
-              <div class="preview-bottom"><span><span class="status-dot"></span> One request. Every handoff in view.</span><span aria-hidden="true">↗</span></div>
+              <div class="preview-body">
+                <div class="preview-rail">
+                  <button class="preview-rail-button selected" type="button" aria-label="Tasks board">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="2" y="3" width="4" height="12" rx="1"/><rect x="7" y="3" width="4" height="8" rx="1"/><rect x="12" y="3" width="4" height="10" rx="1"/></svg>
+                  </button>
+                  <div class="preview-rail-bots">
+                    <button class="preview-rail-button" type="button" aria-label="Master"><span class="preview-avatar master">M</span><span class="preview-bot-status"></span></button>
+                    <button class="preview-rail-button" type="button" aria-label="Builder"><span class="preview-avatar builder">B</span><span class="preview-bot-status working"></span></button>
+                    <button class="preview-rail-button" type="button" aria-label="Reviewer"><span class="preview-avatar reviewer">R</span><span class="preview-bot-status"></span><span class="preview-waiting-mark"></span></button>
+                    <button class="preview-rail-button" type="button" aria-label="QA"><span class="preview-avatar qa">Q</span><span class="preview-bot-status"></span></button>
+                  </div>
+                  <button class="preview-rail-add" type="button" aria-label="New bot">+</button>
+                  <div class="preview-rail-footer">
+                    <button class="preview-rail-button" type="button" aria-label="Workflows">⑂</button>
+                    <button class="preview-rail-button" type="button" aria-label="Recurring tasks">↻</button>
+                    <button class="preview-rail-button" type="button" aria-label="Archive">▤</button>
+                    <button class="preview-rail-button" type="button" aria-label="Settings">⚙</button>
+                  </div>
+                </div>
+                <div class="preview-main">
+                  <div class="preview-board-header">
+                    <div class="preview-board-heading">
+                      <h2>Tasks</h2>
+                      <ul class="preview-counts">
+                        <li><span class="preview-state-dot running"></span>Running 1</li>
+                        <li><span class="preview-state-dot waits"></span>Needs you 1</li>
+                        <li><span class="preview-state-dot done"></span>Finished 1</li>
+                      </ul>
+                    </div>
+                    <div class="preview-header-actions">
+                      <button type="button">Pause all bots</button>
+                      <button class="preview-primary" type="button">New task</button>
+                    </div>
+                  </div>
+                  <div class="preview-columns">
+                    <section class="preview-column">
+                      <div class="preview-column-heading"><span class="preview-state-dot running"></span><h3>Running</h3><span class="preview-count">1</span></div>
+                      <div class="preview-task">
+                        <h4>Make room for the details.</h4>
+                        <div class="preview-task-meta">
+                          <span class="preview-holder"><span class="preview-avatar builder">B</span>@builder</span>
+                          <span class="preview-task-state"><span class="preview-state-dot running"></span>Working · now</span>
+                        </div>
+                        <p class="preview-task-request">Build the settings page with the project’s existing components.</p>
+                        <p class="preview-task-step"><span>▸</span> Putting the finishing touches on the form…</p>
+                      </div>
+                    </section>
+                    <section class="preview-column needs-you">
+                      <div class="preview-column-heading"><span class="preview-state-dot waits"></span><h3>Needs you</h3><span class="preview-count">1</span></div>
+                      <div class="preview-task">
+                        <h4>A fresh pair of eyes.</h4>
+                        <div class="preview-task-meta">
+                          <div class="preview-trail"><span class="preview-trail-bot"><span class="preview-avatar master">M</span>@master</span><span>›</span><span class="preview-holder"><span class="preview-avatar reviewer">R</span>@reviewer</span></div>
+                          <span class="preview-task-state"><span class="preview-state-dot waits"></span>Asks you · now</span>
+                        </div>
+                        <p>The review is ready. Shall I send the suggested improvements back to Builder for another pass?</p>
+                        <div class="preview-answer-options"><button type="button">Send to Builder</button><button type="button">Show me the review</button></div>
+                        <div class="preview-answer">
+                          <textarea rows="2" placeholder="Answer @reviewer…" aria-label="Example answer to Reviewer" readonly></textarea>
+                          <button class="preview-primary" type="button" disabled>Send</button>
+                        </div>
+                      </div>
+                    </section>
+                    <section class="preview-column">
+                      <div class="preview-column-heading"><span class="preview-state-dot done"></span><h3>Finished</h3><span class="preview-count">1</span></div>
+                      <div class="preview-task">
+                        <h4>A plan everyone can follow.</h4>
+                        <div class="preview-task-meta">
+                          <span class="preview-holder"><span class="preview-avatar master">M</span>@master</span>
+                          <span class="preview-task-state"><span class="preview-state-dot done"></span>Done · 2 min ago</span>
+                        </div>
+                        <p>The request is broken into clear steps: build the settings page, review the changes, then check it works.</p>
+                        <div class="preview-task-actions"><button type="button">Open</button><button type="button">Mark done</button></div>
+                      </div>
+                    </section>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          <figcaption>An example team and task board. Choose your own bots, providers and instructions.</figcaption>
+          <figcaption>Illustrative preview with example tasks. Choose your own bots, providers and instructions.</figcaption>
         </figure>
         <div class="providers">
           <p>THE TOOLS YOU ALREADY KNOW, TOGETHER.</p>
@@ -169,7 +219,7 @@ scripts/setup.sh</code></pre>
     <footer class="site-footer wrap">
       <a class="wordmark" href="./"><img src="./assets/app-icon.svg" width="36" height="36" alt=""><span>sonata<span class="wordmark-dot">.</span></span></a>
       <p>A little harmony for your AI team.</p>
-      <nav aria-label="Footer navigation"><a href="https://github.com/jorgegorka/sonata">Source</a><a href="https://github.com/jorgegorka/sonata/issues">Issues</a><a href="https://github.com/jorgegorka/sonata/blob/master/LICENSE">MIT License</a></nav>
+      <nav aria-label="Footer navigation"><span class="footer-credit">Created by <a href="https://alvareznavarro.es">Jorge Alvarez</a></span><a href="https://github.com/jorgegorka/sonata">Source</a><a href="https://github.com/jorgegorka/sonata/issues">Issues</a><a href="https://github.com/jorgegorka/sonata/blob/master/LICENSE">MIT License</a></nav>
     </footer>
   </body>
 </html>
