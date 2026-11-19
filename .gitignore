@@ -48,4 +48,5 @@ secrets.yml
 *.log
 *.har
 *.dmg
+!/site/downloads/Sonata_1.0.0.dmg
 *.app/

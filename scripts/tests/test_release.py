@@ -89,6 +89,42 @@ class ReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unexpected release asset URL"):
             self.write_site(metadata)
 
+    def repository_fixture(self):
+        directory = self.dist / "downloads"
+        directory.mkdir()
+        dmg = directory / "Sonata_1.0.0.dmg"
+        dmg.write_bytes(b"verified DMG fixture")
+        (directory / "version.txt").write_text("1.0.0\n")
+        (directory / "SHA256SUMS").write_text(f"{release.digest(dmg)}  {dmg.name}\n")
+        (self.dist / "index.html").write_text((release.ROOT / "site/index.html").read_text())
+        return dmg
+
+    def test_repository_download_is_advertised_when_no_github_release_exists(self):
+        self.repository_fixture()
+        missing = release.urllib.error.HTTPError("https://api.github.com", 404, "Not Found", {}, None)
+        self.addCleanup(missing.close)
+        with patch.object(release.urllib.request, "urlopen", side_effect=missing):
+            release.site_metadata(self.dist)
+        rendered = (self.dist / "index.html").read_text()
+        self.assertIn('href="./downloads/Sonata_1.0.0.dmg">Download DMG', rendered)
+        self.assertIn('href="./downloads/SHA256SUMS"', rendered)
+        self.assertIn("data-binary-install hidden", rendered)
+        self.assertTrue(json.loads((self.dist / "release.json").read_text())["available"])
+
+    def test_repository_download_with_changed_bytes_cannot_be_advertised(self):
+        dmg = self.repository_fixture()
+        dmg.write_bytes(b"corrupted DMG")
+        with self.assertRaisesRegex(ValueError, "Repository download checksum mismatch"):
+            release.repository_release(self.dist)
+
+    def test_api_failure_does_not_replace_site_with_repository_fallback(self):
+        self.repository_fixture()
+        error = release.urllib.error.HTTPError("https://api.github.com", 503, "Unavailable", {}, None)
+        self.addCleanup(error.close)
+        with patch.object(release.urllib.request, "urlopen", side_effect=error), self.assertRaises(release.urllib.error.HTTPError):
+            release.site_metadata(self.dist)
+        self.assertFalse((self.dist / "release.json").exists())
+
     def test_static_download_links_follow_release_availability(self):
         source = (release.ROOT / "site/index.html").read_text()
         (self.dist / "index.html").write_text(source)

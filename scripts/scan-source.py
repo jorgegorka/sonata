@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Scan only publication candidates, including staged content on an unborn branch."""
 import argparse
+import hashlib
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -16,6 +17,10 @@ names = subprocess.check_output(["git", "ls-files", "-z"] if args.staged else
     ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"]).decode().split("\0")
 denied = re.compile(r"(?i)(^|/)(?:\.env(?:\..*)?|id_(?:rsa|ed25519|ecdsa).*|credentials(?:\..*)?|secrets?(?:\..*)?|\.npmrc|\.netrc|\.pypirc|\.mcp\.json|.*\.(?:pem|key|p8|p12|pfx|mobileprovision|provisionprofile|db(?:-[^/]*)?|sqlite3?(?:-[^/]*)?|log|har|dmg))$")
 failures = []
+# The user-approved public installer is pinned to the notarized artifact's digest.
+public_artifacts = {
+    "site/downloads/Sonata_1.0.0.dmg": "3eb221da36373f4adcec5b603285a2970c6c658b0421ae6bb8ba687fceb38044",
+}
 with tempfile.TemporaryDirectory(prefix="sonata-scan-") as temp:
     destination = Path(temp)
     for name in sorted(set(filter(None, names))):
@@ -24,7 +29,7 @@ with tempfile.TemporaryDirectory(prefix="sonata-scan-") as temp:
             failures.append(f"Unsafe path: {name}")
             continue
         example = path.name.startswith(".env.") and path.name.endswith(".example")
-        if (denied.search(name) and not example) or any(part in {
+        if (denied.search(name) and not example and name not in public_artifacts) or any(part in {
             ".git", "node_modules", "target", ".tools", ".aws", ".codex", ".claude", ".agents",
             ".cache", ".worktrees", ".superpowers",
         } or part.endswith(".app") for part in path.parts) or name.startswith((
@@ -46,6 +51,9 @@ with tempfile.TemporaryDirectory(prefix="sonata-scan-") as temp:
                 failures.append(f"Unsupported source entry: {name}")
                 continue
             data = file.read_bytes()
+        if name in public_artifacts and hashlib.sha256(data).hexdigest() != public_artifacts[name]:
+            failures.append(f"Public artifact checksum mismatch: {name}")
+            continue
         out = destination / path
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_bytes(data)

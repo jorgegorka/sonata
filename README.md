@@ -6,7 +6,7 @@ name, instructions, model and skills. A built-in coordinator, **Master**, takes 
 delegates them to the right bots, checks their results and asks you before anything that needs
 your approval.
 
-> **Version:** 1.0.0. The signed and notarized [Apple Silicon DMG](https://github.com/jorgegorka/sonata/releases/download/v1.0.0/Sonata-macos-aarch64.dmg) is available. Linux packages are coming soon; Linux users can build from source. See the [changelog](CHANGELOG.md) for release notes.
+> **Version:** 1.0.0. Download the signed and notarized [Apple Silicon DMG](https://jorgegorka.github.io/sonata/downloads/Sonata_1.0.0.dmg) ([SHA-256 checksum](https://jorgegorka.github.io/sonata/downloads/SHA256SUMS)). Linux packages are coming soon; Linux users can build from source. See the [changelog](CHANGELOG.md) for release notes.
 
 > [!WARNING]
 > Bots work on their own. Each CLI runs in its autonomous mode (for example Claude Code with
@@ -76,9 +76,11 @@ provider with the account you signed in with.
 
 ## Installation
 
-Download a stable build from [Sonata’s homepage](https://jorgegorka.github.io/sonata/) or
-[GitHub Releases](https://github.com/jorgegorka/sonata/releases). Version 1.0.0 provides a
-signed, notarized macOS DMG. Linux packages are pending; use the source instructions below.
+Download the signed, notarized macOS DMG from
+[Sonata’s homepage](https://jorgegorka.github.io/sonata/). The 1.0.0 installer is stored in
+`site/downloads/` and served by GitHub Pages. Linux packages are pending; use the source
+instructions below. Future automated releases are published to
+[GitHub Releases](https://github.com/jorgegorka/sonata/releases).
 
 - **macOS:** Apple Silicon (M1 or newer), macOS 11+. Open the signed, notarized DMG and drag Sonata
   into Applications. Rust, Node.js and Xcode are not needed to run it.
@@ -89,7 +91,8 @@ signed, notarized macOS DMG. Linux packages are pending; use the source instruct
 - Install and sign in to at least one supported coding CLI: Claude Code, Codex, Grok or OpenCode.
   **herdr and sbot are included.**
 
-You can also install from a terminal on platforms with a published package (currently macOS):
+Once packages are published to GitHub Releases, the terminal installer below can install and
+update them. For the current Pages-hosted 1.0.0 release, use the DMG download above.
 
 ```sh
 curl -fsSL https://jorgegorka.github.io/sonata/install.sh | bash
@@ -241,6 +244,8 @@ and `app/app-icon.png`; refresh both copies when the app icon changes.
 To enable publishing, open the repository's **Settings → Pages** and select **GitHub Actions**
 as the source. The `Deploy homepage to GitHub Pages` workflow generates links for available platform packages in published releases and publishes `site/` whenever
 that folder or its workflow changes on `master`. It also runs after publishing releases and can be run manually from **Actions**. Without a release, the page links to source instructions and the releases list.
+Until a GitHub Release exists, deployment verifies the DMG in `site/downloads/` against its
+SHA-256 manifest and generates its download link instead.
 See [GitHub's custom workflow documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
 
 After the first successful deployment, the homepage will be available at

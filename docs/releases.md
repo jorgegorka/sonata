@@ -6,6 +6,21 @@ Debian 12, or a compatible system with WebKitGTK 4.1. There is no headless editi
 
 ## Before the first release
 
+### Repository-hosted 1.0.0 download
+
+The notarized Apple Silicon DMG is tracked as `site/downloads/Sonata_1.0.0.dmg`
+and served by GitHub Pages. Its `SHA256SUMS` and `version.txt` are stored beside it.
+When no GitHub Release exists, Pages verifies that checksum and renders the local
+download link. The terminal installer targets GitHub Releases and is not advertised
+for this repository-hosted download.
+
+The secret scanner allows only this exact DMG path and digest; other archives and
+private files remain excluded. A new repository-hosted installer requires updating
+that pin after signing, notarization and verification. Prefer GitHub Release assets
+for future versions when an account with release write permission is available.
+
+### Automated GitHub Releases
+
 Enable GitHub Pages with **GitHub Actions** as its source. Add these repository or
 environment secrets for the Mac signing job:
 

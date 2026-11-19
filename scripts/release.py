@@ -78,6 +78,26 @@ def finalize(output, platforms=None):
         (output / f"SHA256SUMS-{platform}").unlink()
 
 
+def repository_release(directory):
+    """Verify a notarized DMG hosted with Pages when no GitHub Release exists."""
+    downloads = directory / "downloads"
+    if not downloads.exists():
+        return {"available": False}
+    value = (downloads / "version.txt").read_text().strip()
+    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", value):
+        raise ValueError("Invalid repository download version")
+    name = f"Sonata_{value}.dmg"
+    manifest = (downloads / "SHA256SUMS").read_text().splitlines()
+    if len(manifest) != 1 or manifest[0] != f"{digest(downloads / name)}  {name}":
+        raise ValueError("Repository download checksum mismatch")
+    return {
+        "available": True, "version": value,
+        "notes": f"https://github.com/{REPO}/blob/master/CHANGELOG.md",
+        "downloads": {"Sonata-macos-aarch64.dmg": f"./downloads/{name}",
+                      "SHA256SUMS": "./downloads/SHA256SUMS", "version.txt": "./downloads/version.txt"},
+    }
+
+
 def site_metadata(directory, api="https://api.github.com"):
     request = urllib.request.Request(f"{api}/repos/{REPO}/releases/latest", headers={"Accept": "application/vnd.github+json", "User-Agent": "Sonata-release"})
     try:
@@ -86,8 +106,9 @@ def site_metadata(directory, api="https://api.github.com"):
     except urllib.error.HTTPError as error:
         if error.code != 404:
             raise
+        error.close()
         release = None
-    result = {"available": False}
+    result = repository_release(directory) if release is None else {"available": False}
     if release:
         tag = release["tag_name"]
         if not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag) or release["draft"] or release["prerelease"]:
