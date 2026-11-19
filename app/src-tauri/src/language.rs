@@ -1,11 +1,13 @@
-use std::process::Stdio;
-use std::time::Duration;
+#[cfg(target_os = "macos")]
+use std::{process::Stdio, time::Duration};
 
+#[cfg(target_os = "macos")]
 use tokio::process::Command;
 
 pub use sonata_core::engine::LANGUAGES;
 
-pub async fn apple_languages() -> Vec<String> {
+#[cfg(target_os = "macos")]
+pub async fn preferred_languages() -> Vec<String> {
     let mut command = Command::new("/usr/bin/defaults");
     command.args(["read", "-g", "AppleLanguages"]).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null());
     command.kill_on_drop(true);
@@ -15,6 +17,27 @@ pub async fn apple_languages() -> Vec<String> {
     parse_apple_languages(&String::from_utf8_lossy(&output.stdout))
 }
 
+#[cfg(not(target_os = "macos"))]
+pub async fn preferred_languages() -> Vec<String> {
+    let locale = ["LC_ALL", "LC_MESSAGES", "LANG"]
+        .into_iter()
+        .filter_map(|name| std::env::var(name).ok())
+        .find(|value| !value.is_empty())
+        .unwrap_or_default();
+    if locale == "C" || locale == "POSIX" {
+        return vec!["en".into()];
+    }
+    let mut preferred: Vec<_> = std::env::var("LANGUAGE")
+        .unwrap_or_default()
+        .split(':')
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .collect();
+    preferred.push(locale.split('.').next().unwrap_or("en").to_string());
+    preferred
+}
+
+#[cfg(any(target_os = "macos", test))]
 pub fn parse_apple_languages(output: &str) -> Vec<String> {
     output
         .lines()

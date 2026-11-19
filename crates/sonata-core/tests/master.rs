@@ -1158,7 +1158,7 @@ async fn the_playbook_names_the_new_commands() {
 #[test]
 fn the_playbook_lets_master_set_a_model_and_find_skills_on_every_cli() {
     let body = bundled::master_skill_body();
-    for text in ["codex, grok or opencode", "--model <model>", "provider/model", ".agents/skills"] {
+    for text in ["codex, grok or opencode", r#"--model "<model>""#, "provider/model", ".agents/skills"] {
         assert!(body.contains(text), "the playbook never says `{text}`");
     }
 }

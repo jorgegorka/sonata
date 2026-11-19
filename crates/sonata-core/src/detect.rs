@@ -18,7 +18,7 @@ pub fn user_shell() -> PathBuf {
     std::env::var_os("SHELL")
         .map(PathBuf::from)
         .filter(|shell| shell.is_absolute() && shell.is_file())
-        .unwrap_or_else(|| PathBuf::from("/bin/zsh"))
+        .unwrap_or_else(|| PathBuf::from(if cfg!(target_os = "macos") { "/bin/zsh" } else { "/bin/sh" }))
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -34,6 +34,7 @@ pub async fn login_shell_path(shell: &Path, limit: Duration) -> Option<String> {
 pub async fn login_shell_env(shell: &Path, limit: Duration) -> Option<LoginShellEnv> {
     let script = format!("printf '\\n{MARK}%s{MARK}\\n{LANG_MARK}%s{LANG_MARK}\\n' \"$PATH\" \"$LANG\"");
     let mut command = Command::new(shell);
+    herdr_client::host_command_env(command.as_std_mut());
     command
         .args(["-l", "-i", "-c", &script])
         .stdin(Stdio::null())
@@ -53,6 +54,9 @@ fn between(text: &str, mark: &str) -> Option<String> {
 }
 
 pub async fn apple_locale() -> Option<String> {
+    if !cfg!(target_os = "macos") {
+        return None;
+    }
     let mut command = Command::new("/usr/bin/defaults");
     command.args(["read", "-g", "AppleLocale"]).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null());
     command.kill_on_drop(true);
@@ -66,13 +70,15 @@ pub fn utf8_lang(shell_lang: Option<&str>, apple_locale: Option<&str>) -> String
 }
 
 fn utf8_lang_in(locale_dir: &Path, shell_lang: Option<&str>, apple_locale: Option<&str>) -> String {
-    if let Some(lang) = shell_lang.map(str::trim).filter(|lang| lang.to_ascii_uppercase().contains("UTF-8")) {
+    if let Some(lang) =
+        shell_lang.map(str::trim).filter(|lang| lang.to_ascii_uppercase().replace('-', "").contains("UTF8"))
+    {
         return lang.to_string();
     }
     let region = apple_locale.and_then(|l| l.split('@').next()).map(str::trim).filter(|l| !l.is_empty());
     match region {
         Some(region) if locale_dir.join(region).is_dir() => format!("{region}.UTF-8"),
-        _ => "en_US.UTF-8".to_string(),
+        _ => if cfg!(target_os = "macos") { "en_US.UTF-8" } else { "C.UTF-8" }.to_string(),
     }
 }
 
@@ -96,7 +102,8 @@ pub fn search_path(login: Option<&str>, home: &Path, inherited: Option<&str>) ->
         .chain(inherited.unwrap_or("").split(':').map(str::to_string));
     let mut dirs: Vec<String> = Vec::new();
     for dir in all {
-        if Path::new(&dir).is_absolute() && !dirs.contains(&dir) {
+        let bundled = std::env::var_os("APPDIR").is_some_and(|p| Path::new(&dir).starts_with(p));
+        if !bundled && Path::new(&dir).is_absolute() && !dirs.contains(&dir) {
             dirs.push(dir);
         }
     }
@@ -121,6 +128,7 @@ pub struct ProviderStatus {
 
 async fn run(exe: &Path, args: &[&str], search_path: &str) -> Option<(bool, String)> {
     let mut command = Command::new(exe);
+    herdr_client::host_command_env(command.as_std_mut());
     command
         .args(args)
         .env("PATH", search_path)
@@ -242,9 +250,12 @@ mod tests {
         assert_eq!(lang(Some("de_DE.utf-8"), Some("es_ES")), "de_DE.utf-8", "the shell's UTF-8 locale wins");
         assert_eq!(lang(Some("C"), Some("es_ES@rg=eszzzz")), "es_ES.UTF-8", "not UTF-8: the region's, without @…");
         assert_eq!(lang(None, Some("es_ES")), "es_ES.UTF-8");
-        assert_eq!(lang(None, Some("xx_YY")), "en_US.UTF-8", "a region without a locale folder");
-        assert_eq!(lang(Some("en_US.ISO8859-1"), None), "en_US.UTF-8");
+        let fallback = if cfg!(target_os = "macos") { "en_US.UTF-8" } else { "C.UTF-8" };
+        assert_eq!(lang(None, Some("xx_YY")), fallback, "a region without a locale folder");
+        assert_eq!(lang(Some("en_US.ISO8859-1"), None), fallback);
+        #[cfg(target_os = "macos")]
         assert_eq!(utf8_lang(None, Some("es_ES")), "es_ES.UTF-8");
+        assert_eq!(lang(Some("C.utf8"), None), "C.utf8");
     }
 
     #[tokio::test]

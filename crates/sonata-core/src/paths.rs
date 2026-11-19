@@ -83,7 +83,10 @@ pub fn resolve_bots_root(env_override: Option<PathBuf>, saved: Option<String>, d
 }
 
 pub fn default_data_dir() -> PathBuf {
-    dirs::home_dir().unwrap_or_default().join("Library/Application Support/Sonata")
+    #[cfg(target_os = "macos")]
+    return dirs::home_dir().unwrap_or_default().join("Library/Application Support/Sonata");
+    #[cfg(not(target_os = "macos"))]
+    return dirs::data_dir().unwrap_or_default().join("sonata");
 }
 
 pub fn herdr_session_name(data_dir: &Path, default_data_dir: &Path) -> String {

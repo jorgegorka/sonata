@@ -14,6 +14,10 @@ describe("linkAction", () => {
     expect(linkAction("https://example.com/", command)).toBe("external");
   });
 
+  it("supports Ctrl-click on Linux", () => {
+    expect(linkAction("https://example.com/", { metaKey: false, ctrlKey: true })).toBe("external");
+  });
+
   it("always hands mail links to the system", () => {
     expect(linkAction("mailto:a@b.c", plain)).toBe("external");
     expect(linkAction("mailto:a@b.c", command)).toBe("external");

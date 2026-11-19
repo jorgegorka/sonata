@@ -372,7 +372,8 @@ fn with_pick<T>(app: &AppHandle, f: impl FnOnce(&mut PickState) -> T) -> Option<
 }
 
 fn eval(panel: &Webview, script: String) -> tauri::Result<()> {
-    panel.with_webview(move |pw| native::eval(pw, &script))
+    let app = panel.app_handle().clone();
+    panel.with_webview(move |pw| native::eval(app, pw, &script))
 }
 
 fn eval_in_panel(app: &AppHandle, script: String) {
@@ -405,11 +406,8 @@ fn on_main(app: &AppHandle, f: impl FnOnce(&AppHandle) + Send + 'static) {
             tracing::warn!(error = %e, "could not reach the pick comment box");
         }
     };
-    if objc2::MainThreadMarker::new().is_some() {
-        tauri::async_runtime::spawn(async move { queue() });
-    } else {
-        queue();
-    }
+    // Always queue from outside the native callback to avoid reentrant GTK/AppKit updates.
+    tauri::async_runtime::spawn(async move { queue() });
 }
 
 fn update_box(app: &AppHandle, focus: bool) {
@@ -491,6 +489,7 @@ pub(crate) fn register(app: &AppHandle, panel: &Webview) {
 pub fn start(app: &AppHandle, strings: PickStrings, target: Option<String>) -> Result<(), CommandError> {
     let browser = app.state::<Browser>();
     let _lifecycle = browser.lifecycle.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    #[cfg(target_os = "macos")]
     if !objc2::available!(macos = 11.0) {
         return Err(failed("picking an element needs macOS 11 or later"));
     }
@@ -679,6 +678,7 @@ pub(crate) fn refresh_menu(app: &AppHandle) {
     }
 }
 
+#[cfg(target_os = "macos")]
 mod native {
     use std::panic::AssertUnwindSafe;
 
@@ -775,7 +775,7 @@ mod native {
         }
     }
 
-    pub fn eval(pw: PlatformWebview, script: &str) {
+    pub fn eval(_app: AppHandle, pw: PlatformWebview, script: &str) {
         let Some(mtm) = MainThreadMarker::new() else { return };
         if !objc2::available!(macos = 11.0) {
             return;
@@ -797,6 +797,89 @@ mod native {
                 Some(&*done),
             )
         };
+    }
+}
+
+#[cfg(target_os = "linux")]
+mod native {
+    use super::{for_log, receive, refuse, FrameOrigin, HANDLER, MAX_BODY_BYTES, WORLD};
+    use javascriptcore::ValueExt;
+    use std::sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    };
+    use tauri::{webview::PlatformWebview, AppHandle, Manager, Url};
+    use webkit2gtk::{gio, glib::object::ObjectExt, LoadEvent, UserContentManagerExt, WebViewExt};
+
+    #[derive(Default)]
+    pub struct Navigation(pub Arc<AtomicU64>);
+
+    pub fn register(app: AppHandle, pw: PlatformWebview) {
+        let view = pw.inner();
+        let Some(manager) = view.user_content_manager() else { return };
+        app.manage(Navigation::default());
+        let epoch = app.state::<Navigation>().0.clone();
+        epoch.fetch_add(1, Ordering::Relaxed);
+        let loading_epoch = epoch.clone();
+        view.connect_load_changed(move |_, event| {
+            if event == LoadEvent::Started {
+                loading_epoch.fetch_add(1, Ordering::Relaxed);
+            }
+        });
+        let weak_view = view.downgrade();
+        manager.connect_script_message_received(Some(HANDLER), move |_, result| {
+            let Some(view) = weak_view.upgrade() else { return };
+            let Some(value) = result.js_value().filter(|v| v.is_string()) else {
+                refuse(&app, "a message that is not a string");
+                return;
+            };
+            let body = value.to_str();
+            if body.len() > MAX_BODY_BYTES + 1024 {
+                refuse(&app, "a picker message that is too large");
+                return;
+            }
+            #[derive(serde::Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Envelope {
+                generation: u64,
+                body: String,
+            }
+            let Ok(message) = serde_json::from_str::<Envelope>(&body) else {
+                refuse(&app, "invalid picker transport");
+                return;
+            };
+            if view.is_loading() || message.generation != epoch.load(Ordering::Relaxed) {
+                return;
+            }
+            let Some(url) = view.uri().and_then(|uri| Url::parse(&uri).ok()) else { return };
+            let origin = FrameOrigin {
+                scheme: url.scheme().into(),
+                host: url.host_str().unwrap_or_default().into(),
+                port: url.port_or_known_default().unwrap_or(0),
+            };
+            receive(&app, &message.body, &origin);
+        });
+        if !manager.register_script_message_handler_in_world(HANDLER, WORLD) {
+            tracing::warn!("could not register the Linux picker message handler");
+        }
+    }
+
+    pub fn eval(app: AppHandle, pw: PlatformWebview, script: &str) {
+        let view = pw.inner();
+        if view.is_loading() {
+            return;
+        }
+        let Some(navigation) = app.try_state::<Navigation>() else { return };
+        let generation = navigation.0.load(Ordering::Relaxed);
+        // Only this isolated main-frame world gets the bridge; page scripts and iframes do not.
+        let script = format!("if (window === window.top) {{ globalThis.__sonataPost = body => window.webkit.messageHandlers.{HANDLER}.postMessage(JSON.stringify({{generation:{generation},body}}));\n{script}\n}}");
+        // Keep compatibility with WebKitGTK 2.38 on the Linux baseline.
+        #[allow(deprecated)]
+        view.run_javascript_in_world(&script, WORLD, None::<&gio::Cancellable>, |result| {
+            if let Err(error) = result {
+                tracing::warn!(error = ?for_log(&error.to_string()), "the picker script failed in the browser panel");
+            }
+        });
     }
 }
 

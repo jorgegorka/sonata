@@ -70,6 +70,7 @@ impl HerdrServer {
         }
         std::fs::write(&config, SERVER_CONFIG)?;
         let mut cmd = Command::new(bin);
+        crate::host_command_env(cmd.as_std_mut());
         cmd.args(["--session", session, "server"])
             .env("HERDR_CONFIG_PATH", &config)
             .stdin(Stdio::null())

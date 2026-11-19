@@ -1,0 +1,19 @@
+{
+  "build": { "beforeBuildCommand": "sh scripts/prepare-sidecars.sh && npm run build" },
+  "bundle": {
+    "active": true,
+    "targets": ["appimage", "deb"],
+    "category": "Development",
+    "shortDescription": "Coordinate your AI coding agents",
+    "longDescription": "Sonata brings coding agents together in a local desktop workspace, with workflows, a shared task board and a built-in browser.",
+    "resources": {
+      "runtime/herdr": "runtime/herdr",
+      "runtime/sbot": "runtime/sbot",
+      "licenses/herdr-LICENSE.txt": "licenses/herdr-LICENSE.txt"
+    },
+    "linux": {
+      "deb": { "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0", "libayatana-appindicator3-1", "xdg-utils"] },
+      "appimage": { "bundleMediaFramework": true }
+    }
+  }
+}

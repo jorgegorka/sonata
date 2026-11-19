@@ -697,7 +697,7 @@
     "configBackupTooLarge": "What this import would replace comes to more than {{mb}} MB, too much to keep a copy of. Nothing was imported.",
     "skillSlugInvalid": "{{slug}} isn't a valid skill name: lowercase letters, digits and hyphens.",
     "skillPathInvalid": "The skill has a file path Sonata doesn't accept: {{path}}.",
-    "skillPathRepeated": "The skill has the file {{path}} twice (on a Mac, names that differ only in case are one file).",
+    "skillPathRepeated": "The skill contains {{path}} twice. File names must also be unique when compared without case.",
     "skillPathConflict": "In the skill, {{path}} is both a file and a folder.",
     "skillFileContent": "The skill's file {{path}} needs exactly one of text or base64, and readable base64.",
     "skillNameNotSlug": "The skill's SKILL.md doesn't give {{slug}} as its name.",
@@ -708,5 +708,33 @@
     "importDependsOn": "It needs {{name}}, which can't be imported.",
     "languageUnknown": "This language is not available.",
     "databaseTooNew": "This data was saved by a newer version of Sonata."
+  },
+  "linux": {
+    "skills": {
+      "showFolder": "Show in file manager"
+    },
+    "message": {
+      "reveal": "Show in file manager"
+    },
+    "browser": {
+      "hide": "Hide browser (Alt+Ctrl+B)",
+      "show": "Show browser (Alt+Ctrl+B)",
+      "pick": "Pick an element on the page (Shift+Ctrl+C)",
+      "stopPick": "Stop picking (Shift+Ctrl+C)"
+    },
+    "notifications": {
+      "hiddenBody": "Your bots keep working. Restore Sonata from the taskbar; choose Quit in the application menu to stop it."
+    },
+    "setup": {
+      "intro": "Sonata runs AI bots on this computer. Before your first bot, check these things.",
+      "safety": "Bots work on their own. They run commands and read and write files without asking you first, with the same access as your Linux user. A bot's folder is where it works, not a fence around it.",
+      "toolsHint": "Bots run on Claude Code, Codex, Grok or OpenCode, installed and signed in on this computer. You need at least one."
+    },
+    "settings": {
+      "show": "Show in file manager"
+    },
+    "errors": {
+      "opensPrograms": "This file can run programs or install software, so Sonata only shows it in the file manager."
+    }
   }
 }

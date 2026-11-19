@@ -1,15 +1,15 @@
 {
   "name": "sonata-ui",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "test": "vitest run",
     "tauri": "tauri",
-    "bundle": "tauri build --config src-tauri/tauri.bundle.json",
-    "bundle:unsigned": "env -u APPLE_SIGNING_IDENTITY -u APPLE_ID -u APPLE_PASSWORD -u APPLE_TEAM_ID -u TAURI_SIGNING_PRIVATE_KEY -u TAURI_SIGNING_PRIVATE_KEY_PASSWORD -u APPLE_CERTIFICATE -u APPLE_CERTIFICATE_PASSWORD -u APPLE_API_KEY -u APPLE_API_ISSUER -u APPLE_API_KEY_PATH tauri build --config src-tauri/tauri.bundle.json",
+    "bundle": "sh scripts/bundle.sh",
+    "bundle:unsigned": "sh scripts/bundle.sh --unsigned",
     "dmg": "sh scripts/make-dmg.sh",
     "dmg:unsigned": "env -u APPLE_SIGNING_IDENTITY -u APPLE_ID -u APPLE_PASSWORD -u APPLE_TEAM_ID -u APPLE_API_KEY -u APPLE_API_ISSUER -u APPLE_API_KEY_PATH sh scripts/make-dmg.sh"
   },

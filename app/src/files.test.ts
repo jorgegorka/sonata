@@ -10,6 +10,7 @@ describe("files", () => {
     expect(opensPrograms("report.md")).toBe(false);
     expect(opensPrograms(".sh")).toBe(false);
     expect(opensPrograms("site.webloc")).toBe(true);
+    for (const name of ["install.deb", "app.desktop", "Sonata.AppImage", "install.rpm"]) expect(opensPrograms(name)).toBe(true);
   });
 
   it("lists the same extensions as the Rust side, sorted", () => {

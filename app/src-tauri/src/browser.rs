@@ -15,9 +15,13 @@ use crate::commands::CommandError;
 pub const MAIN_WINDOW: &str = "main";
 pub const LABEL: &str = "browser";
 pub const STATE_EVENT: &str = "browser-state";
+#[cfg(target_os = "macos")]
 pub const USER_AGENT: &str =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) \
                               Version/17.6 Safari/605.1.15";
+#[cfg(target_os = "linux")]
+pub const USER_AGENT: &str =
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15";
 
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
 pub struct PanelRect {

@@ -50,6 +50,12 @@ pub fn t_in(code: &str, key: &str, vars: &[(&str, &str)]) -> String {
 }
 
 fn lookup(code: &str, key: &str) -> Option<&'static str> {
+    #[cfg(target_os = "linux")]
+    if let Some(value) =
+        key.split('.').try_fold(strings().get(code)?.get("linux")?, |v, part| v.get(part)).and_then(Value::as_str)
+    {
+        return Some(value);
+    }
     key.split('.').try_fold(strings().get(code)?, |v, part| v.get(part)).and_then(Value::as_str)
 }
 

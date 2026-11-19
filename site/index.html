@@ -4,10 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#15132f">
-    <meta name="description" content="Bring your AI agents together with Sonata, an open-source macOS app for coordinating Claude Code, Codex, Grok and OpenCode. Your team, on your Mac.">
+    <meta name="description" content="Bring your AI agents together with Sonata, an open-source desktop app for coordinating Claude Code, Codex, Grok and OpenCode. Your team, on your computer.">
     <meta property="og:type" content="website">
     <meta property="og:title" content="Sonata — Your AI team, working in concert">
-    <meta property="og:description" content="One place to bring your coding agents together. Coordinate bots, follow their work and build repeatable workflows on your Mac.">
+    <meta property="og:description" content="One place to bring your coding agents together. Coordinate bots, follow their work and build repeatable workflows on your computer.">
     <meta property="og:url" content="https://jorgegorka.github.io/sonata/">
     <meta property="og:image" content="https://jorgegorka.github.io/sonata/assets/app-icon.png">
     <meta property="og:image:alt" content="Sonata's conductor baton with amber, green and pink bots on a midnight background">
@@ -28,7 +28,7 @@
       </a>
       <nav aria-label="Main navigation">
         <a href="#how-it-works">How it works</a>
-        <a href="#workspace">Your workspace</a>
+        <a href="#get-started">Install</a>
         <a class="nav-source" href="https://github.com/jorgegorka/sonata">GitHub <span aria-hidden="true">↗</span></a>
       </nav>
     </header>
@@ -37,12 +37,12 @@
       <section class="hero wrap" aria-labelledby="hero-title">
         <div class="eyebrow"><span class="status-dot"></span> A little orchestration. A lot of possibility.</div>
         <h1 id="hero-title">Your AI team.<br>Working <em>in concert.</em></h1>
-        <p class="hero-description">Bring your coding agents together in one macOS app.<br class="desktop-break"> Give them a direction. Let Sonata coordinate the work.</p>
+        <p class="hero-description">Bring your coding agents together in one desktop app.<br class="desktop-break"> Give them a direction. Let Sonata coordinate the work.</p>
         <div class="hero-actions">
           <a class="button button-primary" href="#get-started">Get started <span aria-hidden="true">↗</span></a>
           <a class="button button-secondary" href="https://github.com/jorgegorka/sonata">Explore the source <span aria-hidden="true">↗</span></a>
         </div>
-        <p class="hero-note">Open source <span>·</span> Apple Silicon <span>·</span> Early development</p>
+        <p class="hero-note">Open source <span>·</span> macOS + Linux <span>·</span> Early development</p>
 
         <figure class="product-preview">
           <div class="preview-window" role="img" aria-label="Illustrative Sonata task board with a compact bot sidebar. Builder is working on a settings page, Reviewer is asking for a decision, and Master has finished the plan.">
@@ -182,37 +182,82 @@
       <section class="workspace-section wrap" id="workspace" aria-labelledby="workspace-title">
         <div class="workspace-heading">
           <p class="eyebrow">RIGHT WHERE YOU WORK</p>
-          <h2 id="workspace-title">A home for the work.<br><em>On your Mac.</em></h2>
+          <h2 id="workspace-title">A home for the work.<br><em>On your computer.</em></h2>
           <p>Sonata keeps its database, logs and skills locally, with no telemetry. Your coding CLIs connect to their providers using the accounts you already have.</p>
         </div>
         <div class="feature-grid">
           <article><span class="feature-glyph" aria-hidden="true">⌘</span><h3>One workspace, more context.</h3><p>Keep a browser beside the conversation. Pick an element, add a comment and send it straight to a bot.</p></article>
           <article><span class="feature-glyph" aria-hidden="true">↗</span><h3>Skills worth sharing.</h3><p>Build a library of SKILL.md folders. Give bots the same playbook without rewriting your instructions.</p></article>
           <article><span class="feature-glyph" aria-hidden="true">↻</span><h3>A rhythm for recurring work.</h3><p>Schedule repeat requests in fresh sessions, at a time you choose, while Sonata is running.</p></article>
-          <article><span class="feature-glyph" aria-hidden="true">⇄</span><h3>Take your setup with you.</h3><p>Export bots, skills and workflows to another Mac. Archive conversations and return to them later.</p></article>
+          <article><span class="feature-glyph" aria-hidden="true">⇄</span><h3>Take your setup with you.</h3><p>Export bots, skills and workflows to another computer. Archive conversations and return to them later.</p></article>
         </div>
         <div class="language-note"><span aria-hidden="true">◎</span> At home in English, español, Deutsch and français.</div>
       </section>
 
-      <section class="get-started-section wrap" id="get-started" aria-labelledby="start-title">
-        <div class="start-copy">
-          <img src="./assets/app-icon.svg" alt="" width="88" height="88" loading="lazy">
-          <p class="eyebrow">OPEN SOURCE. OPEN POSSIBILITIES.</p>
-          <h2 id="start-title">Meet your<br><em>next ensemble.</em></h2>
-          <p>Sonata is in early development. Build it from source, try it on your Mac, and help shape what comes next.</p>
-          <a class="button button-primary" href="https://github.com/jorgegorka/sonata#getting-started">Read the setup guide <span aria-hidden="true">↗</span></a>
+      <section class="install-section wrap" id="get-started" aria-labelledby="start-title">
+        <div class="install-intro">
+          <p class="eyebrow">OPEN SOURCE. READY FOR YOUR DESKTOP.</p>
+          <h2 id="start-title">Choose your way<br><em>into Sonata.</em></h2>
+          <p>Bring an installed, signed-in coding CLI. Sonata includes the herdr runtime and everything else it needs to coordinate your bots.</p>
+          <p class="release-status" data-release-status>Packaged downloads are coming soon. You can build from source today.</p>
         </div>
-        <div class="setup-panel">
-          <span class="mini-label">BRING YOUR OWN TOOLS</span>
-          <ul class="requirements"><li><span aria-hidden="true">✓</span> An Apple Silicon Mac</li><li><span aria-hidden="true">✓</span> A supported coding CLI, installed and signed in</li><li><span aria-hidden="true">✓</span> Rust, Node.js and Xcode Command Line Tools</li></ul>
-          <div class="code-heading"><span>Start from the source</span><button class="copy-button" type="button" hidden>Copy commands</button></div>
-          <pre tabindex="0" aria-label="Setup commands"><code id="setup-commands">git clone https://github.com/jorgegorka/sonata.git
+        <div class="install-grid">
+          <article class="install-card" data-platform="macos">
+            <span class="mini-label">APPLE SILICON</span>
+            <h3>macOS</h3>
+            <p>Download the disk image, open it, and drag Sonata into Applications.</p>
+            <p class="install-requirement">macOS 11 or later · M1 or newer</p>
+            <a class="button button-primary" data-asset="Sonata-macos-aarch64.dmg" href="https://github.com/jorgegorka/sonata/releases">View DMG releases</a>
+            <a class="text-link" data-asset="SHA256SUMS" href="https://github.com/jorgegorka/sonata/releases">Checksums ↗</a>
+            <p class="install-detail">Public builds are signed and notarized. No Rust, Node.js or Xcode needed.</p>
+            <p class="platform-hint" aria-live="polite"></p>
+          </article>
+          <article class="install-card" data-platform="linux">
+            <span class="mini-label">X86_64 &amp; ARM64</span>
+            <h3>Linux</h3>
+            <p>Choose an AppImage, or install the DEB package on Ubuntu and Debian.</p>
+            <p class="install-requirement">Ubuntu 22.04 / Debian 12 or compatible</p>
+            <label class="architecture-label" hidden>Architecture
+              <select id="linux-architecture" aria-describedby="architecture-help">
+                <option value="x86_64">x86_64 — Intel / AMD</option>
+                <option value="aarch64">ARM64 — aarch64</option>
+              </select>
+            </label>
+            <div class="linux-downloads" data-arch="x86_64">
+              <span class="download-architecture">x86_64</span>
+              <a class="button button-secondary" data-asset="Sonata-linux-x86_64.AppImage" href="https://github.com/jorgegorka/sonata/releases">View AppImage releases</a>
+              <a class="text-link" data-asset="Sonata-linux-x86_64.deb" href="https://github.com/jorgegorka/sonata/releases">View DEB releases ↗</a>
+            </div>
+            <div class="linux-downloads" data-arch="aarch64">
+              <span class="download-architecture">ARM64</span>
+              <a class="button button-secondary" data-asset="Sonata-linux-aarch64.AppImage" href="https://github.com/jorgegorka/sonata/releases">View AppImage releases</a>
+              <a class="text-link" data-asset="Sonata-linux-aarch64.deb" href="https://github.com/jorgegorka/sonata/releases">View DEB releases ↗</a>
+            </div>
+            <p class="install-detail" id="architecture-help">Run <code>uname -m</code> if you are unsure which architecture to choose.</p>
+            <p class="platform-hint" aria-live="polite"></p>
+          </article>
+          <article class="install-card">
+            <span class="mini-label">FOR CONTRIBUTORS &amp; THE CURIOUS</span>
+            <h3>Build from source</h3>
+            <p>Explore the code, try a change, or build Sonata on your own machine.</p>
+            <p class="install-requirement">Rust · Node.js · platform build tools</p>
+            <a class="button button-secondary" href="https://github.com/jorgegorka/sonata#build-from-source">Read the build guide ↗</a>
+            <div class="code-heading"><span>Get the source</span><button class="copy-button" data-copy="setup-commands" type="button" hidden>Copy</button></div>
+            <pre tabindex="0" aria-label="Source setup commands"><code id="setup-commands">git clone https://github.com/jorgegorka/sonata.git
 cd sonata
-scripts/setup.sh</code></pre>
-          <p class="copy-status" role="status" aria-live="polite"></p>
-          <p class="setup-note">The <a href="https://github.com/jorgegorka/sonata#requirements">setup guide</a> covers prerequisites and launching the app.</p>
-          <p class="autonomy-note"><strong>Know what you’re running.</strong> Bots run autonomously with your macOS user’s access to files and commands. Their folders are not sandboxes. Use trusted tasks, skills and configurations. <a href="https://github.com/jorgegorka/sonata#sonata">Read the safety note ↗</a></p>
+scripts/setup.sh
+cd app &amp;&amp; npm run bundle:unsigned</code></pre>
+            <p class="copy-status" role="status" aria-live="polite"></p>
+          </article>
         </div>
+        <div class="install-command setup-panel" data-binary-install hidden>
+          <div class="code-heading"><span>Install or update from your terminal</span><button class="copy-button" data-copy="install-command" type="button" hidden>Copy command</button></div>
+          <pre tabindex="0" aria-label="Install Sonata"><code id="install-command">curl -fsSL https://jorgegorka.github.io/sonata/install.sh | bash</code></pre>
+          <p class="copy-status" role="status" aria-live="polite"></p>
+          <p class="setup-note">Detects your platform and verifies the download. Finish your work and quit Sonata before updating. Your saved data stays in place.</p>
+          <p class="install-resources"><a href="https://github.com/jorgegorka/sonata#installation">Installation guide</a><a data-release-notes href="https://github.com/jorgegorka/sonata/releases">Release notes</a><a data-asset="SHA256SUMS" href="https://github.com/jorgegorka/sonata/releases">Checksums</a><a href="./install.sh">Inspect the installer</a></p>
+        </div>
+        <p class="autonomy-note"><strong>Know what you’re running.</strong> Bots run autonomously with your user account’s access to files and commands. Their folders are not sandboxes. Use trusted tasks, skills and configurations. <a href="https://github.com/jorgegorka/sonata#sonata">Read the safety note ↗</a></p>
       </section>
     </main>
 

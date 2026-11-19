@@ -4,8 +4,18 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app"],
-    "externalBin": ["binaries/sbot", "binaries/herdr"],
-    "resources": { "licenses/herdr-LICENSE.txt": "licenses/herdr-LICENSE.txt" }
+    "targets": [
+      "app"
+    ],
+    "externalBin": [
+      "binaries/sbot",
+      "binaries/herdr"
+    ],
+    "resources": {
+      "licenses/herdr-LICENSE.txt": "licenses/herdr-LICENSE.txt"
+    },
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    }
   }
 }

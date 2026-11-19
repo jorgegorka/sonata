@@ -1,6 +1,6 @@
 export type LinkAction = "inline" | "external" | "ignore";
 
-export function linkAction(href: string | undefined, modifiers: { metaKey: boolean }): LinkAction {
+export function linkAction(href: string | undefined, modifiers: { metaKey: boolean; ctrlKey?: boolean }): LinkAction {
   if (!href) return "ignore";
   let protocol: string;
   try {
@@ -9,6 +9,6 @@ export function linkAction(href: string | undefined, modifiers: { metaKey: boole
     return "ignore";
   }
   if (protocol === "mailto:") return "external";
-  if (protocol === "http:" || protocol === "https:") return modifiers.metaKey ? "external" : "inline";
+  if (protocol === "http:" || protocol === "https:") return (modifiers.metaKey || modifiers.ctrlKey) ? "external" : "inline";
   return "ignore";
 }

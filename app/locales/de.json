@@ -697,7 +697,7 @@
     "configBackupTooLarge": "Was dieser Import ersetzen würde, ist größer als {{mb}} MB, zu viel für eine Kopie. Es wurde nichts importiert.",
     "skillSlugInvalid": "{{slug}} ist kein gültiger Name für eine Fähigkeit: Kleinbuchstaben, Ziffern und Bindestriche.",
     "skillPathInvalid": "Die Fähigkeit hat einen Dateipfad, den Sonata nicht akzeptiert: {{path}}.",
-    "skillPathRepeated": "Die Fähigkeit enthält die Datei {{path}} doppelt (auf einem Mac sind Namen, die sich nur in der Groß-/Kleinschreibung unterscheiden, dieselbe Datei).",
+    "skillPathRepeated": "Die Fähigkeit enthält {{path}} doppelt. Dateinamen müssen auch ohne Berücksichtigung der Groß-/Kleinschreibung eindeutig sein.",
     "skillPathConflict": "In der Fähigkeit ist {{path}} sowohl eine Datei als auch ein Ordner.",
     "skillFileContent": "Die Datei {{path}} der Fähigkeit braucht genau eines von Text oder Base64, und lesbares Base64.",
     "skillNameNotSlug": "Die SKILL.md der Fähigkeit nennt nicht {{slug}} als Namen.",
@@ -708,5 +708,33 @@
     "importDependsOn": "Sie braucht {{name}}, das sich nicht importieren lässt.",
     "languageUnknown": "Diese Sprache ist nicht verfügbar.",
     "databaseTooNew": "Diese Daten wurden von einer neueren Version von Sonata gesichert."
+  },
+  "linux": {
+    "skills": {
+      "showFolder": "Im Dateimanager zeigen"
+    },
+    "message": {
+      "reveal": "Im Dateimanager zeigen"
+    },
+    "browser": {
+      "hide": "Browser ausblenden (Alt+Ctrl+B)",
+      "show": "Browser einblenden (Alt+Ctrl+B)",
+      "pick": "Element auf der Seite auswählen (Shift+Ctrl+C)",
+      "stopPick": "Auswahl beenden (Shift+Ctrl+C)"
+    },
+    "notifications": {
+      "hiddenBody": "Deine Bots arbeiten weiter. Öffne Sonata über die Taskleiste; wähle Beenden im Anwendungsmenü, um es zu stoppen."
+    },
+    "setup": {
+      "intro": "Sonata betreibt KI-Bots auf diesem Computer. Prüfe vor deinem ersten Bot diese Punkte.",
+      "safety": "Bots arbeiten selbstständig. Sie führen Befehle aus und lesen und schreiben Dateien, ohne dich vorher zu fragen, mit demselben Zugriff wie dein Linux-Benutzer. Der Ordner eines Bots ist sein Arbeitsplatz, kein Zaun um ihn herum.",
+      "toolsHint": "Bots laufen mit Claude Code, Codex, Grok oder OpenCode, auf diesem Computer installiert und angemeldet. Du brauchst mindestens eines."
+    },
+    "settings": {
+      "show": "Im Dateimanager zeigen"
+    },
+    "errors": {
+      "opensPrograms": "Diese Datei kann Programme ausführen oder Software installieren, deshalb zeigt Sonata sie nur im Dateimanager."
+    }
   }
 }

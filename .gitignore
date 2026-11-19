@@ -4,9 +4,12 @@
 /.superpowers/
 /.worktrees/
 node_modules/
+__pycache__/
 /app/dist/
 /app/src-tauri/gen/
 /app/src-tauri/binaries/
+/app/src-tauri/runtime/
+/release-dist/
 .DS_Store
 .env
 .env.*

@@ -141,6 +141,7 @@ impl Labels {
 pub fn build<R: Runtime>(handle: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     let name = handle.package_info().name.clone();
     let l = Labels::in_language(crate::locale::language(), &name);
+    #[cfg(target_os = "macos")]
     let app_menu = Submenu::with_items(
         handle,
         &name,
@@ -155,6 +156,18 @@ pub fn build<R: Runtime>(handle: &AppHandle<R>) -> tauri::Result<Menu<R>> {
             &PredefinedMenuItem::hide(handle, Some(&l.hide))?,
             &PredefinedMenuItem::hide_others(handle, Some(&l.hide_others))?,
             &PredefinedMenuItem::show_all(handle, Some(&l.show_all))?,
+            &PredefinedMenuItem::separator(handle)?,
+            &PredefinedMenuItem::quit(handle, Some(&l.quit))?,
+        ],
+    )?;
+    #[cfg(not(target_os = "macos"))]
+    let app_menu = Submenu::with_items(
+        handle,
+        &name,
+        true,
+        &[
+            &MenuItem::with_id(handle, ABOUT_ID, &l.about, true, None::<&str>)?,
+            &MenuItem::with_id(handle, SETTINGS_ID, &l.settings, true, Some("Ctrl+,"))?,
             &PredefinedMenuItem::separator(handle)?,
             &PredefinedMenuItem::quit(handle, Some(&l.quit))?,
         ],

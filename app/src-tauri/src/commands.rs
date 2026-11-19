@@ -86,14 +86,19 @@ pub async fn delete_bot(
 }
 
 pub fn move_to_trash(path: &Path) -> Result<(), String> {
-    use trash::macos::{DeleteMethod, TrashContextExtMacos};
+    #[allow(unused_mut)]
     let mut context = trash::TrashContext::default();
-    context.set_delete_method(DeleteMethod::NsFileManager);
+    #[cfg(target_os = "macos")]
+    {
+        use trash::macos::{DeleteMethod, TrashContextExtMacos};
+        context.set_delete_method(DeleteMethod::NsFileManager);
+    }
     context.delete(path).map_err(|e| e.to_string())
 }
 
 fn finder(path: &Path) -> Command {
-    let mut command = Command::new("/usr/bin/open");
+    let mut command = Command::new(if cfg!(target_os = "macos") { "/usr/bin/open" } else { "xdg-open" });
+    crate::platform::host_command(&mut command);
     command.arg(path);
     command
 }
@@ -510,18 +515,22 @@ pub fn attachment_command(
     if !path.exists() {
         return Err(CommandError::new("fileGone", json!({ "path": path.to_string_lossy() })));
     }
-    let mut command = Command::new("/usr/bin/open");
     if reveal {
-        command.arg("-R").arg(path);
-        return Ok(command);
+        #[cfg(target_os = "macos")]
+        {
+            let mut command = Command::new("/usr/bin/open");
+            command.arg("-R").arg(path);
+            return Ok(command);
+        }
+        #[cfg(not(target_os = "macos"))]
+        return Ok(finder(path.parent().unwrap_or(&path)));
     }
     let refused = || CommandError::new("opensPrograms", json!({}));
     let target = std::fs::canonicalize(&path).map_err(|_| refused())?;
     if sonata_core::attachments::runs_programs(&target) || is_finder_alias(&target) {
         return Err(refused());
     }
-    command.arg(target);
-    Ok(command)
+    Ok(finder(&target))
 }
 
 pub async fn run_open(mut command: Command) -> Result<(), CommandError> {
@@ -888,10 +897,19 @@ with tickets",
         wait_for_prompts(&rt, 1).await;
         let copy = &msg.attachments[0].path;
         let reveal = attachment_command(&engine, &msg.id, 0, true).unwrap();
-        assert_eq!(reveal.get_program(), "/usr/bin/open");
-        assert_eq!(reveal.get_args().collect::<Vec<_>>(), vec!["-R", copy.as_str()]);
+        #[cfg(target_os = "macos")]
+        {
+            assert_eq!(reveal.get_program(), "/usr/bin/open");
+            assert_eq!(reveal.get_args().collect::<Vec<_>>(), vec!["-R", copy.as_str()]);
+        }
+        #[cfg(target_os = "linux")]
+        {
+            assert_eq!(reveal.get_program(), "xdg-open");
+            assert_eq!(reveal.get_args().collect::<Vec<_>>(), vec![Path::new(copy).parent().unwrap().as_os_str()]);
+        }
         let open = attachment_command(&engine, &msg.id, 0, false).unwrap();
         let canonical = std::fs::canonicalize(copy).unwrap();
+        #[cfg(target_os = "macos")]
         assert_ne!(canonical.to_string_lossy(), copy.as_str(), "the test needs a path with a link in it");
         assert_eq!(open.get_args().collect::<Vec<_>>(), vec![canonical.as_os_str()]);
         assert!(attachment_command(&engine, &msg.id, 1, false).is_err());
@@ -919,7 +937,14 @@ with tickets",
         let err = attachment_command(&engine, &msg.id, 0, false).unwrap_err();
         assert_eq!(err.code, "opensPrograms");
         let reveal = attachment_command(&engine, &msg.id, 0, true).unwrap();
+        #[cfg(target_os = "macos")]
         assert_eq!(reveal.get_args().collect::<Vec<_>>(), vec!["-R", copy.as_str()], "Show in Finder still works");
+        #[cfg(target_os = "linux")]
+        assert_eq!(
+            reveal.get_args().collect::<Vec<_>>(),
+            vec![Path::new(copy).parent().unwrap().as_os_str()],
+            "The containing folder can still be shown safely"
+        );
     }
 
     #[tokio::test]
@@ -1191,7 +1216,7 @@ with tickets",
     #[test]
     fn folders_open_in_finder() {
         let command = finder(Path::new("/x/bots"));
-        assert_eq!(command.get_program(), "/usr/bin/open");
+        assert_eq!(command.get_program(), if cfg!(target_os = "macos") { "/usr/bin/open" } else { "xdg-open" });
         assert_eq!(command.get_args().collect::<Vec<_>>(), vec!["/x/bots"]);
     }
 }

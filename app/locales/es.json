@@ -697,7 +697,7 @@
     "configBackupTooLarge": "Lo que esta importación reemplazaría ocupa más de {{mb}} MB, demasiado para guardar una copia. No se importó nada.",
     "skillSlugInvalid": "{{slug}} no es un nombre de habilidad válido: letras minúsculas, dígitos y guiones.",
     "skillPathInvalid": "La habilidad tiene una ruta de archivo que Sonata no acepta: {{path}}.",
-    "skillPathRepeated": "La habilidad tiene el archivo {{path}} dos veces (en un Mac, los nombres que solo difieren en mayúsculas son un mismo archivo).",
+    "skillPathRepeated": "La habilidad contiene {{path}} dos veces. Los nombres deben ser únicos también al compararlos sin distinguir mayúsculas.",
     "skillPathConflict": "En la habilidad, {{path}} es a la vez un archivo y una carpeta.",
     "skillFileContent": "El archivo {{path}} de la habilidad necesita exactamente uno de texto o base64, y base64 legible.",
     "skillNameNotSlug": "El SKILL.md de la habilidad no da {{slug}} como nombre.",
@@ -708,5 +708,33 @@
     "importDependsOn": "Necesita {{name}}, que no se puede importar.",
     "languageUnknown": "Este idioma no está disponible.",
     "databaseTooNew": "Estos datos los guardó una versión más nueva de Sonata."
+  },
+  "linux": {
+    "skills": {
+      "showFolder": "Mostrar en el gestor de archivos"
+    },
+    "message": {
+      "reveal": "Mostrar en el gestor de archivos"
+    },
+    "browser": {
+      "hide": "Ocultar el navegador (Alt+Ctrl+B)",
+      "show": "Mostrar el navegador (Alt+Ctrl+B)",
+      "pick": "Seleccionar un elemento de la página (Shift+Ctrl+C)",
+      "stopPick": "Dejar de seleccionar (Shift+Ctrl+C)"
+    },
+    "notifications": {
+      "hiddenBody": "Tus bots siguen trabajando. Restaura Sonata desde la barra de tareas; elige Salir en el menú de la aplicación para detenerla."
+    },
+    "setup": {
+      "intro": "Sonata ejecuta bots de IA en este equipo. Antes de tu primer bot, comprueba estas cosas.",
+      "safety": "Los bots trabajan por su cuenta. Ejecutan comandos y leen y escriben archivos sin preguntarte antes, con el mismo acceso que tu usuario de Linux. La carpeta de un bot es donde trabaja, no una valla a su alrededor.",
+      "toolsHint": "Los bots funcionan con Claude Code, Codex, Grok u OpenCode, instalados y con la sesión iniciada en este equipo. Necesitas al menos uno."
+    },
+    "settings": {
+      "show": "Mostrar en el gestor de archivos"
+    },
+    "errors": {
+      "opensPrograms": "Este archivo puede ejecutar programas o instalar software, así que Sonata solo lo muestra en el gestor de archivos."
+    }
   }
 }

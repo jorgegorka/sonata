@@ -697,7 +697,7 @@
     "configBackupTooLarge": "Ce que cet import remplacerait dépasse {{mb}} Mo, trop pour en garder une copie. Rien n'a été importé.",
     "skillSlugInvalid": "{{slug}} n'est pas un nom de compétence valide : lettres minuscules, chiffres et tirets.",
     "skillPathInvalid": "La compétence a un chemin de fichier que Sonata n'accepte pas : {{path}}.",
-    "skillPathRepeated": "La compétence contient le fichier {{path}} en double (sur un Mac, des noms qui ne diffèrent que par la casse sont un seul fichier).",
+    "skillPathRepeated": "La compétence contient {{path}} en double. Les noms doivent aussi être uniques sans tenir compte de la casse.",
     "skillPathConflict": "Dans la compétence, {{path}} est à la fois un fichier et un dossier.",
     "skillFileContent": "Le fichier {{path}} de la compétence doit avoir exactement un texte ou un base64, et un base64 lisible.",
     "skillNameNotSlug": "Le SKILL.md de la compétence ne donne pas {{slug}} comme nom.",
@@ -708,5 +708,33 @@
     "importDependsOn": "Il a besoin de {{name}}, qui ne peut pas être importé.",
     "languageUnknown": "Cette langue n'est pas disponible.",
     "databaseTooNew": "Ces données ont été enregistrées par une version plus récente de Sonata."
+  },
+  "linux": {
+    "skills": {
+      "showFolder": "Afficher dans le gestionnaire de fichiers"
+    },
+    "message": {
+      "reveal": "Afficher dans le gestionnaire de fichiers"
+    },
+    "browser": {
+      "hide": "Masquer le navigateur (Alt+Ctrl+B)",
+      "show": "Afficher le navigateur (Alt+Ctrl+B)",
+      "pick": "Sélectionner un élément de la page (Shift+Ctrl+C)",
+      "stopPick": "Arrêter la sélection (Shift+Ctrl+C)"
+    },
+    "notifications": {
+      "hiddenBody": "Vos bots continuent de travailler. Restaurez Sonata depuis la barre des tâches ; choisissez Quitter dans le menu de l’application pour l’arrêter."
+    },
+    "setup": {
+      "intro": "Sonata fait tourner des bots d'IA sur cet ordinateur. Avant votre premier bot, vérifiez ces points.",
+      "safety": "Les bots travaillent seuls. Ils exécutent des commandes et lisent et écrivent des fichiers sans vous demander, avec le même accès que votre utilisateur Linux. Le dossier d'un bot est l'endroit où il travaille, pas une barrière autour de lui.",
+      "toolsHint": "Les bots fonctionnent avec Claude Code, Codex, Grok ou OpenCode, installés et connectés sur cet ordinateur. Il vous en faut au moins un."
+    },
+    "settings": {
+      "show": "Afficher dans le gestionnaire de fichiers"
+    },
+    "errors": {
+      "opensPrograms": "Ce fichier peut exécuter des programmes ou installer des logiciels, Sonata ne fait donc que l'afficher dans le gestionnaire de fichiers."
+    }
   }
 }

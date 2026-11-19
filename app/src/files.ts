@@ -10,8 +10,10 @@ export function addFiles(current: string[], added: string[]): string[] {
 }
 
 export const RUNNABLE_EXTENSIONS = [
-  "app", "applescript", "bash", "command", "csh", "fileloc", "fish", "inetloc", "jar", "ksh", "mobileconfig",
-  "mpkg", "pkg", "pl", "py", "rb", "scpt", "sh", "terminal", "tool", "webloc", "workflow", "zsh",
+  "app", "appimage", "applescript", "bash", "command", "csh", "deb", "desktop",
+  "fileloc", "fish", "flatpak", "flatpakref", "inetloc", "jar", "ksh", "mobileconfig",
+  "mpkg", "pkg", "pl", "py", "rb", "rpm", "run", "scpt",
+  "sh", "terminal", "tool", "webloc", "workflow", "zsh",
 ];
 
 export function opensPrograms(name: string): boolean {

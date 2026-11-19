@@ -85,7 +85,7 @@ export default function WorkflowsView({ workflows, bots, onNew, onEdit, onRun, o
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && e.metaKey && !e.nativeEvent.isComposing) {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) {
       e.preventDefault();
       void request();
     }

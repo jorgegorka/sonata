@@ -8,6 +8,7 @@ mod locale;
 mod logging;
 mod menu;
 mod notify;
+mod platform;
 mod startup;
 mod tray;
 
@@ -538,6 +539,7 @@ fn build_engine(
     paths: &AppPaths,
     preferred: &[String],
     system_language: &'static str,
+    resources: Option<&Path>,
 ) -> Result<(Engine, File, AppEnv), StartupError> {
     let lock = paths.lock().map_err(startup::lock_error)?;
     let store = Store::open(&paths.db_path()).map_err(startup::store_error)?;
@@ -547,16 +549,15 @@ fn build_engine(
     let saved = store.get_setting("bots_root").map_err(startup::store_error)?;
     paths.bots_root =
         resolve_bots_root(std::env::var_os("SONATA_BOTS_ROOT").map(PathBuf::from), saved, paths.bots_root);
-    let herdr = herdr_client::find_herdr_bin().ok_or_else(|| {
+    let executable = std::env::current_exe().unwrap_or_default();
+    let runtime_dir = platform::runtime_dir(&executable, resources);
+    let herdr = std::env::var_os("SONATA_HERDR_BIN").map(PathBuf::from).unwrap_or_else(|| runtime_dir.join("herdr"));
+    let herdr = Some(herdr).filter(|p| p.is_file()).ok_or_else(|| {
         StartupError::new("herdrMissing", vec![], "no herdr next to the executable (dev runs set SONATA_HERDR_BIN)")
     })?;
-    let sbot_dir = std::env::current_exe()
-        .ok()
-        .and_then(|exe| exe.parent().map(Path::to_path_buf))
-        .filter(|dir| dir.join("sbot").is_file())
-        .ok_or_else(|| {
-            StartupError::new("sbotMissing", vec![], "no sbot next to the executable (dev runs: cargo build -p sbot)")
-        })?;
+    let sbot_dir = Some(runtime_dir).filter(|dir| dir.join("sbot").is_file()).ok_or_else(|| {
+        StartupError::new("sbotMissing", vec![], "no sbot next to the executable (dev runs: cargo build -p sbot)")
+    })?;
     tracing::info!(herdr = %herdr.display(), sbot = %sbot_dir.display(), "found herdr and sbot");
     let shell = detect::user_shell();
     let user = Arc::new(tokio::sync::OnceCell::new());
@@ -676,7 +677,9 @@ async fn browser_pick_close(app: tauri::AppHandle) -> Result<(), CommandError> {
 }
 
 fn main() {
-    let preferred = tauri::async_runtime::block_on(language::apple_languages());
+    let context = tauri::generate_context!();
+    let resources = tauri::utils::platform::resource_dir(context.package_info(), &tauri::utils::Env::default()).ok();
+    let preferred = tauri::async_runtime::block_on(language::preferred_languages());
     let system_language = language::system_language(&preferred);
     locale::set_language(system_language);
     let paths = AppPaths::from_env_or_default();
@@ -688,8 +691,8 @@ fn main() {
         startup::exit_with(StartupError::new("logging", vec![("error", message.clone())], message));
     }
     tracing::info!(data_dir = %paths.data_dir.display(), "Sonata is starting");
-    let (engine, _lock, app_env) =
-        build_engine(&paths, &preferred, system_language).unwrap_or_else(|e| startup::exit_with(e));
+    let (engine, _lock, app_env) = build_engine(&paths, &preferred, system_language, resources.as_deref())
+        .unwrap_or_else(|e| startup::exit_with(e));
     let socket = paths.bridge_socket();
     let bridge = tauri::async_runtime::block_on(async {
         engine.run_event_loop();
@@ -714,7 +717,10 @@ fn main() {
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
+                #[cfg(target_os = "macos")]
                 let _ = window.hide();
+                #[cfg(not(target_os = "macos"))]
+                let _ = window.minimize();
                 hint_once(window.app_handle());
             }
         })
@@ -875,11 +881,12 @@ fn main() {
             });
             Ok(())
         })
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("error while building Sonata")
-        .run(move |app, event| match event {
+        .run(move |_app, event| match event {
             RunEvent::Exit => tauri::async_runtime::block_on(for_exit.shutdown()),
-            RunEvent::Reopen { has_visible_windows: false, .. } => tray::show_window(app),
+            #[cfg(target_os = "macos")]
+            RunEvent::Reopen { has_visible_windows: false, .. } => tray::show_window(_app),
             _ => {}
         });
 }

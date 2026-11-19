@@ -349,7 +349,8 @@
 
   function post(message) {
     const json = JSON.stringify(message, (_, value) => (typeof value === "string" ? wellFormed(value) : value));
-    window.webkit?.messageHandlers?.sonataPick?.postMessage(json);
+    if (globalThis.__sonataPost) globalThis.__sonataPost(json);
+    else window.webkit?.messageHandlers?.sonataPick?.postMessage(json);
   }
 
   function onMutation(records) {

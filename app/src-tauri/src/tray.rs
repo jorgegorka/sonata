@@ -90,8 +90,14 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
     let paused = app.state::<Engine>().paused().unwrap_or(false);
     let (menu, pause) = menu(app, paused)?;
     TrayIconBuilder::with_id(TRAY_ID)
-        .icon(icon())
-        .icon_as_template(true)
+        .icon(if cfg!(target_os = "macos") {
+            icon()
+        } else {
+            app.default_window_icon()
+                .map(|i| Image::new_owned(i.rgba().to_vec(), i.width(), i.height()))
+                .unwrap_or_else(icon)
+        })
+        .icon_as_template(cfg!(target_os = "macos"))
         .tooltip(&app.package_info().name)
         .menu(&menu)
         .show_menu_on_left_click(true)

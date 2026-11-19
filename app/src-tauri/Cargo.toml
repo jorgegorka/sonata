@@ -17,7 +17,7 @@ tauri = { version = "2", features = ["tray-icon", "unstable"] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2.5.1"
-rfd = "0.16"
+rfd = { version = "0.16", default-features = false, features = ["gtk3"] }
 trash = "5"
 dirs.workspace = true
 serde.workspace = true
@@ -37,6 +37,10 @@ objc2-web-kit = { version = "0.3.2", default-features = false, features = [
   "std", "block2", "objc2-app-kit", "WKWebView", "WKContentWorld", "WKFrameInfo", "WKSecurityOrigin",
   "WKScriptMessage", "WKScriptMessageHandler", "WKUserContentController",
 ] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = { version = "=2.0.2", features = ["v2_38"] }
+javascriptcore-rs = "=1.1.2"
 
 [dev-dependencies]
 sonata-core = { path = "../../crates/sonata-core", features = ["test-util"] }

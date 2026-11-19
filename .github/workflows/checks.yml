@@ -1,0 +1,43 @@
+name: Desktop checks
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.100.0'
+      - uses: Swatinem/rust-cache@v2
+      - run: npm --prefix app ci --engine-strict
+      - run: npm --prefix app test
+      - run: npm --prefix app run build
+      - run: cargo test --locked --workspace
+      - run: python3 -m unittest discover -s scripts/tests -v
+      - run: python3 scripts/release.py check-version
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+      - run: docker build -t sonata-linux -f scripts/linux.Dockerfile scripts
+      - run: |
+          mkdir -p release-dist
+          docker run --rm -v "$PWD:/source:ro" -v "$PWD/release-dist:/artifacts" sonata-linux --package
