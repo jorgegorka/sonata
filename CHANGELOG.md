@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Add **Export all…** to the Workflows page to save all workflows, bots and skills,
+  including skill files, in one YAML file compatible with configuration import.
+
 ## 1.0.0 — 2026-11-19
 
 Initial Sonata release.

@@ -583,6 +583,8 @@
     "title": "Configuration",
     "hint": "Enregistrez vos bots, compétences et workflows dans un fichier, ou chargez-en un.",
     "export": "Exporter…",
+    "exportAll": "Tout exporter…",
+    "exportAllHint": "Exportez tous les workflows, bots et compétences, y compris les fichiers des compétences, dans un seul fichier YAML. Restaurez le tout depuis Réglages → Configuration → Importer.",
     "import": "Importer…",
     "fileFilter": "Configuration de Sonata",
     "exported": "{{file}} enregistré. Bots : {{bots}} · Compétences : {{skills}} · Workflows : {{workflows}}",

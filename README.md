@@ -38,6 +38,85 @@ your approval.
   workflows to a file and load them on another computer.
 - English, Spanish, German and French interface. Bots write to you in your language.
 
+## Sharing workflows and configuration
+
+Share a useful workflow with a teammate, or take your complete bot setup to another computer.
+Sonata saves both as YAML files (`.yaml` or `.yml`) that another Sonata installation can import.
+
+| Contents | Complete export | Individual workflow export |
+| --- | --- | --- |
+| Workflows | Every workflow | The selected workflow |
+| Bots | Every bot, including Master and bots unused by workflows | The bots used by the selected workflow's steps |
+| Skills | The entire skill library, including unassigned skills | The skills assigned to those bots |
+| Bot settings | Names, handles, colors, providers, models, instructions and skill assignments | The same settings for the included bots |
+| Skill contents | `SKILL.md`, supporting files and executable permissions | The same contents for the included skills |
+
+Workflow definitions include their instructions, steps, connections and canvas layout. Individual
+exports follow the bot and skill assignments recorded in Sonata; mentioning another bot, skill or
+file in instructions or scripts does not add it to the export.
+
+### Export and import your complete setup
+
+1. Open **Workflows** and choose **Export all…**. You can also use
+   **Settings → Configuration → Export…**; both save the same complete configuration.
+2. Choose where to save the YAML file. Keep it as a configuration backup or share it with the
+   person who will use the setup.
+3. On the receiving installation, open **Settings → Configuration → Import…** and select the file.
+4. Review the preview, which lists new entries, entries already present and anything that cannot
+   be imported. Choose **Add new** to add missing entries while preserving existing versions, or
+   **Add and replace** to also update matching entries that differ. Unchanged entries are reused.
+
+Importing merges the file into the receiving setup; it does not remove bots, skills or workflows
+that are absent from the file. If the file or local setup changes after the preview, Sonata asks
+you to review the updated preview before applying it.
+
+### Share and import one workflow
+
+1. Open **Workflows** and click **Export…** beside the workflow you want to share.
+2. Save the YAML file and send it to the recipient. Its bots and their assigned skills travel
+   with it, so you do not need to export them separately.
+3. The recipient opens **Workflows → Import workflow…** and selects the file. This also accepts a
+   complete configuration export: if it contains several workflows, choose which one to import.
+4. Review the workflow, bots and skills in the preview. New items are added and identical local
+   items are reused. For conflicts, choose **Keep local** or **Replace** for each required item.
+   To keep both versions of a workflow, choose **Import under a new name** and enter an unused name.
+5. Resolve every required choice, then click **Import workflow**. Invalid or unresolved required
+   items block the import until they are resolved.
+
+For example, sharing a Builder → Reviewer workflow includes those two bots and their assigned
+skills. Other workflows, unrelated bots and unassigned skills stay out of that file. When importing
+from a complete export, the workflow importer likewise uses only the selected workflow and the
+dependencies needed for your choices.
+
+Keeping a local bot uses its existing instructions and skill assignments, which can change how
+the imported workflow behaves. Replacing a shared bot or skill also affects its other users,
+including subsequent messages in existing sessions. The preview identifies these shared uses.
+Importing under a new workflow name still requires reviewing any shared bot and skill conflicts.
+
+### What to prepare on the receiving computer
+
+Configuration exports contain your bot and workflow definitions and skill files. Conversations,
+workflow run history, project files in bot folders, recurring tasks, app preferences and provider
+sign-ins are not included. Use a separate backup for that data.
+
+Install and sign in to the coding CLIs the imported bots use, and make any required projects,
+tools and external files available on the receiving computer. Review machine-specific paths in
+your own instructions and scripts.
+
+Review the file before sharing: bot instructions and bundled skill files are included, along with
+any private information or secrets you put in them. Import only configurations from people you
+trust, because skills can contain scripts your bots will run.
+
+### Recover replaced configuration
+
+Before replacing existing entries, Sonata saves their previous configuration to a YAML backup.
+The import result reports the backup's filename in the Trash, or its saved path if Sonata could
+not move it there. To restore those versions, recover the file from the Trash if needed, then use
+**Settings → Configuration → Import…** and **Add and replace**.
+
+This restores the replaced configuration; it does not remove new entries added by the import.
+Check the import result for the entries written and any error if an import stops before finishing.
+
 ## How it works
 
 ```text
@@ -222,6 +301,9 @@ They need the CLIs they name to be installed and signed in. `SONATA_LIVE_OPENCOD
 the OpenCode model they use. herdr-client's live tests run whenever `SONATA_HERDR_BIN` is set.
 
 ## Configuration
+
+To export your setup or share one workflow, see
+[Sharing workflows and configuration](#sharing-workflows-and-configuration).
 
 | Variable | Default | Purpose |
 | --- | --- | --- |

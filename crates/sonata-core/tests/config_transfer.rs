@@ -41,8 +41,21 @@ fn read(path: &Path) -> ConfigFile {
 async fn export_writes_every_bot_skill_and_workflow() {
     let h = harness();
     let _checkout = set_up(&h);
+    let unused_bot = h.engine.create_bot(claude_bot("Standalone")).unwrap();
+    let unused_skill = h
+        .engine
+        .create_skill(NewSkill {
+            name: "Unassigned".into(),
+            description: "For later".into(),
+            body: "Keep this.".into(),
+        })
+        .unwrap();
+    let original = h.engine.list_workflows().unwrap().remove(0);
+    h.engine
+        .create_workflow(NewWorkflow { name: "Another workflow".into(), when_to_use: String::new(), def: original.def })
+        .unwrap();
     let (_dir, path, summary) = exported(&h);
-    assert_eq!(summary, ExportSummary { bots: 9, skills: 10, workflows: 1 });
+    assert_eq!(summary, ExportSummary { bots: 10, skills: 11, workflows: 2 });
     let file = read(&path);
     assert_eq!(file.format, "sonata-config");
     assert_eq!(file.version, 1);
@@ -52,6 +65,20 @@ async fn export_writes_every_bot_skill_and_workflow() {
     assert_eq!(file.bots.iter().filter(|b| b.master).count(), 1);
     let plan = file.bots.iter().find(|b| b.handle == "plan").unwrap();
     assert_eq!(plan.skills, ["sonata", "sonata-plan"]);
+    assert!(file.bots.iter().any(|bot| bot.handle == unused_bot.handle));
+    let skill = file.skills.iter().find(|skill| skill.slug == unused_skill.slug).unwrap();
+    assert!(skill
+        .files
+        .iter()
+        .any(|entry| entry.path == "SKILL.md" && entry.text.as_ref().unwrap().contains("Keep this.")));
+    assert_eq!(file.workflows.len(), 2);
+    assert!(file.workflows.iter().any(|workflow| workflow.name == "Another workflow"));
+
+    let restored = harness();
+    let report = import(&restored, &path, ImportMode::AddNew);
+    assert_eq!(report.error, None);
+    let restored = restored.engine.export_config().unwrap();
+    assert_eq!((restored.bots, restored.skills, restored.workflows), (file.bots, file.skills, file.workflows));
 }
 
 #[tokio::test]

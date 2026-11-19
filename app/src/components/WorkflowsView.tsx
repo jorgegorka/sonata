@@ -1,9 +1,9 @@
-import { useState, type FormEvent, type KeyboardEvent } from "react";
+import { useId, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { ask, open, save } from "@tauri-apps/plugin-dialog";
 import { api, type BotView, type SentMessage, type Workflow, type WorkflowFileEntry } from "../api";
 import { errorMessage } from "../errors";
-import { workflowExportFileName } from "../configImport";
+import { exportFileName, workflowExportFileName } from "../configImport";
 import WorkflowImportPanel from "./WorkflowImportPanel";
 
 interface Props {
@@ -18,6 +18,7 @@ interface Props {
 
 export default function WorkflowsView({ workflows, bots, onNew, onEdit, onRun, onRequested, onImported }: Props) {
   const { t } = useTranslation();
+  const exportAllHintId = useId();
   const [error, setError] = useState<string | null>(null);
   const [configBusy, setConfigBusy] = useState(false);
   const [exported, setExported] = useState<string | null>(null);
@@ -31,13 +32,15 @@ export default function WorkflowsView({ workflows, bots, onNew, onEdit, onRun, o
 
   const filters = () => [{ name: t("config.fileFilter"), extensions: ["yaml", "yml"] }];
 
-  async function exportWorkflow(workflow: Workflow) {
+  async function exportConfiguration(workflow?: Workflow) {
     setConfigBusy(true);
     setError(null);
+    setExported(null);
     try {
-      const path = await save({ defaultPath: workflowExportFileName(workflow.name, new Date()), filters: filters() });
+      const defaultPath = workflow ? workflowExportFileName(workflow.name, new Date()) : exportFileName(new Date());
+      const path = await save({ defaultPath, filters: filters() });
       if (typeof path !== "string") return;
-      const summary = await api.exportWorkflowConfig(workflow.id, path);
+      const summary = workflow ? await api.exportWorkflowConfig(workflow.id, path) : await api.exportConfig(path);
       setImporting(null);
       setExported(t("config.exported", { file: path.split("/").pop(), ...summary }));
     } catch (err) {
@@ -111,14 +114,20 @@ export default function WorkflowsView({ workflows, bots, onNew, onEdit, onRun, o
     <div className="settings">
       <h1>{t("workflows.title")}</h1>
       <p className="muted">{t("workflows.intro")}</p>
-      <div className="actions start">
+      <div className="actions start workflow-actions">
         <button className="primary" onClick={onNew}>
           {t("workflows.new")}
         </button>
         <button disabled={configBusy} onClick={() => void importWorkflow()}>
           {t("workflowTransfer.import")}
         </button>
+        <button disabled={configBusy} aria-describedby={exportAllHintId} onClick={() => void exportConfiguration()}>
+          {t("config.exportAll")}
+        </button>
       </div>
+      <p id={exportAllHintId} className="muted">
+        {t("config.exportAllHint")}
+      </p>
       {error && (
         <div className="error" role="alert" onClick={() => setError(null)}>
           {error}
@@ -156,7 +165,7 @@ export default function WorkflowsView({ workflows, bots, onNew, onEdit, onRun, o
               <div className="actions start">
                 <button onClick={() => onRun(workflow.id)}>{t("workflows.run")}</button>
                 <button onClick={() => onEdit(workflow.id)}>{t("workflows.edit")}</button>
-                <button disabled={configBusy} onClick={() => void exportWorkflow(workflow)}>
+                <button disabled={configBusy} onClick={() => void exportConfiguration(workflow)}>
                   {t("config.export")}
                 </button>
                 <button className="danger" disabled={configBusy} onClick={() => void remove(workflow)}>

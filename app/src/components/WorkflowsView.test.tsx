@@ -205,6 +205,71 @@ describe("the Workflows page", () => {
     expect(host.querySelector('[role="status"]')?.textContent).toContain("Bots: 3");
   });
 
+  it("exports the full configuration from the toolbar and reports all saved items", async () => {
+    await mount([ticket, quick]);
+    tauri.saved = "/tmp/everything.yaml";
+    tauri.result = { workflows: 2, bots: 5, skills: 7 };
+    const exportAll = buttonIn(host, "Export all…");
+    const hint = document.getElementById(exportAll.getAttribute("aria-describedby")!);
+    expect(hint?.textContent).toContain("all workflows, bots and skills, including skill files");
+    expect(hint?.textContent).toContain("Settings → Configuration → Import");
+    await click(exportAll);
+    expect(tauri.invoked).toEqual([["export_config", { path: "/tmp/everything.yaml" }]]);
+    expect(tauri.saveOptions).toEqual({
+      defaultPath: expect.stringMatching(/^sonata-config-\d{4}-\d{2}-\d{2}\.yaml$/),
+      filters: [{ name: "Sonata configuration", extensions: ["yaml", "yml"] }],
+    });
+    expect(host.querySelector('[role="status"]')?.textContent).toBe(
+      "Saved everything.yaml. Bots: 5 · Skills: 7 · Workflows: 2",
+    );
+  });
+
+  it("can export bots and skills even when there are no workflows", async () => {
+    await mount([]);
+    tauri.saved = "/tmp/team.yaml";
+    tauri.result = { workflows: 0, bots: 3, skills: 2 };
+    expect(buttonIn(host, "Export all…").disabled).toBe(false);
+    await click(buttonIn(host, "Export all…"));
+    expect(tauri.invoked).toEqual([["export_config", { path: "/tmp/team.yaml" }]]);
+    expect(host.querySelector('[role="status"]')?.textContent).toContain("Bots: 3 · Skills: 2 · Workflows: 0");
+  });
+
+  it("cancels a full export without writing a file", async () => {
+    await mount([ticket]);
+    await click(buttonIn(host, "Export all…"));
+    expect(tauri.invoked).toEqual([]);
+    expect(host.querySelector('[role="status"]')).toBeNull();
+    expect(buttonIn(host, "Export all…").disabled).toBe(false);
+  });
+
+  it("explains a failed full export and clears the previous success message", async () => {
+    await mount([ticket]);
+    tauri.saved = "/tmp/team.yaml";
+    tauri.result = { workflows: 1, bots: 3, skills: 2 };
+    await click(buttonIn(host, "Export all…"));
+    expect(host.querySelector('[role="status"]')).not.toBeNull();
+    tauri.failure = { code: "configExportTooLarge", params: { mb: "256" } };
+    await click(buttonIn(host, "Export all…"));
+    expect(host.querySelector('[role="status"]')).toBeNull();
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain("more than 256 MB");
+    expect(buttonIn(host, "Export all…").disabled).toBe(false);
+  });
+
+  it("prevents overlapping imports and exports while the full file is being saved", async () => {
+    await mount([ticket]);
+    tauri.saved = "/tmp/team.yaml";
+    let finish!: (value: unknown) => void;
+    tauri.result = new Promise((resolve) => { finish = resolve; });
+    await click(buttonIn(host, "Export all…"));
+    expect(buttonIn(host, "Export all…").disabled).toBe(true);
+    expect(buttonIn(host, "Import workflow…").disabled).toBe(true);
+    expect(buttonIn(rows()[0], "Export…").disabled).toBe(true);
+    await act(async () => finish({ workflows: 1, bots: 3, skills: 2 }));
+    expect(buttonIn(host, "Export all…").disabled).toBe(false);
+    expect(buttonIn(host, "Import workflow…").disabled).toBe(false);
+    expect(buttonIn(rows()[0], "Export…").disabled).toBe(false);
+  });
+
   it("cancels file selection without API calls and explains files without workflows", async () => {
     await mount([]);
     await click(buttonIn(host, "Import workflow…"));
