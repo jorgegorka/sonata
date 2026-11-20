@@ -152,6 +152,7 @@ provider with the account you signed in with.
 | `app/locales` | Interface translations |
 | `scripts` | Setup and secret-scanning scripts |
 | `site` | Standalone homepage published with GitHub Pages |
+| `manifest.json`, `omarchy/` | Omarchy bar plugin (not listed on the marketplace yet) |
 
 ## Installation
 
@@ -211,6 +212,54 @@ For a terminal installation on Linux, remove `~/.local/opt/sonata`, `~/.local/bi
 `~/.local/share/icons/hicolor/*/apps/io.sonata.desktop.png`, adjusting custom paths.
 Removing the application preserves your data. Remove its data folder and bot folders separately
 only if you also want to delete your saved work.
+
+## Omarchy
+
+Sonata includes a bar plugin for the Omarchy Quattro shell. The plugin id is
+`io.github.jorgegorka.sonata`. It is not published on the
+[Omarchy plugin marketplace](https://plugins.omarchy.org/). No marketplace
+submission has been filed, so the marketplace has no Sonata install entry.
+
+The plugin files in this repository are `manifest.json` and `omarchy/`. Install
+them from the public repository:
+
+```sh
+omarchy plugin add https://github.com/jorgegorka/sonata.git --enable
+```
+
+Check the manifest from a checkout with:
+
+```sh
+omarchy plugin validate .
+```
+
+A marketplace listing is a separate step. Submit the repository through the
+[plugin form](https://github.com/omacom/omarchy-plugin-marketplace/issues/new?template=submit-plugin.yml).
+
+The plugin adds a bar button. The desktop app still comes from the signed DMG on
+macOS, or from the Linux installer or DEB above. The plugin runs inside the
+long-lived Omarchy shell with your user permissions.
+
+Click the Sonata button, then choose **Open Sonata**. The button looks for the
+default installer launcher at `~/.local/bin/sonata` (only when that file contains
+the installer's `# Sonata installer` line), then `/usr/bin/sonata` from a DEB, then
+`~/.local/opt/sonata/AppRun`. When Sonata is already running, the button focuses
+that window. When none of those binaries is present, the panel shows the Linux
+installer command so you can copy it into a terminal. A custom `SONATA_INSTALL_PREFIX`
+or `--dest` is outside those three paths.
+
+```sh
+omarchy bar move io.github.jorgegorka.sonata --section right
+```
+
+Remove an installed bar plugin with:
+
+```sh
+omarchy plugin remove io.github.jorgegorka.sonata
+```
+
+Removing the plugin leaves the desktop app, its database, and your bot folders in
+place. Uninstall the app itself with the steps under [Uninstall](#uninstall).
 
 ## Build from source
 

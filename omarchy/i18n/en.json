@@ -1,0 +1,7 @@
+{
+  "bar.tooltip": "Sonata",
+  "panel.title": "Sonata",
+  "panel.open": "Open Sonata",
+  "panel.missing": "Sonata is not installed. Copy this command into a terminal to install the Linux app.",
+  "panel.copy": "Copy command"
+}

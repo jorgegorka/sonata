@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.jorgegorka.sonata",
+  "name": "Sonata",
+  "version": "1.0.0",
+  "author": "Sonata contributors",
+  "license": "MIT",
+  "description": "Bar button that opens the Sonata desktop app.",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "omarchy/BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Sonata",
+    "category": "AI",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
