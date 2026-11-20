@@ -43,7 +43,6 @@ Panel {
   QtObject {
     id: install
 
-    readonly property string installCommand: "curl -fsSL https://jorgegorka.github.io/sonata/install.sh | bash"
     readonly property string debPath: "/usr/bin/sonata"
 
     property string home: ""
@@ -167,8 +166,17 @@ Panel {
       if (binary !== "") Quickshell.execDetached([binary])
     }
 
-    function copyCommand() {
-      Quickshell.execDetached(["wl-copy", installCommand])
+    function installApp() {
+      var dir = String(Qt.resolvedUrl("."))
+      if (dir.indexOf("file://") === 0) dir = dir.slice(7)
+      try { dir = decodeURIComponent(dir) } catch (e) {}
+      if (dir.slice(-1) === "/") dir = dir.slice(0, -1)
+      var script = dir + "/install-app.sh"
+      if (script.indexOf("\n") >= 0 || script.indexOf("'") >= 0) return
+      Quickshell.execDetached([
+        "omarchy-launch-floating-terminal-with-presentation",
+        "bash '" + script + "'"
+      ])
     }
   }
 
@@ -266,24 +274,13 @@ Panel {
           wrapMode: Text.WordWrap
         }
 
-        Text {
-          visible: install.probed && install.binary === ""
-          width: parent.width
-          textFormat: Text.PlainText
-          text: install.installCommand
-          color: root.foreground
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.bodySmall
-          wrapMode: Text.WrapAnywhere
-        }
-
         Button {
           visible: install.probed && install.binary === ""
           width: parent.width
-          text: strings.t("panel.copy")
+          text: strings.t("panel.install")
           fontFamily: root.fontFamily
           foreground: root.foreground
-          onClicked: install.copyCommand()
+          onClicked: install.installApp()
         }
       }
     }

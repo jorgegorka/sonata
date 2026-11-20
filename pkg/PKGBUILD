@@ -1,0 +1,61 @@
+# Maintainer: Sonata contributors
+pkgname=sonata
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='Coordinate your AI coding agents'
+arch=('x86_64' 'aarch64')
+url='https://github.com/jorgegorka/sonata'
+license=('MIT')
+depends=(
+  'gtk3'
+  'hicolor-icon-theme'
+  'libayatana-appindicator'
+  'webkit2gtk-4.1'
+  'xdg-utils'
+)
+makedepends=(
+  'curl'
+  'fuse2'
+  'librsvg'
+  'nodejs'
+  'npm'
+  'openssl'
+  'patchelf'
+  'pkgconf'
+  'rust'
+  'squashfs-tools'
+  'xdotool'
+)
+options=('!debug')
+source=()
+sha256sums=()
+
+build() {
+  [ -n "${SONATA_SRC:-}" ] || { echo "SONATA_SRC must point at the Sonata source tree." >&2; return 1; }
+  cd "$SONATA_SRC"
+  local runtime
+  runtime="$(sh scripts/fetch-herdr.sh)"
+  mkdir -p .tools/herdr
+  if [ "$runtime" != "$PWD/.tools/herdr/herdr" ]; then
+    ln -sfn "$runtime" .tools/herdr/herdr
+  fi
+  npm --prefix app ci --engine-strict
+  npm --prefix app run bundle:unsigned
+}
+
+package() {
+  [ -n "${SONATA_SRC:-}" ] || { echo "SONATA_SRC must point at the Sonata source tree." >&2; return 1; }
+  cd "$SONATA_SRC"
+  local deb unpack data
+  deb="$(echo target/release/bundle/deb/*.deb)"
+  [ -f "$deb" ] || { echo "The build did not produce a DEB." >&2; return 1; }
+  unpack="$srcdir/deb"
+  mkdir -p "$unpack"
+  bsdtar -xf "$deb" -C "$unpack"
+  data="$(echo "$unpack"/data.tar.*)"
+  [ -f "$data" ] || { echo "The DEB has no data archive." >&2; return 1; }
+  tar -C "$pkgdir" -xf "$data"
+  install -Dm644 "$SONATA_SRC/pkg/sonata.desktop" "$pkgdir/usr/share/applications/sonata.desktop"
+  install -Dm644 "$SONATA_SRC/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  [ -x "$pkgdir/usr/bin/sonata" ] || { echo "The package has no /usr/bin/sonata." >&2; return 1; }
+}

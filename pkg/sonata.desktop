@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Sonata
+Comment=Coordinate your AI coding agents
+Exec=sonata
+Icon=io.sonata.desktop
+Terminal=false
+Categories=Development;
+StartupWMClass=Sonata

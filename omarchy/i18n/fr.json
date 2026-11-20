@@ -2,6 +2,6 @@
   "bar.tooltip": "Sonata",
   "panel.title": "Sonata",
   "panel.open": "Ouvrir Sonata",
-  "panel.missing": "Sonata n'est pas installée. Copiez cette commande dans un terminal pour installer l'application Linux.",
-  "panel.copy": "Copier la commande"
+  "panel.missing": "Sonata n'est pas installée.",
+  "panel.install": "Installer Sonata"
 }

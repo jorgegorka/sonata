@@ -152,14 +152,15 @@ provider with the account you signed in with.
 | `app/locales` | Interface translations |
 | `scripts` | Setup and secret-scanning scripts |
 | `site` | Standalone homepage published with GitHub Pages |
-| `manifest.json`, `omarchy/` | Omarchy bar plugin (not listed on the marketplace yet) |
+| `manifest.json`, `omarchy/`, `pkg/` | Omarchy bar plugin and Arch package |
 
 ## Installation
 
 Download the signed, notarized macOS DMG from
 [Sonata’s homepage](https://jorgegorka.github.io/sonata/). The 1.0.0 installer is stored in
-`site/downloads/` and served by GitHub Pages. Linux packages are pending; use the source
-instructions below. Future automated releases are published to
+`site/downloads/` and served by GitHub Pages. Published Linux packages are pending. On
+Omarchy, install from a checkout with the script in [Omarchy](#omarchy). Elsewhere, use the
+source instructions below. Future automated releases are published to
 [GitHub Releases](https://github.com/jorgegorka/sonata/releases).
 
 - **macOS:** Apple Silicon (M1 or newer), macOS 11+. Open the signed, notarized DMG and drag Sonata
@@ -215,51 +216,50 @@ only if you also want to delete your saved work.
 
 ## Omarchy
 
-Sonata includes a bar plugin for the Omarchy Quattro shell. The plugin id is
-`io.github.jorgegorka.sonata`. It is not published on the
-[Omarchy plugin marketplace](https://plugins.omarchy.org/). No marketplace
-submission has been filed, so the marketplace has no Sonata install entry.
+Install Sonata on Omarchy from a checkout of this repository. The script
+`omarchy/install-app.sh` builds an Arch package and installs it with pacman.
+Sonata is absent from the Install menu (Package, AI, Service, Editor), so
+searching there will not find it.
 
-The plugin files in this repository are `manifest.json` and `omarchy/`. Install
-them from the public repository:
+1. Open a terminal.
+2. Clone this repository and enter it. Skip the clone if you already have the checkout.
+
+   ```sh
+   git clone https://github.com/jorgegorka/sonata.git
+   cd sonata
+   ```
+
+3. Run the installer as your own user. It asks for your password when the package is ready to install.
+
+   ```sh
+   omarchy/install-app.sh
+   ```
+
+4. Wait for the build. The script installs the compilers and libraries it needs, compiles Sonata in a temporary copy of the tree, and then runs `sudo pacman -U` on the finished package. The first build takes a while.
+5. When the script prints `Sonata is installed. Open it from the application launcher.`, press Super+Space, type Sonata, and open it. The command on disk is `/usr/bin/sonata`.
+
+If pacman already has the `sonata` package, the script prints `Sonata is already installed.` and stops. The macOS app stays the signed DMG from the homepage.
+
+### Remove the Omarchy package
+
+Quit Sonata, then:
+
+```sh
+sudo pacman -Rns sonata
+```
+
+That removes the application. Your database and bot folders stay where they are.
+
+### Bar button
+
+The repository also includes an optional bar button, plugin id `io.github.jorgegorka.sonata`. It focuses the Sonata window, or starts `/usr/bin/sonata` after the package above is installed. It is not listed on the [Omarchy plugin marketplace](https://plugins.omarchy.org/) yet.
 
 ```sh
 omarchy plugin add https://github.com/jorgegorka/sonata.git --enable
-```
-
-Check the manifest from a checkout with:
-
-```sh
-omarchy plugin validate .
-```
-
-A marketplace listing is a separate step. Submit the repository through the
-[plugin form](https://github.com/omacom/omarchy-plugin-marketplace/issues/new?template=submit-plugin.yml).
-
-The plugin adds a bar button. The desktop app still comes from the signed DMG on
-macOS, or from the Linux installer or DEB above. The plugin runs inside the
-long-lived Omarchy shell with your user permissions.
-
-Click the Sonata button, then choose **Open Sonata**. The button looks for the
-default installer launcher at `~/.local/bin/sonata` (only when that file contains
-the installer's `# Sonata installer` line), then `/usr/bin/sonata` from a DEB, then
-`~/.local/opt/sonata/AppRun`. When Sonata is already running, the button focuses
-that window. When none of those binaries is present, the panel shows the Linux
-installer command so you can copy it into a terminal. A custom `SONATA_INSTALL_PREFIX`
-or `--dest` is outside those three paths.
-
-```sh
 omarchy bar move io.github.jorgegorka.sonata --section right
 ```
 
-Remove an installed bar plugin with:
-
-```sh
-omarchy plugin remove io.github.jorgegorka.sonata
-```
-
-Removing the plugin leaves the desktop app, its database, and your bot folders in
-place. Uninstall the app itself with the steps under [Uninstall](#uninstall).
+Check the manifest with `omarchy plugin validate .`. Remove the button with `omarchy plugin remove io.github.jorgegorka.sonata`. Removing the button leaves the pacman package in place.
 
 ## Build from source
 
