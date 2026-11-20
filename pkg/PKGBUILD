@@ -26,7 +26,10 @@ makedepends=(
   'squashfs-tools'
   'xdotool'
 )
-options=('!debug')
+# Bundled SQLite is C. With lto enabled, makepkg adds -flto=auto to CFLAGS, so
+# libsqlite3.a only exposes __gnu_lto_slim. rustc links with lld, which does not
+# load GCC's LTO plugin, and every sqlite3_* symbol stays undefined.
+options=('!debug' '!lto')
 source=()
 sha256sums=()
 
