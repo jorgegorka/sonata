@@ -10,6 +10,7 @@ __pycache__/
 /app/src-tauri/binaries/
 /app/src-tauri/runtime/
 /release-dist/
+/site/deployment.json
 .DS_Store
 .env
 .env.*

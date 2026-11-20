@@ -6,6 +6,8 @@ on:
     paths:
       - 'site/**'
       - 'scripts/release.py'
+      - 'scripts/pages.py'
+      - 'scripts/tests/test_pages.py'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
   release:
@@ -22,6 +24,7 @@ jobs:
   deploy:
     if: github.ref == 'refs/heads/master' || github.event_name == 'release'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       pages: write
@@ -34,8 +37,12 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: master
+      - name: Test Pages verification
+        run: python3 -m unittest discover -s scripts/tests -p 'test_pages.py' -v
       - name: Advertise available platform downloads
         run: python3 scripts/release.py site
+      - name: Record deployed revision and file checksums
+        run: python3 scripts/pages.py record
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload homepage
@@ -45,3 +52,7 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Verify the public homepage and files
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: python3 scripts/pages.py verify --url "$PAGE_URL"

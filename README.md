@@ -328,6 +328,12 @@ as the source. The `Deploy homepage to GitHub Pages` workflow generates links fo
 that folder or its workflow changes on `master`. It also runs after publishing releases and can be run manually from **Actions**. Without a release, the page links to source instructions and the releases list.
 Until a GitHub Release exists, deployment verifies the DMG in `site/downloads/` against its
 SHA-256 manifest and generates its download link instead.
+Each deployment records the checked-out `master` commit and generated file checksums in
+`deployment.json`. After publishing, the workflow checks the public manifest, homepage,
+and every published file (including downloads). It retries for up to 12 minutes to allow
+cache propagation and fails if the public content still differs from the uploaded artifact.
+If deployment fails before publishing, the previous site remains live; start a fresh run of
+**Deploy homepage to GitHub Pages** on `master` from **Actions**, then wait for verification to pass.
 See [GitHub's custom workflow documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
 
 After the first successful deployment, the homepage will be available at
