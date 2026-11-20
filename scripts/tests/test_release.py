@@ -70,7 +70,6 @@ class ReleaseTests(unittest.TestCase):
         self.assertIn("DEB coming soon", rendered)
         self.assertNotIn("Download AppImage", rendered)
         self.assertNotIn("Download DEB", rendered)
-        self.assertIn("macOS (Apple Silicon)", rendered)
         self.assertIn("data-binary-install hidden", rendered)
 
     def test_metadata_rejects_incomplete_platform_or_missing_release_files(self):

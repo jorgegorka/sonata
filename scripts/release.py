@@ -156,14 +156,6 @@ def render_site(directory, release):
         return f"<a{attrs}>{label}</a>"
     source = re.sub(r'<a(?P<attrs>\s[^>]*data-asset="(?P<name>[^"]+)"[^>]*)>(?P<label>.*?)</a>', link, source)
     complete = all(name in downloads for names in ASSETS.values() for name in names)
-    status = "Packaged downloads are coming soon. You can build from source today."
-    if ready:
-        status = f"Version {release['version']} · Free and open source"
-        if not complete:
-            labels = {"macos-aarch64": "macOS (Apple Silicon)", "linux-x86_64": "Linux x86_64", "linux-aarch64": "Linux ARM64"}
-            available = [labels[platform] for platform, names in ASSETS.items() if all(name in downloads for name in names)]
-            status += ". Downloads available for " + ", ".join(available) + ". Other packages are coming soon."
-    source = re.sub(r'(<p[^>]*data-release-status>).*?(</p>)', lambda m: m[1] + html.escape(status) + m[2], source)
     source = re.sub(r'data-binary-install(?: hidden)?', 'data-binary-install' + ('' if complete else ' hidden'), source)
     notes = release["notes"] if ready else f"https://github.com/{REPO}/releases"
     source = re.sub(r'data-release-notes href="[^"]*"', f'data-release-notes href="{html.escape(notes, quote=True)}"', source)
