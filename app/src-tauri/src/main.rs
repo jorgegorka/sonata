@@ -8,6 +8,7 @@ mod locale;
 mod logging;
 mod menu;
 mod notify;
+mod omarchy_theme;
 mod platform;
 mod startup;
 mod tray;
@@ -676,6 +677,11 @@ async fn browser_pick_close(app: tauri::AppHandle) -> Result<(), CommandError> {
     browser_pick::close_box(&app)
 }
 
+#[tauri::command]
+fn omarchy_theme() -> Option<omarchy_theme::Palette> {
+    omarchy_theme::read_current()
+}
+
 fn main() {
     let context = tauri::generate_context!();
     let resources = tauri::utils::platform::resource_dir(context.package_info(), &tauri::utils::Env::default()).ok();
@@ -819,9 +825,13 @@ fn main() {
             browser_pick_result,
             browser_pick_box_state,
             browser_pick_submit,
-            browser_pick_close
+            browser_pick_close,
+            omarchy_theme
         ])
         .setup(move |app| {
+            if let Some(watch) = omarchy_theme::watch(app.handle().clone()) {
+                app.manage(watch);
+            }
             if let Err(e) = tray::build(app.handle()) {
                 tracing::warn!(error = %e, "could not add the menu-bar item; the Dock icon still opens the window");
             }
@@ -884,7 +894,12 @@ fn main() {
         .build(context)
         .expect("error while building Sonata")
         .run(move |_app, event| match event {
-            RunEvent::Exit => tauri::async_runtime::block_on(for_exit.shutdown()),
+            RunEvent::Exit => {
+                if let Some(watch) = _app.try_state::<omarchy_theme::Watch>() {
+                    watch.stop();
+                }
+                tauri::async_runtime::block_on(for_exit.shutdown());
+            }
             #[cfg(target_os = "macos")]
             RunEvent::Reopen { has_visible_windows: false, .. } => tray::show_window(_app),
             _ => {}

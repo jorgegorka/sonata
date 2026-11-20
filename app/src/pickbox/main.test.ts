@@ -6,7 +6,7 @@ import page from "../../pickbox.html?raw";
 
 const tauri = vi.hoisted(() => ({
   calls: [] as [string, unknown?][],
-  hear: null as ((e: { payload: unknown }) => void) | null,
+  hear: {} as Record<string, (e: { payload: unknown }) => void>,
   answers: {} as Record<string, () => Promise<unknown>>,
 }));
 vi.mock("@tauri-apps/api/core", () => ({
@@ -18,7 +18,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 vi.mock("@tauri-apps/api/event", () => ({
   listen: (event: string, handler: (e: { payload: unknown }) => void) => {
     tauri.calls.push([`listen ${event}`]);
-    tauri.hear = handler;
+    tauri.hear[event] = handler;
     return Promise.resolve(() => {});
   },
 }));
@@ -36,7 +36,7 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 const comment = () => $<HTMLTextAreaElement>("comment");
 const send = () => $<HTMLButtonElement>("send");
 const status = () => $("status");
-const hear = (s: PickBoxState) => tauri.hear!({ payload: s });
+const hear = (s: PickBoxState) => tauri.hear["pickbox-state"]!({ payload: s });
 const type = (text: string) => {
   comment().value = text;
   comment().dispatchEvent(new Event("input", { bubbles: true }));
@@ -62,7 +62,7 @@ async function load(read: () => Promise<unknown> = () => Promise.resolve(state()
 
 beforeEach(() => {
   tauri.calls = [];
-  tauri.hear = null;
+  tauri.hear = {};
   tauri.answers = {};
   const markup = new DOMParser().parseFromString(page, "text/html").querySelector("main")!;
   document.body.replaceChildren(document.importNode(markup, true));
@@ -84,7 +84,12 @@ afterEach(() => {
 describe("the pick box page", () => {
   it("subscribes to its state before it reads it, and shows what it read", async () => {
     await load();
-    expect(commands()).toEqual(["listen pickbox-state", "browser_pick_box_state"]);
+    expect(commands()).toEqual([
+      "listen pickbox-state",
+      "listen omarchy-theme",
+      "browser_pick_box_state",
+      "omarchy_theme",
+    ]);
     expect($("target").textContent).toBe("To @feature · Login fix");
     expect(comment().placeholder).toBe("What should change here?");
     expect(send().textContent).toBe("Send");

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { api } from "../api";
+import { consoleColors, onConsoleColors } from "../omarchyTheme";
 import {
   afterFailure,
   afterRead,
@@ -11,7 +12,6 @@ import {
   showsReadFailed,
   TERMINAL_COLS,
   TERMINAL_ROWS,
-  TERMINAL_THEME,
   type TerminalState,
 } from "../terminal";
 
@@ -39,11 +39,15 @@ export default function TerminalView({ sessionId, onRunning, noteWhenStopped = t
       cursorBlink: false,
       cursorInactiveStyle: "none",
       fontSize: 12,
-      theme: TERMINAL_THEME,
+      theme: consoleColors(),
     });
     terminal.open(host.current);
     term.current = terminal;
+    const stopTheme = onConsoleColors((theme) => {
+      terminal.options.theme = theme;
+    });
     return () => {
+      stopTheme();
       terminal.dispose();
       term.current = null;
     };

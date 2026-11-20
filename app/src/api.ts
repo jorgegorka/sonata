@@ -1,5 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { onOmarchyTheme, readOmarchyTheme, type OmarchyPalette } from "./omarchyTheme";
+
+export type { OmarchyPalette };
 
 export type Provider = "claude" | "codex" | "cursor" | "grok" | "opencode";
 export type BotStatus = "offline" | "starting" | "idle" | "working" | "needs_attention" | "limited";
@@ -547,6 +550,8 @@ export const api = {
   finishSetup: (projectFolder: string | null) => invoke<void>("finish_setup", { projectFolder }),
   detectProviders: () => invoke<ProviderStatus[]>("detect_providers"),
   herdrStatus: () => invoke<HerdrStatus>("herdr_status"),
+  omarchyTheme: () => readOmarchyTheme(),
+  onOmarchyTheme: (handler: (palette: OmarchyPalette | null) => void) => onOmarchyTheme(handler),
   onOpenSettings: (handler: () => void): Promise<UnlistenFn> => listen("open-settings", () => handler()),
   onOpenAbout: (handler: () => void): Promise<UnlistenFn> => listen("open-about", () => handler()),
   onToggleBrowser: (handler: () => void): Promise<UnlistenFn> => listen("toggle-browser", () => handler()),

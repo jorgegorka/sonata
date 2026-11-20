@@ -20,6 +20,7 @@ tauri-plugin-notification = "2.5.1"
 rfd = { version = "0.16", default-features = false, features = ["gtk3"] }
 trash = "5"
 dirs.workspace = true
+notify = "6.1.1"
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

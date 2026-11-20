@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { PickBoxState } from "../api";
+import { installOmarchyTheme } from "../omarchyTheme";
 import { boxKey, boxView } from "./box";
 import "./pickbox.css";
 
@@ -78,4 +79,5 @@ listen<PickBoxState>("pickbox-state", (e) => apply(e.payload))
     if (state === null) apply(initial);
   })
   .catch(quiet);
+installOmarchyTheme();
 focusComment();
