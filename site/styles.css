@@ -210,6 +210,22 @@ code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; fo
 .copy-status { min-height: 18px; font-size: 10px; line-height: 1.8; color: var(--green); }
 .setup-note { font-size: 10px; line-height: 1.8; color: var(--muted); }
 .setup-panel a { text-decoration: underline; text-underline-offset: 3px; }
+.omarchy-section { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.2fr); align-items: center; gap: 64px; padding-block: 80px; border-bottom: 1px solid var(--border); }
+.omarchy-copy { max-width: 430px; }
+.omarchy-copy > .eyebrow { color: var(--green); margin-bottom: 20px; }
+.omarchy-copy > p:not(.eyebrow) { color: var(--muted); font-size: 16px; line-height: 1.85; margin-top: 23px; }
+.omarchy-links { display: flex; flex-wrap: wrap; gap: 10px 24px; margin-top: 22px; }
+.omarchy-links .text-link { font-size: 14px; line-height: 1.6; margin-top: 0; }
+.omarchy-terminal { border-color: #426251; }
+.omarchy-terminal .code-heading { flex-wrap: wrap; font-size: 14px; line-height: 1.6; }
+.omarchy-terminal .copy-button { font-size: 12px; padding: 8px 10px; }
+.omarchy-terminal pre { margin-top: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.omarchy-terminal pre:focus-visible { outline: 2px solid var(--amber); outline-offset: 4px; }
+.omarchy-terminal code { font-size: 13px; line-height: 1.8; }
+.omarchy-terminal .copy-status { min-height: 24px; font-size: 12px; }
+.omarchy-terminal .setup-note { font-size: 13px; line-height: 1.8; }
+.omarchy-launch { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 14px; line-height: 2; }
+.omarchy-launch kbd { font: inherit; white-space: nowrap; padding: 2px 6px; border: 1px solid #65577b; border-radius: 4px; background: var(--bg); }
 .autonomy-note { border-top: 1px solid var(--border); margin-top: 21px; padding-top: 18px; color: var(--muted); font-size: 10px; line-height: 1.9; }
 .autonomy-note strong { color: #d6cde5; font-weight: 500; }
 .autonomy-note a { white-space: nowrap; }
@@ -225,12 +241,15 @@ code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; fo
   .preview-columns { gap: 12px; padding: 16px; }
   .preview-column { padding: 10px; }
   .how-section, .workflow-layout, .get-started-section { gap: 50px; }
+  .omarchy-section { gap: 40px; }
   .feature-grid { gap: 20px; }
   .flow-heading { flex-wrap: wrap; gap: 7px; }
   .providers ul { gap: 40px; }
 }
 @media (max-width: 960px) {
   .preview-columns { grid-template-columns: minmax(0, 1fr); }
+  .omarchy-section { grid-template-columns: minmax(0, 1fr); gap: 30px; }
+  .omarchy-copy { max-width: 100%; }
 }
 @media (max-width: 760px) {
   .wrap { width: calc(100% - 40px); }
@@ -247,6 +266,7 @@ code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; fo
   .providers ul { gap: 22px 32px; }
   .providers li { font-size: 16px; }
   .how-section, .workflow-layout, .get-started-section { grid-template-columns: 1fr; gap: 35px; padding-block: 60px; }
+  .omarchy-section { padding-block: 60px; }
   .section-intro, .workflow-copy { max-width: 100%; }
   .steps { margin-top: 7px; }
   .step { gap: 20px; }
