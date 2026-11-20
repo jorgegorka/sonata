@@ -6,7 +6,7 @@ name, instructions, model and skills. A built-in coordinator, **Master**, takes 
 delegates them to the right bots, checks their results and asks you before anything that needs
 your approval.
 
-> **Version:** 1.0.0. Download the signed and notarized [Apple Silicon DMG](https://jorgegorka.github.io/sonata/downloads/Sonata_1.0.0.dmg) ([SHA-256 checksum](https://jorgegorka.github.io/sonata/downloads/SHA256SUMS)). Linux packages are coming soon; Linux users can build from source. See the [changelog](CHANGELOG.md) for release notes.
+> **Version:** 1.0.1. On Omarchy, install the x86_64 Arch package from the [1.0.1 release](https://github.com/jorgegorka/sonata/releases/latest). macOS uses the signed and notarized [Apple Silicon DMG](https://jorgegorka.github.io/sonata/downloads/Sonata_1.0.0.dmg) ([SHA-256 checksum](https://jorgegorka.github.io/sonata/downloads/SHA256SUMS)), version 1.0.0. AppImage and DEB packages are coming soon. See the [changelog](CHANGELOG.md) for release notes.
 
 > [!WARNING]
 > Bots work on their own. Each CLI runs in its autonomous mode (for example Claude Code with
@@ -158,9 +158,9 @@ provider with the account you signed in with.
 
 Download the signed, notarized macOS DMG from
 [Sonata’s homepage](https://jorgegorka.github.io/sonata/). The 1.0.0 installer is stored in
-`site/downloads/` and served by GitHub Pages. Published Linux packages are pending. On
-Omarchy, install from a checkout with the script in [Omarchy](#omarchy). Elsewhere, use the
-source instructions below. Future automated releases are published to
+`site/downloads/` and served by GitHub Pages. AppImage and DEB packages are pending. On
+Omarchy, install the 1.0.1 Arch package with the steps in [Omarchy](#omarchy). Elsewhere, use the
+source instructions below. Future automated desktop releases are published to
 [GitHub Releases](https://github.com/jorgegorka/sonata/releases).
 
 - **macOS:** Apple Silicon (M1 or newer), macOS 11+. Open the signed, notarized DMG and drag Sonata
@@ -216,10 +216,35 @@ only if you also want to delete your saved work.
 
 ## Omarchy
 
-Install Sonata on Omarchy from a checkout of this repository. The script
-`omarchy/install-app.sh` builds an Arch package and installs it with pacman.
-Sonata is absent from the Install menu (Package, AI, Service, Editor), so
-searching there will not find it.
+Sonata 1.0.1 for Omarchy is an Arch package. It follows the Omarchy theme and
+updates the window when you change that theme. Sonata is absent from the Install
+menu (Package, AI, Service, Editor), so searching there will not find it.
+
+### Install the package
+
+1. Open a terminal.
+2. Download the package for this computer.
+
+   ```sh
+   curl -fLo /tmp/sonata.pkg.tar.zst \
+     "https://github.com/jorgegorka/sonata/releases/latest/download/sonata-$(uname -m).pkg.tar.zst"
+   ```
+
+3. Install it. Pacman asks for your password. The same command upgrades an older Sonata package.
+
+   ```sh
+   sudo pacman -U /tmp/sonata.pkg.tar.zst
+   ```
+
+4. Press Super+Space, type Sonata, and open it. The command on disk is `/usr/bin/sonata`.
+
+Quit Sonata before you upgrade. Your database and bot folders stay where they are.
+This release publishes the x86_64 package. The macOS app is the signed DMG from the homepage.
+
+### Build it from a checkout
+
+The script `omarchy/install-app.sh` builds the same Arch package from a checkout
+and installs it with pacman. Use it when you want this source tree rather than the published package.
 
 1. Open a terminal.
 2. Clone this repository and enter it. Skip the clone if you already have the checkout.
@@ -236,9 +261,9 @@ searching there will not find it.
    ```
 
 4. Wait for the build. The script installs the compilers and libraries it needs, compiles Sonata in a temporary copy of the tree, and then runs `sudo pacman -U` on the finished package. The first build takes a while.
-5. When the script prints `Sonata is installed. Open it from the application launcher.`, press Super+Space, type Sonata, and open it. The command on disk is `/usr/bin/sonata`.
+5. When the script prints that Sonata is installed, press Super+Space, type Sonata, and open it.
 
-If pacman already has the `sonata` package, the script prints `Sonata is already installed.` and stops. The macOS app stays the signed DMG from the homepage.
+If pacman already has this exact package version, the script prints `Sonata <version> is already installed.` and stops. A newer checkout upgrades the installed package.
 
 ### Remove the Omarchy package
 

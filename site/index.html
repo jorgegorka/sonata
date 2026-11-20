@@ -160,7 +160,7 @@
         <div class="omarchy-copy">
           <p class="eyebrow">FOR OMARCHY LINUX</p>
           <h2 id="omarchy-title">Sonata on Omarchy.<br><em>Easy to install.</em></h2>
-          <p>Bring your AI team to your Omarchy desktop. Run these commands in your terminal and the installer handles the dependencies and installs Sonata for you.</p>
+          <p>Bring your AI team to your Omarchy desktop. These two commands download Sonata 1.0.1 and install it.</p>
           <div class="omarchy-links">
             <a class="text-link" href="https://github.com/jorgegorka/sonata#omarchy">Omarchy installation guide</a>
             <a class="text-link" href="https://github.com/jorgegorka/sonata#bar-button">Add the optional bar button</a>
@@ -168,11 +168,10 @@
         </div>
         <div class="omarchy-terminal setup-panel">
           <div class="code-heading"><span>Open a terminal and run</span><button class="copy-button" data-copy="omarchy-commands" type="button" hidden>Copy commands</button></div>
-          <pre tabindex="0" aria-label="Omarchy installation commands"><code id="omarchy-commands">git clone https://github.com/jorgegorka/sonata.git &amp;&amp;
-cd sonata &amp;&amp;
-./omarchy/install-app.sh</code></pre>
+          <pre tabindex="0" aria-label="Omarchy installation commands"><code id="omarchy-commands">curl -fLo /tmp/sonata.pkg.tar.zst "https://github.com/jorgegorka/sonata/releases/latest/download/sonata-$(uname -m).pkg.tar.zst"
+sudo pacman -U /tmp/sonata.pkg.tar.zst</code></pre>
           <p class="copy-status" role="status" aria-live="polite"></p>
-          <p class="setup-note">The installer builds Sonata on your computer. The first build takes a while; enter your password when prompted.</p>
+          <p class="setup-note">Pacman installs the package. Enter your password when prompted. Quit Sonata first if it is already open.</p>
           <p class="omarchy-launch">Once installed, press <kbd>Super</kbd> + <kbd>Space</kbd>, type <strong>Sonata</strong> and open it.</p>
         </div>
       </section>

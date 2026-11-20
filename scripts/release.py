@@ -98,6 +98,44 @@ def repository_release(directory):
     }
 
 
+def desktop_tag(release):
+    tag = release.get("tag_name", "")
+    return bool(re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag)) and not release.get("draft") and not release.get("prerelease")
+
+
+def desktop_downloads(release):
+    """Homepage metadata for a desktop release.
+
+    Returns None when the release ships no Mac or Linux desktop package, so the
+    caller can keep the repository DMG. A platform that is only partly uploaded
+    still fails the deploy.
+    """
+    tag = release["tag_name"]
+    assets = {a["name"]: a for a in release["assets"]}
+    expected = {"SHA256SUMS", "version.txt"}
+    platforms = []
+    for platform, names in ASSETS.items():
+        present = set(names) & assets.keys()
+        if present and present != set(names):
+            raise ValueError(f"The latest release has incomplete {platform} packages")
+        if present:
+            platforms.append(platform)
+            expected.update(names)
+    if not platforms:
+        return None
+    if not expected.issubset(assets) or any(assets[n]["size"] <= 0 for n in expected):
+        raise ValueError("The latest release is incomplete; refusing to advertise it")
+    prefix = f"https://github.com/{REPO}/releases/download/{tag}/"
+    for name in expected:
+        if assets[name]["browser_download_url"] != prefix + name:
+            raise ValueError("Unexpected release asset URL")
+    return {
+        "available": True, "version": tag[1:],
+        "notes": f"https://github.com/{REPO}/releases/tag/{tag}",
+        "downloads": {name: prefix + name for name in sorted(expected)},
+    }
+
+
 def site_metadata(directory, api="https://api.github.com"):
     request = urllib.request.Request(f"{api}/repos/{REPO}/releases/latest", headers={"Accept": "application/vnd.github+json", "User-Agent": "Sonata-release"})
     try:
@@ -108,34 +146,13 @@ def site_metadata(directory, api="https://api.github.com"):
             raise
         error.close()
         release = None
-    result = repository_release(directory) if release is None else {"available": False}
-    if release:
-        tag = release["tag_name"]
-        if not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag) or release["draft"] or release["prerelease"]:
-            raise ValueError("The latest release must be a published stable version")
-        assets = {a["name"]: a for a in release["assets"]}
-        expected = {"SHA256SUMS", "version.txt"}
-        platforms = []
-        for platform, names in ASSETS.items():
-            present = set(names) & assets.keys()
-            if present and present != set(names):
-                raise ValueError(f"The latest release has incomplete {platform} packages")
-            if present:
-                platforms.append(platform)
-                expected.update(names)
-        if not platforms:
-            raise ValueError("The latest release has no desktop packages")
-        if not expected.issubset(assets) or any(assets[n]["size"] <= 0 for n in expected):
-            raise ValueError("The latest release is incomplete; refusing to advertise it")
-        prefix = f"https://github.com/{REPO}/releases/download/{tag}/"
-        for name in expected:
-            if assets[name]["browser_download_url"] != prefix + name:
-                raise ValueError("Unexpected release asset URL")
-        result = {
-            "available": True, "version": tag[1:],
-            "notes": f"https://github.com/{REPO}/releases/tag/{tag}",
-            "downloads": {name: prefix + name for name in sorted(expected)},
-        }
+    # An Omarchy package release has no Mac or Linux desktop assets. The homepage
+    # keeps the repository DMG until a release actually ships those packages.
+    if release and desktop_tag(release):
+        desktop = desktop_downloads(release)
+        result = desktop if desktop is not None else repository_release(directory)
+    else:
+        result = repository_release(directory)
     (directory / "release.json").write_text(json.dumps(result, indent=2) + "\n")
     render_site(directory, result)
 

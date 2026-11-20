@@ -1,9 +1,21 @@
 # Changelog
 
-## Unreleased
+## 1.0.1 — 2026-11-20
 
+Omarchy package for x86_64. The signed Apple Silicon download on the homepage
+remains 1.0.0. AppImage and DEB packages are still pending.
+
+### Features
+
+- Follow the live Omarchy theme, and repaint the window when that theme changes.
 - Add **Export all…** to the Workflows page to save all workflows, bots and skills,
   including skill files, in one YAML file compatible with configuration import.
+
+### Distribution
+
+- Arch package `sonata-x86_64.pkg.tar.zst` on the Omarchy GitHub release.
+  Install or upgrade it with `pacman -U`. Saved settings, bots, skills and history
+  stay in place. Quit Sonata before upgrading.
 
 ## 1.0.0 — 2026-11-19
 

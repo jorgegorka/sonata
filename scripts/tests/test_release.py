@@ -77,7 +77,6 @@ class ReleaseTests(unittest.TestCase):
             ["Sonata-macos-aarch64.dmg", "Sonata-linux-x86_64.AppImage", "SHA256SUMS", "version.txt"],
             ["Sonata-macos-aarch64.dmg", "version.txt"],
             ["Sonata-macos-aarch64.dmg", "SHA256SUMS"],
-            ["SHA256SUMS", "version.txt"],
         ):
             with self.subTest(names=names), self.assertRaises(ValueError):
                 self.write_site(self.metadata(names))
@@ -97,6 +96,28 @@ class ReleaseTests(unittest.TestCase):
         (directory / "SHA256SUMS").write_text(f"{release.digest(dmg)}  {dmg.name}\n")
         (self.dist / "index.html").write_text((release.ROOT / "site/index.html").read_text())
         return dmg
+
+    def test_omarchy_package_release_keeps_the_macos_download(self):
+        self.repository_fixture()
+        metadata = {
+            "tag_name": "omarchy-1.0.1", "draft": False, "prerelease": False,
+            "assets": [{"name": "sonata-x86_64.pkg.tar.zst", "size": 42,
+                        "browser_download_url": "https://github.com/jorgegorka/sonata/releases/download/omarchy-1.0.1/sonata-x86_64.pkg.tar.zst"}],
+        }
+        with patch.object(release.urllib.request, "urlopen", return_value=io.BytesIO(json.dumps(metadata).encode())):
+            release.site_metadata(self.dist)
+        rendered = (self.dist / "index.html").read_text()
+        self.assertIn('href="./downloads/Sonata_1.0.0.dmg">Download DMG', rendered)
+        self.assertEqual(json.loads((self.dist / "release.json").read_text())["version"], "1.0.0")
+
+    def test_version_tag_without_desktop_packages_keeps_the_macos_download(self):
+        self.repository_fixture()
+        metadata = self.metadata(["sonata-x86_64.pkg.tar.zst"])
+        metadata["tag_name"] = "v1.0.1"
+        with patch.object(release.urllib.request, "urlopen", return_value=io.BytesIO(json.dumps(metadata).encode())):
+            release.site_metadata(self.dist)
+        self.assertIn('href="./downloads/Sonata_1.0.0.dmg">Download DMG', (self.dist / "index.html").read_text())
+        self.assertEqual(json.loads((self.dist / "release.json").read_text())["version"], "1.0.0")
 
     def test_repository_download_is_advertised_when_no_github_release_exists(self):
         self.repository_fixture()

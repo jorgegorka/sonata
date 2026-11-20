@@ -12,8 +12,13 @@ fail() { printf 'Sonata: %s\n' "$*" >&2; exit 1; }
 root="$(cd "$(dirname "$0")/.." && pwd)"
 [ -f "$root/pkg/PKGBUILD" ] || fail "The Sonata package recipe is missing."
 
-if pacman -Q sonata >/dev/null 2>&1; then
-  printf 'Sonata is already installed.\n'
+pkgver="$(sed -n 's/^pkgver=//p' "$root/pkg/PKGBUILD")"
+pkgrel="$(sed -n 's/^pkgrel=//p' "$root/pkg/PKGBUILD")"
+[ -n "$pkgver" ] && [ -n "$pkgrel" ] || fail "The package version is missing."
+want="${pkgver}-${pkgrel}"
+have="$(pacman -Q sonata 2>/dev/null | awk '{print $2}' || true)"
+if [ "$have" = "$want" ]; then
+  printf 'Sonata %s is already installed.\n' "$have"
   exit 0
 fi
 
@@ -51,4 +56,8 @@ cp "$stage/src/pkg/PKGBUILD" "$stage/pkg/PKGBUILD"
 package="$(echo "$PKGDEST"/sonata-*.pkg.tar.zst)"
 [ -f "$package" ] || fail "makepkg did not produce a package."
 sudo pacman -U --noconfirm "$package"
-printf 'Sonata is installed. Open it from the application launcher.\n'
+if [ -n "$have" ]; then
+  printf 'Sonata %s is installed. Quit Sonata and open it again from the application launcher.\n' "$want"
+else
+  printf 'Sonata is installed. Open it from the application launcher.\n'
+fi
