@@ -56,7 +56,7 @@ pub enum BridgeCommand {
     BotCreate {
         name: String,
         color: String,
-        #[serde(default = "default_provider")]
+        #[serde(default)]
         provider: String,
         #[serde(default)]
         skills: Vec<String>,
@@ -148,10 +148,6 @@ pub enum BridgeCommand {
     WorkflowDelete {
         name: String,
     },
-}
-
-fn default_provider() -> String {
-    "claude".to_string()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

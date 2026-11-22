@@ -19,7 +19,7 @@ import {
   type AppState,
 } from "./state";
 
-const bot = (id: string): BotView => ({
+const bot = (id: string): BotView => ({ project_id: "default",
   id,
   handle: id,
   display_name: id,
@@ -34,7 +34,7 @@ const bot = (id: string): BotView => ({
   status: "offline",
 });
 
-const session = (id: string, botId = "b1", extra: Partial<SessionView> = {}): SessionView => ({
+const session = (id: string, botId = "b1", extra: Partial<SessionView> = {}): SessionView => ({ project_id: "default",
   id,
   bot_id: botId,
   number: 1,

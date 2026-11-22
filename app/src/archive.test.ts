@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { BotView, SessionView, ThreadSummary } from "./api";
 import { archivedDate, archivedGroups, archivedThreads } from "./archive";
 
-const bot = (id: string): BotView => ({
+const bot = (id: string): BotView => ({ project_id: "default",
   id,
   handle: id,
   display_name: id,
@@ -17,7 +17,7 @@ const bot = (id: string): BotView => ({
   status: "offline",
 });
 
-const session = (id: string, botId: string, archivedAt: string | null, number = 1): SessionView => ({
+const session = (id: string, botId: string, archivedAt: string | null, number = 1): SessionView => ({ project_id: "default",
   id,
   bot_id: botId,
   number,

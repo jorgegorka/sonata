@@ -32,7 +32,7 @@ beforeAll(async () => {
   tDe = await make("de");
 });
 
-const task = (over: Partial<Task> = {}): Task => ({
+const task = (over: Partial<Task> = {}): Task => ({ project_id: "default",
   id: "t1",
   name: "Review",
   bot_id: "b1",
@@ -50,7 +50,7 @@ const task = (over: Partial<Task> = {}): Task => ({
   ...over,
 });
 
-const session = (id: string): SessionView => ({ id }) as SessionView;
+const session = (id: string): SessionView => ({ project_id: "default", id }) as SessionView;
 
 describe("scheduleText", () => {
   it("says every day for one day and every N days otherwise", () => {

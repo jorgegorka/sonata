@@ -1,5 +1,8 @@
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+
+mod projects;
+pub use projects::DEFAULT_PROJECT;
 
 use rusqlite::{params, Connection, OptionalExtension, Row};
 
@@ -165,6 +168,7 @@ ALTER TABLE messages ADD COLUMN workflow_mark TEXT;
 "#,
     ),
     Migration::Sql("ALTER TABLE messages ADD COLUMN workflow_request INTEGER NOT NULL DEFAULT 0;"),
+    Migration::Code(projects::migrate),
 ];
 
 fn sessions_from_bots(conn: &Connection) -> rusqlite::Result<()> {
@@ -248,10 +252,10 @@ fn latest_where(filter: &str) -> String {
 }
 
 const BOT_COLUMNS: &str =
-    "id, handle, display_name, color, provider, model, instructions, config_version, created_at, updated_at";
+    "id, handle, display_name, color, provider, model, instructions, config_version, created_at, updated_at, project_id";
 const SESSION_COLUMNS: &str = "id, bot_id, number, title, provider_session_id, session_config_version, opened_by, \
      created_at, last_activity_at, archived_at, waiting_question_id, waiting_since, open_request_id, seen_at, \
-     waiting_options";
+     waiting_options, project_id";
 const MESSAGE_COLUMNS: &str = "id, thread_id, sender, recipient, kind, body, system_code, \
      system_params, status, chain_id, hop, in_reply_to, created_at, delivered_at, attachments, \
      sender_session, recipient_session, task_id, task_name, task_since, workflow_mark, workflow_request";
@@ -259,10 +263,10 @@ const MESSAGE_INSERT_COLUMNS: &str = "id, thread_id, sender, recipient, kind, bo
      system_params, status, chain_id, hop, in_reply_to, created_at, delivered_at, attachments, \
      sender_session, recipient_session";
 const TASK_COLUMNS: &str = "id, name, bot_id, prompt, every_days, at_time, starts_on, enabled, next_run_at, \
-     last_run_at, last_run_session, skipped_at, created_at, updated_at";
-const WORKFLOW_COLUMNS: &str = "id, name, when_to_use, definition, created_at, updated_at";
+     last_run_at, last_run_session, skipped_at, created_at, updated_at, project_id";
+const WORKFLOW_COLUMNS: &str = "id, name, when_to_use, definition, created_at, updated_at, project_id";
 const RUN_COLUMNS: &str = "id, workflow_id, name, definition, request, request_files, opener_session, root_session, \
-     status, pause, extra_visits, created_at, ended_at";
+     status, pause, extra_visits, created_at, ended_at, project_id";
 const VISIT_COLUMNS: &str = "id, run_id, ord, step_id, n, session_id, request_message, result_message, outcome, \
      reminded, started_at, ended_at";
 const SKILL_COLUMNS: &str = "id, slug, name, description, source, created_at, updated_at";
@@ -308,8 +312,10 @@ pub struct Creation {
     pub result_name: String,
 }
 
+#[derive(Clone)]
 pub struct Store {
-    conn: Mutex<Connection>,
+    conn: Arc<Mutex<Connection>>,
+    project_id: Option<String>,
 }
 
 fn bad_value(column: &str, value: &str) -> rusqlite::Error {
@@ -319,6 +325,7 @@ fn bad_value(column: &str, value: &str) -> rusqlite::Error {
 fn bot_from_row(r: &Row) -> rusqlite::Result<Bot> {
     let provider: String = r.get(4)?;
     Ok(Bot {
+        project_id: r.get(10)?,
         id: r.get(0)?,
         handle: r.get(1)?,
         display_name: r.get(2)?,
@@ -335,6 +342,7 @@ fn bot_from_row(r: &Row) -> rusqlite::Result<Bot> {
 
 fn session_from_row(r: &Row) -> rusqlite::Result<Session> {
     Ok(Session {
+        project_id: r.get(15)?,
         id: r.get(0)?,
         bot_id: r.get(1)?,
         number: r.get(2)?,
@@ -451,6 +459,7 @@ fn message_from_row(r: &Row) -> rusqlite::Result<Message> {
 
 fn task_from_row(r: &Row) -> rusqlite::Result<Task> {
     Ok(Task {
+        project_id: r.get(14)?,
         id: r.get(0)?,
         name: r.get(1)?,
         bot_id: r.get(2)?,
@@ -471,6 +480,7 @@ fn task_from_row(r: &Row) -> rusqlite::Result<Task> {
 fn workflow_from_row(r: &Row) -> rusqlite::Result<Workflow> {
     let definition: String = r.get(3)?;
     Ok(Workflow {
+        project_id: r.get(6)?,
         id: r.get(0)?,
         name: r.get(1)?,
         when_to_use: r.get(2)?,
@@ -485,13 +495,13 @@ fn get_workflow_conn(conn: &Connection, id: &str) -> rusqlite::Result<Option<Wor
         .optional()
 }
 
-fn insert_workflow_conn(conn: &Connection, new: &NewWorkflow) -> Result<Workflow> {
+fn insert_workflow_conn(conn: &Connection, new: &NewWorkflow, project_id: &str) -> Result<Workflow> {
     let id = new_id();
     let at = now();
     let definition = serde_json::to_string(&new.def).map_err(|e| CoreError::Internal(e.to_string()))?;
     conn.execute(
-        &format!("INSERT INTO workflows ({WORKFLOW_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?5)"),
-        params![id, new.name, new.when_to_use, definition, at],
+        &format!("INSERT INTO workflows ({WORKFLOW_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?5, ?6)"),
+        params![id, new.name, new.when_to_use, definition, at, project_id],
     )?;
     Ok(get_workflow_conn(conn, &id)?.expect("workflow just inserted"))
 }
@@ -503,6 +513,7 @@ fn from_json<T: serde::de::DeserializeOwned>(column: &str, text: &str) -> rusqli
 fn run_from_row(r: &Row) -> rusqlite::Result<WorkflowRun> {
     let status: String = r.get(8)?;
     Ok(WorkflowRun {
+        project_id: r.get(13)?,
         id: r.get(0)?,
         workflow_id: r.get(1)?,
         name: r.get(2)?,
@@ -665,7 +676,7 @@ fn insert_task_conn(conn: &Connection, row: &TaskRow) -> rusqlite::Result<Task> 
     let id = new_id();
     let t = now();
     conn.execute(
-        &format!("INSERT INTO tasks ({TASK_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, NULL, NULL, NULL, ?10, ?10)"),
+        &format!("INSERT INTO tasks ({TASK_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, NULL, NULL, NULL, ?10, ?10, (SELECT project_id FROM bots WHERE id = ?3))"),
         params![
             id,
             row.name,
@@ -725,8 +736,8 @@ fn create_session_conn(
     let t = now();
     conn.execute(
         "INSERT INTO sessions (id, bot_id, number, title, provider_session_id, session_config_version, opened_by, \
-         created_at, last_activity_at) \
-         SELECT ?1, ?2, COALESCE(MAX(number), 0) + 1, ?3, NULL, NULL, ?4, ?5, ?5 FROM sessions WHERE bot_id = ?2",
+         created_at, last_activity_at, project_id) \
+         SELECT ?1, ?2, COALESCE(MAX(number), 0) + 1, ?3, NULL, NULL, ?4, ?5, ?5, (SELECT project_id FROM bots WHERE id = ?2) FROM sessions WHERE bot_id = ?2",
         params![id, bot_id, title, opened_by, t],
     )?;
     Ok(get_session_conn(conn, &id)?.expect("session just inserted"))
@@ -835,11 +846,11 @@ fn store_message_conn(conn: &Connection, id: &str, m: &NewMessage, answers: bool
     Ok(get_message_conn(conn, id)?.expect("message just inserted"))
 }
 
-fn insert_bot_conn(tx: &Connection, new: &NewBot, handle: &str) -> Result<Bot> {
+fn insert_bot_conn(tx: &Connection, new: &NewBot, handle: &str, project_id: &str) -> Result<Bot> {
     let id = new_id();
     let t = now();
     tx.execute(
-        &format!("INSERT INTO bots ({BOT_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)"),
+        &format!("INSERT INTO bots ({BOT_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)"),
         params![
             id,
             handle,
@@ -850,7 +861,8 @@ fn insert_bot_conn(tx: &Connection, new: &NewBot, handle: &str) -> Result<Bot> {
             new.instructions,
             1_i64,
             t,
-            t
+            t,
+            project_id
         ],
     )?;
     set_bot_skills_conn(tx, &id, &new.skill_ids)?;
@@ -1023,8 +1035,11 @@ fn v4_backup_path(db: &Path) -> PathBuf {
 }
 
 fn back_up(conn: &Connection, backup: &Path) -> Result<()> {
-    if std::fs::symlink_metadata(backup).is_ok() {
-        return Ok(());
+    if let Ok(meta) = std::fs::symlink_metadata(backup) {
+        if meta.is_file() {
+            return Ok(());
+        }
+        return Err(std::io::Error::other(format!("{} is not a regular backup file", backup.display())).into());
     }
     let target = backup.to_str().ok_or_else(|| {
         std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("{}: not UTF-8", backup.display()))
@@ -1032,7 +1047,7 @@ fn back_up(conn: &Connection, backup: &Path) -> Result<()> {
     conn.execute("VACUUM INTO ?1", params![target]).map_err(|e| {
         std::io::Error::other(format!("could not copy the database to {} before updating it: {e}", backup.display()))
     })?;
-    tracing::info!(backup = %backup.display(), "copied the database before migrating it to sessions");
+    tracing::info!(backup = %backup.display(), "copied the database before updating its schema");
     Ok(())
 }
 
@@ -1056,18 +1071,38 @@ impl Store {
             if let (4, Some(backup)) = (i, v4_backup.filter(|_| current > 0)) {
                 back_up(&conn, backup)?;
             }
+            let projects = i == 12;
+            if projects {
+                if current > 0 {
+                    if let Some(old_backup) = v4_backup {
+                        let db = old_backup.to_string_lossy();
+                        back_up(&conn, Path::new(&format!("{}.projects.bak", db.trim_end_matches(".v4.bak"))))?;
+                    }
+                }
+                conn.pragma_update(None, "foreign_keys", false)?;
+            }
             let tx = conn.unchecked_transaction()?;
             migration.apply(&tx)?;
+            if projects {
+                let violations: i64 =
+                    tx.query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |r| r.get(0))?;
+                if violations != 0 {
+                    return Err(CoreError::Internal("project migration failed its foreign key check".into()));
+                }
+            }
             tx.pragma_update(None, "user_version", (i + 1) as i64)?;
             tx.commit()?;
+            if projects {
+                conn.pragma_update(None, "foreign_keys", true)?;
+            }
         }
-        Ok(Self { conn: Mutex::new(conn) })
+        Ok(Self { conn: Arc::new(Mutex::new(conn)), project_id: None })
     }
 
     pub fn insert_bot(&self, new: &NewBot, handle: &str) -> Result<Bot> {
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
-        let bot = insert_bot_conn(&tx, new, handle)?;
+        let bot = insert_bot_conn(&tx, new, handle, self.project_key())?;
         tx.commit()?;
         Ok(bot)
     }
@@ -1075,8 +1110,12 @@ impl Store {
     pub fn insert_bot_recorded_as(&self, new: &NewBot, handle: &str, setting: &str) -> Result<Bot> {
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
-        let bot = insert_bot_conn(&tx, new, handle)?;
-        set_setting_conn(&tx, setting, &bot.id)?;
+        let bot = insert_bot_conn(&tx, new, handle, self.project_key())?;
+        if setting == "sonata_master" {
+            tx.execute("UPDATE projects SET master_id = ?1 WHERE id = ?2", params![bot.id, self.project_key()])?;
+        } else {
+            set_setting_conn(&tx, setting, &bot.id)?;
+        }
         tx.commit()?;
         Ok(bot)
     }
@@ -1084,7 +1123,7 @@ impl Store {
     pub fn insert_bot_recorded(&self, new: &NewBot, handle: &str, record: &NewCreation) -> Result<Bot> {
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
-        let bot = insert_bot_conn(&tx, new, handle)?;
+        let bot = insert_bot_conn(&tx, new, handle, self.project_key())?;
         record_creation_conn(&tx, record, &bot.id, &bot.handle)?;
         tx.commit()?;
         Ok(bot)
@@ -1121,7 +1160,7 @@ impl Store {
     }
 
     pub fn get_task(&self, id: &str) -> Result<Option<Task>> {
-        Ok(get_task_conn(&self.conn.lock().unwrap(), id)?)
+        Ok(get_task_conn(&self.conn.lock().unwrap(), id)?.filter(|row| self.includes(&row.project_id)))
     }
 
     pub fn get_task_by_name(&self, name: &str) -> Result<Option<Task>> {
@@ -1130,8 +1169,8 @@ impl Store {
             .lock()
             .unwrap()
             .query_row(
-                &format!("SELECT {TASK_COLUMNS} FROM tasks WHERE name = ?1 COLLATE NOCASE"),
-                params![name],
+                &format!("SELECT {TASK_COLUMNS} FROM tasks WHERE project_id = ?2 AND name = ?1 COLLATE NOCASE"),
+                params![name, self.project_key()],
                 task_from_row,
             )
             .optional()?)
@@ -1139,12 +1178,15 @@ impl Store {
 
     pub fn list_tasks(&self) -> Result<Vec<Task>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare(&format!("SELECT {TASK_COLUMNS} FROM tasks ORDER BY created_at, id"))?;
-        let tasks = stmt.query_map([], task_from_row)?.collect::<rusqlite::Result<Vec<_>>>()?;
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {TASK_COLUMNS} FROM tasks WHERE (?1 IS NULL OR project_id = ?1) ORDER BY created_at, id"
+        ))?;
+        let tasks = stmt.query_map(params![self.project_id], task_from_row)?.collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(tasks)
     }
 
     pub fn tasks_of_bot(&self, bot_id: &str) -> Result<Vec<Task>> {
+        self.check_owner("bots", bot_id)?;
         let conn = self.conn.lock().unwrap();
         let mut stmt =
             conn.prepare(&format!("SELECT {TASK_COLUMNS} FROM tasks WHERE bot_id = ?1 ORDER BY created_at, id"))?;
@@ -1153,6 +1195,7 @@ impl Store {
     }
 
     pub fn update_task(&self, id: &str, row: &TaskRow) -> Result<Option<Task>> {
+        self.check_owner("tasks", id)?;
         let conn = self.conn.lock().unwrap();
         let changed = conn.execute(
             "UPDATE tasks SET name = ?2, bot_id = ?3, prompt = ?4, every_days = ?5, at_time = ?6, starts_on = ?7, \
@@ -1177,6 +1220,7 @@ impl Store {
     }
 
     pub fn delete_task(&self, id: &str) -> Result<Option<Task>> {
+        self.check_owner("tasks", id)?;
         let conn = self.conn.lock().unwrap();
         let Some(task) = get_task_conn(&conn, id)? else {
             return Ok(None);
@@ -1187,20 +1231,20 @@ impl Store {
 
     pub fn insert_workflow(&self, new: &NewWorkflow) -> Result<Workflow> {
         let conn = self.conn.lock().unwrap();
-        insert_workflow_conn(&conn, new)
+        insert_workflow_conn(&conn, new, self.project_key())
     }
 
     pub fn insert_workflow_recorded(&self, new: &NewWorkflow, record: &NewCreation) -> Result<Workflow> {
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
-        let workflow = insert_workflow_conn(&tx, new)?;
+        let workflow = insert_workflow_conn(&tx, new, self.project_key())?;
         record_creation_conn(&tx, record, &workflow.id, &workflow.name)?;
         tx.commit()?;
         Ok(workflow)
     }
 
     pub fn get_workflow(&self, id: &str) -> Result<Option<Workflow>> {
-        Ok(get_workflow_conn(&self.conn.lock().unwrap(), id)?)
+        Ok(get_workflow_conn(&self.conn.lock().unwrap(), id)?.filter(|row| self.includes(&row.project_id)))
     }
 
     pub fn get_workflow_by_name(&self, name: &str) -> Result<Option<Workflow>> {
@@ -1209,8 +1253,8 @@ impl Store {
             .lock()
             .unwrap()
             .query_row(
-                &format!("SELECT {WORKFLOW_COLUMNS} FROM workflows WHERE name = ?1 COLLATE NOCASE"),
-                params![name],
+                &format!("SELECT {WORKFLOW_COLUMNS} FROM workflows WHERE project_id = ?2 AND name = ?1 COLLATE NOCASE"),
+                params![name, self.project_key()],
                 workflow_from_row,
             )
             .optional()?)
@@ -1219,12 +1263,14 @@ impl Store {
     pub fn list_workflows(&self) -> Result<Vec<Workflow>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt =
-            conn.prepare(&format!("SELECT {WORKFLOW_COLUMNS} FROM workflows ORDER BY name COLLATE NOCASE, id"))?;
-        let workflows = stmt.query_map([], workflow_from_row)?.collect::<rusqlite::Result<Vec<_>>>()?;
+            conn.prepare(&format!("SELECT {WORKFLOW_COLUMNS} FROM workflows WHERE (?1 IS NULL OR project_id = ?1) ORDER BY name COLLATE NOCASE, id"))?;
+        let workflows =
+            stmt.query_map(params![self.project_id], workflow_from_row)?.collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(workflows)
     }
 
     pub fn update_workflow(&self, id: &str, new: &NewWorkflow) -> Result<Option<Workflow>> {
+        self.check_owner("workflows", id)?;
         let conn = self.conn.lock().unwrap();
         let definition = serde_json::to_string(&new.def).map_err(|e| CoreError::Internal(e.to_string()))?;
         let changed = conn.execute(
@@ -1238,6 +1284,7 @@ impl Store {
     }
 
     pub fn delete_workflow(&self, id: &str) -> Result<Option<Workflow>> {
+        self.check_owner("workflows", id)?;
         let conn = self.conn.lock().unwrap();
         let Some(workflow) = get_workflow_conn(&conn, id)? else {
             return Ok(None);
@@ -1257,7 +1304,7 @@ impl Store {
         }
         tx.execute(
             "INSERT INTO workflow_runs (id, workflow_id, name, definition, request, request_files, opener_session, \
-             status, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+             status, created_at, project_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, (SELECT project_id FROM workflows WHERE id = ?2))",
             params![
                 run.id,
                 run.workflow_id,
@@ -1277,10 +1324,11 @@ impl Store {
     }
 
     pub fn get_run(&self, id: &str) -> Result<Option<WorkflowRun>> {
-        Ok(get_run_conn(&self.conn.lock().unwrap(), id)?)
+        Ok(get_run_conn(&self.conn.lock().unwrap(), id)?.filter(|row| self.includes(&row.project_id)))
     }
 
     pub fn run_visits(&self, run_id: &str) -> Result<Vec<Visit>> {
+        self.check_owner("workflow_runs", run_id)?;
         let conn = self.conn.lock().unwrap();
         let mut stmt =
             conn.prepare(&format!("SELECT {VISIT_COLUMNS} FROM workflow_visits WHERE run_id = ?1 ORDER BY ord"))?;
@@ -1289,6 +1337,8 @@ impl Store {
     }
 
     pub fn run_session_of(&self, run_id: &str, bot_id: &str) -> Result<Option<(String, i64)>> {
+        self.check_owner("bots", bot_id)?;
+        self.check_owner("workflow_runs", run_id)?;
         Ok(self
             .conn
             .lock()
@@ -1302,6 +1352,7 @@ impl Store {
     }
 
     pub fn open_visit_of_session(&self, session_id: &str) -> Result<Option<(WorkflowRun, Visit)>> {
+        self.check_owner("sessions", session_id)?;
         let conn = self.conn.lock().unwrap();
         let visit = conn
             .query_row(
@@ -1362,6 +1413,7 @@ impl Store {
     }
 
     pub fn resume_workflow_run(&self, run_id: &str, extra_for: Option<&str>, then: &RunThen) -> Result<RunMoved> {
+        self.check_owner("workflow_runs", run_id)?;
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
         let mut run =
@@ -1383,6 +1435,7 @@ impl Store {
     }
 
     pub fn pause_workflow_run(&self, run_id: &str, reason: &PauseReason) -> Result<Option<WorkflowRun>> {
+        self.check_owner("workflow_runs", run_id)?;
         let conn = self.conn.lock().unwrap();
         let changed = conn.execute(
             "UPDATE workflow_runs SET status = ?2, pause = ?3 WHERE id = ?1 AND status = ?4",
@@ -1395,6 +1448,7 @@ impl Store {
     }
 
     pub fn stop_workflow_run(&self, run_id: &str) -> Result<Option<WorkflowRun>> {
+        self.check_owner("workflow_runs", run_id)?;
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
         let run = stop_run_conn(&tx, run_id, &now())?;
@@ -1429,6 +1483,7 @@ impl Store {
     }
 
     pub fn run_session_ids(&self, run_id: &str) -> Result<Vec<String>> {
+        self.check_owner("workflow_runs", run_id)?;
         let conn = self.conn.lock().unwrap();
         let mut ids: Vec<String> = conn
             .prepare("SELECT session_id FROM workflow_run_sessions WHERE run_id = ?1 ORDER BY rowid")?
@@ -1443,6 +1498,7 @@ impl Store {
     }
 
     pub fn latest_run_of_session(&self, session_id: &str) -> Result<Option<WorkflowRun>> {
+        self.check_owner("sessions", session_id)?;
         Ok(self
             .conn
             .lock()
@@ -1486,6 +1542,7 @@ impl Store {
     }
 
     pub fn session_of_users_run(&self, session_id: &str) -> Result<bool> {
+        self.check_owner("sessions", session_id)?;
         Ok(self.conn.lock().unwrap().query_row(
             "SELECT EXISTS (SELECT 1 FROM workflow_run_sessions s JOIN workflow_runs r ON r.id = s.run_id \
              WHERE s.session_id = ?1 AND r.opener_session IS NULL)",
@@ -1520,6 +1577,7 @@ impl Store {
     }
 
     pub fn owed_answers(&self, session_id: &str, since: &str) -> Result<u32> {
+        self.check_owner("sessions", session_id)?;
         Ok(self.conn.lock().unwrap().query_row(
             "SELECT COUNT(*) FROM messages m WHERE m.sender_session = ?1 AND m.created_at >= ?2 \
              AND m.recipient <> ?3 AND m.in_reply_to IS NULL AND m.answered_by IS NULL \
@@ -1531,6 +1589,7 @@ impl Store {
     }
 
     pub fn last_reply_since(&self, session_id: &str, since: &str) -> Result<Option<Message>> {
+        self.check_owner("sessions", session_id)?;
         let conn = self.conn.lock().unwrap();
         Ok(conn
             .query_row(
@@ -1547,7 +1606,7 @@ impl Store {
     pub fn tasks_due(&self, now: &str) -> Result<Vec<Task>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(&format!(
-            "SELECT {TASK_COLUMNS} FROM tasks WHERE enabled = 1 AND next_run_at IS NOT NULL AND next_run_at <= ?1 \
+            "SELECT {TASK_COLUMNS} FROM tasks WHERE project_id IN (SELECT id FROM projects WHERE archived_at IS NULL) AND enabled = 1 AND next_run_at IS NOT NULL AND next_run_at <= ?1 \
              ORDER BY next_run_at, created_at, id"
         ))?;
         let tasks = stmt.query_map(params![now], task_from_row)?.collect::<rusqlite::Result<Vec<_>>>()?;
@@ -1575,6 +1634,7 @@ impl Store {
         since: Option<&str>,
         scheduled: Option<Scheduled<'_>>,
     ) -> Result<Option<(Routed, Task)>> {
+        self.check_owner("tasks", task_id)?;
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
         let Some(task) = get_task_conn(&tx, task_id)? else {
@@ -1623,6 +1683,7 @@ impl Store {
     }
 
     pub fn last_completed_run(&self, task_id: &str) -> Result<Option<String>> {
+        self.check_owner("tasks", task_id)?;
         Ok(self.conn.lock().unwrap().query_row(
             "SELECT MAX(s.created_at) FROM messages m JOIN sessions s ON s.id = m.recipient_session \
              WHERE m.task_id = ?1 AND m.task_done_at IS NOT NULL",
@@ -1640,6 +1701,7 @@ impl Store {
     }
 
     pub fn messages_of_session(&self, session_id: &str) -> Result<Vec<Message>> {
+        self.check_owner("sessions", session_id)?;
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(&format!(
             "SELECT {MESSAGE_COLUMNS} FROM messages WHERE sender_session = ?1 OR recipient_session = ?1 ORDER BY seq"
@@ -1649,6 +1711,7 @@ impl Store {
     }
 
     pub fn creation(&self, session_id: &str, kind: CreationKind, key: &str) -> Result<Option<Creation>> {
+        self.check_owner("sessions", session_id)?;
         Ok(self
             .conn
             .lock()
@@ -1662,50 +1725,62 @@ impl Store {
     }
 
     pub fn get_bot(&self, id: &str) -> Result<Option<Bot>> {
-        Ok(get_bot_conn(&self.conn.lock().unwrap(), id)?)
+        Ok(get_bot_conn(&self.conn.lock().unwrap(), id)?.filter(|row| self.includes(&row.project_id)))
     }
 
     pub fn get_bot_by_handle(&self, handle: &str) -> Result<Option<Bot>> {
         let conn = self.conn.lock().unwrap();
         let bot = conn
-            .query_row(&format!("SELECT {BOT_COLUMNS} FROM bots WHERE handle = ?1"), params![handle], bot_from_row)
+            .query_row(
+                &format!("SELECT {BOT_COLUMNS} FROM bots WHERE project_id = ?2 AND handle = ?1"),
+                params![handle, self.project_key()],
+                bot_from_row,
+            )
             .optional()?;
         Ok(bot.map(|bot| with_skills(&conn, bot)).transpose()?)
     }
 
     pub fn list_bots(&self) -> Result<Vec<Bot>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare(&format!("SELECT {BOT_COLUMNS} FROM bots ORDER BY created_at, id"))?;
-        let bots = stmt.query_map([], bot_from_row)?.collect::<rusqlite::Result<Vec<_>>>()?;
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {BOT_COLUMNS} FROM bots WHERE (?1 IS NULL OR project_id = ?1) ORDER BY created_at, id"
+        ))?;
+        let bots = stmt.query_map(params![self.project_id], bot_from_row)?.collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(bots.into_iter().map(|bot| with_skills(&conn, bot)).collect::<rusqlite::Result<Vec<_>>>()?)
     }
 
     pub fn bot_handles(&self) -> Result<Vec<String>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT handle FROM bots ORDER BY created_at, id")?;
-        let handles = stmt.query_map([], |r| r.get(0))?.collect::<rusqlite::Result<Vec<String>>>()?;
+        let mut stmt =
+            conn.prepare("SELECT handle FROM bots WHERE (?1 IS NULL OR project_id = ?1) ORDER BY created_at, id")?;
+        let handles =
+            stmt.query_map(params![self.project_id], |r| r.get(0))?.collect::<rusqlite::Result<Vec<String>>>()?;
         Ok(handles)
     }
 
     pub fn create_session(&self, bot_id: &str, title: Option<&str>, opened_by: Option<&str>) -> Result<Session> {
+        self.check_owner("bots", bot_id)?;
         Ok(create_session_conn(&self.conn.lock().unwrap(), bot_id, title, opened_by)?)
     }
 
     pub fn get_session(&self, id: &str) -> Result<Option<Session>> {
-        Ok(get_session_conn(&self.conn.lock().unwrap(), id)?)
+        Ok(get_session_conn(&self.conn.lock().unwrap(), id)?.filter(|row| self.includes(&row.project_id)))
     }
 
     pub fn set_session_seen(&self, session_id: &str) -> Result<Option<Session>> {
+        self.check_owner("sessions", session_id)?;
         let conn = self.conn.lock().unwrap();
         conn.execute("UPDATE sessions SET seen_at = ?2 WHERE id = ?1", params![session_id, now()])?;
         Ok(get_session_conn(&conn, session_id)?)
     }
 
     pub fn sessions_of(&self, bot_id: &str) -> Result<Vec<Session>> {
+        self.check_owner("bots", bot_id)?;
         Ok(sessions_of_conn(&self.conn.lock().unwrap(), bot_id)?)
     }
 
     pub fn latest_session(&self, bot_id: &str) -> Result<Option<Session>> {
+        self.check_owner("bots", bot_id)?;
         Ok(sessions_of_conn(&self.conn.lock().unwrap(), bot_id)?.into_iter().find(|s| s.archived_at.is_none()))
     }
 
@@ -1716,6 +1791,7 @@ impl Store {
         config_version: i64,
         provider: Provider,
     ) -> Result<()> {
+        self.check_owner("sessions", session_id)?;
         self.conn.lock().unwrap().execute(
             "UPDATE sessions SET provider_session_id = ?2, \
              session_config_version = CASE WHEN ?2 IS NULL THEN NULL ELSE ?3 END \
@@ -1732,6 +1808,7 @@ impl Store {
         config_version: i64,
         provider: Provider,
     ) -> Result<bool> {
+        self.check_owner("sessions", session_id)?;
         let changed = self.conn.lock().unwrap().execute(
             "UPDATE sessions SET provider_session_id = ?2, session_config_version = ?3 \
              WHERE id = ?1 AND provider_session_id IS NULL \
@@ -1742,6 +1819,7 @@ impl Store {
     }
 
     pub fn set_session_title(&self, session_id: &str, title: Option<&str>) -> Result<()> {
+        self.check_owner("sessions", session_id)?;
         self.conn
             .lock()
             .unwrap()
@@ -1750,6 +1828,7 @@ impl Store {
     }
 
     pub fn touch_session(&self, session_id: &str) -> Result<()> {
+        self.check_owner("sessions", session_id)?;
         self.conn
             .lock()
             .unwrap()
@@ -1758,6 +1837,7 @@ impl Store {
     }
 
     pub fn delete_bot(&self, id: &str) -> Result<Option<(Bot, Vec<Message>)>> {
+        self.check_owner("bots", id)?;
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
         let Some(bot) = get_bot_conn(&tx, id)? else {
@@ -1787,6 +1867,7 @@ impl Store {
         id: &str,
         check: impl FnOnce(&[Session]) -> Result<()>,
     ) -> Result<Option<RemovedSessions>> {
+        self.check_owner("sessions", id)?;
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
         let sessions = tree_conn(&tx, id)?;
@@ -1836,6 +1917,7 @@ impl Store {
     }
 
     pub fn session_tree(&self, id: &str) -> Result<Vec<Session>> {
+        self.check_owner("sessions", id)?;
         Ok(tree_conn(&self.conn.lock().unwrap(), id)?)
     }
 
@@ -1844,6 +1926,7 @@ impl Store {
         id: &str,
         check: impl FnOnce(&[Session]) -> Result<()>,
     ) -> Result<Option<Vec<Session>>> {
+        self.check_owner("sessions", id)?;
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
         let tree = tree_conn(&tx, id)?;
@@ -1873,6 +1956,7 @@ impl Store {
     }
 
     pub fn restore_session(&self, id: &str) -> Result<Option<Vec<Session>>> {
+        self.check_owner("sessions", id)?;
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
         let tree = tree_conn(&tx, id)?;
@@ -1887,6 +1971,7 @@ impl Store {
     }
 
     pub fn update_bot(&self, id: &str, edit: &NewBot) -> Result<Option<Bot>> {
+        self.check_owner("bots", id)?;
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
         let Some(old) = get_bot_conn(&tx, id)? else { return Ok(None) };
@@ -1924,6 +2009,7 @@ impl Store {
     }
 
     pub fn forget_cli_sessions(&self, bot_id: &str) -> Result<()> {
+        self.check_owner("bots", bot_id)?;
         self.conn.lock().unwrap().execute(
             "UPDATE sessions SET provider_session_id = NULL, session_config_version = NULL WHERE bot_id = ?1",
             params![bot_id],
@@ -1995,6 +2081,7 @@ impl Store {
     }
 
     pub fn chain_has_party(&self, chain_id: &str, bot_id: &str) -> Result<bool> {
+        self.check_owner("bots", bot_id)?;
         Ok(self.conn.lock().unwrap().query_row(
             "SELECT EXISTS (SELECT 1 FROM messages WHERE chain_id = ?1 AND (sender = ?2 OR recipient = ?2))",
             params![chain_id, bot_id],
@@ -2015,6 +2102,7 @@ impl Store {
     }
 
     pub fn insert_routed(&self, id: &str, m: &NewMessage, route: Route) -> Result<Routed> {
+        self.check_owner("bots", &m.recipient)?;
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
         if let Some(sender) = &m.sender_session {
@@ -2045,6 +2133,7 @@ impl Store {
     }
 
     pub fn insert_workflow_request(&self, id: &str, m: &NewMessage, title: Option<&str>) -> Result<Routed> {
+        self.check_owner("bots", &m.recipient)?;
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
         let session = create_session_conn(&tx, &m.recipient, title, None)?;
@@ -2082,10 +2171,12 @@ impl Store {
     }
 
     pub fn get_message(&self, id: &str) -> Result<Option<Message>> {
+        self.check_owner("messages", id)?;
         Ok(get_message_conn(&self.conn.lock().unwrap(), id)?)
     }
 
     pub fn activity_rows(&self, session_id: &str, in_flight: Option<&str>) -> Result<Option<ActivityRows>> {
+        self.check_owner("sessions", session_id)?;
         let conn = self.conn.lock().unwrap();
         let Some(session) = get_session_conn(&conn, session_id)? else {
             return Ok(None);
@@ -2124,6 +2215,7 @@ impl Store {
     }
 
     pub fn thread_messages(&self, thread_id: &str) -> Result<Vec<Message>> {
+        self.check_owner("threads", thread_id)?;
         let conn = self.conn.lock().unwrap();
         let mut stmt =
             conn.prepare(&format!("SELECT {MESSAGE_COLUMNS} FROM messages WHERE thread_id = ?1 ORDER BY seq"))?;
@@ -2139,11 +2231,11 @@ impl Store {
              JOIN messages m ON m.thread_id = t.id \
              LEFT JOIN sessions sa ON sa.id = t.participant_a \
              LEFT JOIN sessions sb ON sb.id = t.participant_b \
-             WHERE t.participant_a <> ?1 AND t.participant_b <> ?1 \
+             WHERE t.participant_a <> ?1 AND t.participant_b <> ?1 AND (?2 IS NULL OR sa.project_id = ?2 OR sb.project_id = ?2) \
              GROUP BY t.id ORDER BY MAX(m.seq) DESC",
         )?;
         let threads = stmt
-            .query_map(params![USER], |r| {
+            .query_map(params![USER, self.project_id], |r| {
                 let (a, b): (String, String) = (r.get(1)?, r.get(2)?);
                 let (sa, sb): (Option<String>, Option<String>) = (r.get(4)?, r.get(5)?);
                 let ((a, sa), (b, sb)) = if a <= b { ((a, sa), (b, sb)) } else { ((b, sb), (a, sa)) };
@@ -2161,6 +2253,7 @@ impl Store {
     }
 
     pub fn queued_for_session(&self, session_id: &str) -> Result<Vec<Message>> {
+        self.check_owner("sessions", session_id)?;
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(&format!(
             "SELECT {MESSAGE_COLUMNS} FROM messages WHERE recipient_session = ?1 AND status = 'queued' ORDER BY seq"
@@ -2170,6 +2263,7 @@ impl Store {
     }
 
     pub fn last_delivered_to_session(&self, session_id: &str) -> Result<Option<Message>> {
+        self.check_owner("sessions", session_id)?;
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(&format!(
             "SELECT {MESSAGE_COLUMNS} FROM messages WHERE recipient_session = ?1 AND status = 'delivered' \
@@ -2195,7 +2289,7 @@ impl Store {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             "SELECT recipient_session FROM messages \
-             WHERE status = 'queued' AND recipient_session IN (SELECT id FROM sessions WHERE archived_at IS NULL) \
+             WHERE status = 'queued' AND recipient_session IN (SELECT id FROM sessions WHERE archived_at IS NULL AND project_id IN (SELECT id FROM projects WHERE archived_at IS NULL)) \
              GROUP BY recipient_session ORDER BY MIN(seq)",
         )?;
         let ids = stmt.query_map([], |r| r.get(0))?.collect::<rusqlite::Result<Vec<String>>>()?;
@@ -2203,6 +2297,7 @@ impl Store {
     }
 
     pub fn set_message_status(&self, id: &str, status: MessageStatus) -> Result<Message> {
+        self.check_owner("messages", id)?;
         let conn = self.conn.lock().unwrap();
         conn.execute(
             "UPDATE messages SET status = ?2, \
@@ -2245,6 +2340,9 @@ impl Store {
     }
 
     pub fn get_setting(&self, key: &str) -> Result<Option<String>> {
+        if key == "project_folder" || key == "sonata_master" {
+            return self.project_setting(key);
+        }
         Ok(self
             .conn
             .lock()
@@ -2254,10 +2352,16 @@ impl Store {
     }
 
     pub fn set_setting(&self, key: &str, value: &str) -> Result<()> {
+        if key == "project_folder" || key == "sonata_master" {
+            return self.set_project_setting(key, Some(value));
+        }
         Ok(set_setting_conn(&self.conn.lock().unwrap(), key, value)?)
     }
 
     pub fn delete_setting(&self, key: &str) -> Result<()> {
+        if key == "project_folder" || key == "sonata_master" {
+            return self.set_project_setting(key, None);
+        }
         self.conn.lock().unwrap().execute("DELETE FROM settings WHERE key = ?1", params![key])?;
         Ok(())
     }
@@ -2305,6 +2409,7 @@ impl Store {
     }
 
     pub fn skills_of(&self, bot_id: &str) -> Result<Vec<Skill>> {
+        self.check_owner("bots", bot_id)?;
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(&format!(
             "SELECT {} FROM skills s JOIN bot_skills b ON b.skill_id = s.id WHERE b.bot_id = ?1 ORDER BY s.slug",

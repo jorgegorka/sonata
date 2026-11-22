@@ -65,7 +65,7 @@ impl Engine {
         outcome: Option<String>,
     ) -> BridgeResponse {
         let Some((from, flight)) = self.caller(pane_id).await else { return not_a_bot() };
-        match self.inner.store.open_visit_of_session(&from.session_id) {
+        match self.store.open_visit_of_session(&from.session_id) {
             Ok(Some((run, visit))) => {
                 return self.step_result(&from, flight, run, visit, body, files, outcome).await;
             }
@@ -78,7 +78,7 @@ impl Engine {
                 "--outcome is only for a workflow step, and this conversation has no open step.",
             );
         }
-        let session = match self.inner.store.get_session(&from.session_id) {
+        let session = match self.store.get_session(&from.session_id) {
             Ok(Some(session)) => session,
             Ok(None) => return not_a_bot(),
             Err(e) => return internal(e),
@@ -100,12 +100,12 @@ impl Engine {
                 Err(e) => internal(e),
             };
         };
-        let request = match self.inner.store.get_message(&request) {
+        let request = match self.store.get_message(&request) {
             Ok(Some(request)) => request,
             Ok(None) => return conversation_removed(),
             Err(e) => return internal(e),
         };
-        let bot = match self.inner.store.get_bot(&request.sender) {
+        let bot = match self.store.get_bot(&request.sender) {
             Ok(Some(bot)) => bot,
             Ok(None) => {
                 return refuse(
@@ -137,40 +137,40 @@ impl Engine {
         answers: Option<&InFlight>,
     ) -> Result<Question> {
         let Some(flight) = answers.filter(|f| f.sender != USER) else {
-            return self.inner.store.insert_question(id, question, options, None, None, None);
+            return self.store.insert_question(id, question, options, None, None, None);
         };
         let request = match flight.in_reply_to {
             None => Some(flight.message_id.clone()),
             Some(_) => self.exchange_request(&from.session_id, flight)?,
         };
         let Some(request) = request else {
-            return self.inner.store.insert_question(id, question, options, None, None, None);
+            return self.store.insert_question(id, question, options, None, None, None);
         };
         let who = self.who(&from.session_id);
         if self.is_master(&asker.id)? {
             tracing::info!(bot = %who.bot, session = who.session, message_id = %flight.message_id, "Master asked the user on a bot's message; Master's sessions open no request");
-            return self.inner.store.insert_question(id, question, options, None, None, Some(&flight.message_id));
+            return self.store.insert_question(id, question, options, None, None, Some(&flight.message_id));
         }
         let requester = match flight.sender_session.as_deref() {
-            Some(session) => self.inner.store.get_session(session)?.filter(|s| s.archived_at.is_none()),
+            Some(session) => self.store.get_session(session)?.filter(|s| s.archived_at.is_none()),
             None => None,
         };
         let Some(requester) = requester else {
             tracing::info!(bot = %who.bot, session = who.session, message_id = %flight.message_id, "the requesting session is archived or removed; the question opens no request");
-            return self.inner.store.insert_question(id, question, options, None, None, Some(&flight.message_id));
+            return self.store.insert_question(id, question, options, None, None, Some(&flight.message_id));
         };
         if request != flight.message_id {
             tracing::info!(bot = %who.bot, session = who.session, message_id = %flight.message_id, request = %request, "asked the user on a bot's answer; the question opens the request their exchange began with");
         }
         let notice = NewMessage::system(&requester, "session_waiting", json!({"handle": asker.handle}));
-        self.inner.store.insert_question(id, question, options, Some(&request), Some(&notice), Some(&flight.message_id))
+        self.store.insert_question(id, question, options, Some(&request), Some(&notice), Some(&flight.message_id))
     }
 
     fn exchange_request(&self, session_id: &str, flight: &InFlight) -> Result<Option<String>> {
         let mut next = flight.in_reply_to.clone();
         let mut first = None;
         while let Some(id) = next {
-            let Some(message) = self.inner.store.get_message(&id)? else { return Ok(None) };
+            let Some(message) = self.store.get_message(&id)? else { return Ok(None) };
             next = message.in_reply_to.clone();
             first = Some(message);
         }
@@ -186,13 +186,13 @@ impl Engine {
 
     fn opener_handle(&self, session: &Session) -> Result<Option<String>> {
         let Some(opener) = session.opened_by.as_deref() else { return Ok(None) };
-        if self.inner.store.session_of_users_run(&session.id)? {
+        if self.store.session_of_users_run(&session.id)? {
             return Ok(None);
         }
-        let Some(opener) = self.inner.store.get_session(opener)?.filter(|s| s.archived_at.is_none()) else {
+        let Some(opener) = self.store.get_session(opener)?.filter(|s| s.archived_at.is_none()) else {
             return Ok(None);
         };
-        Ok(self.inner.store.get_bot(&opener.bot_id)?.map(|bot| bot.handle))
+        Ok(self.store.get_bot(&opener.bot_id)?.map(|bot| bot.handle))
     }
 
     pub(super) fn question_asked(&self, from: &Caller, question: Question) -> BridgeResponse {
@@ -212,17 +212,17 @@ impl Engine {
     }
 
     pub(super) fn requester_handle(&self, request_id: &str) -> Result<Option<String>> {
-        let Some(request) = self.inner.store.get_message(request_id)? else { return Ok(None) };
-        Ok(self.inner.store.get_bot(&request.sender)?.map(|bot| bot.handle))
+        let Some(request) = self.store.get_message(request_id)? else { return Ok(None) };
+        Ok(self.store.get_bot(&request.sender)?.map(|bot| bot.handle))
     }
 
     pub(super) fn opened_session_waits(&self, bot_id: &str, opener: &str) -> Result<bool> {
-        let sessions = self.inner.store.sessions_of(bot_id)?;
+        let sessions = self.store.sessions_of(bot_id)?;
         Ok(sessions.iter().any(|s| s.opened_by.as_deref() == Some(opener) && s.waiting_question_id.is_some()))
     }
 
     pub fn answered_by(&self, message_id: &str) -> Result<Option<String>> {
-        self.inner.store.answered_by(message_id)
+        self.store.answered_by(message_id)
     }
 }
 

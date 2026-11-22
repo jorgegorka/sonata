@@ -1,7 +1,7 @@
+import { useProjectApi } from "../projectContext";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  api,
   type DependencyChoice,
   type ImportReport,
   type WorkflowFileEntry,
@@ -21,6 +21,7 @@ interface Props {
 }
 
 export default function WorkflowImportPanel({ path, workflows, onBusy, onClose, onImported }: Props) {
+  const api = useProjectApi();
   const { t } = useTranslation();
   const initial = (workflow: string): WorkflowImportRequest => ({
     workflow,

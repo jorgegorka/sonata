@@ -1,7 +1,8 @@
+import { useProjectApi } from "../projectContext";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { ask } from "@tauri-apps/plugin-dialog";
-import { api, type Skill, type SkillView } from "../api";
+import { type Skill, type SkillView } from "../api";
 import { deletedAnyway } from "../botForm";
 import { errorMessage } from "../errors";
 import { canSave, EMPTY_SKILL, type SkillDraft } from "../skills";
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function SkillForm({ skill, onSaved, onDeleted, onCancel, onError }: Props) {
+  const api = useProjectApi();
   const { t } = useTranslation();
   const [draft, setDraft] = useState<SkillDraft>(() =>
     skill ? { name: skill.name, description: skill.description, body: "" } : EMPTY_SKILL,

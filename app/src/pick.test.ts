@@ -91,7 +91,7 @@ describe("elementSummary", () => {
 
 describe("pickTarget", () => {
   beforeAll(() => i18n.changeLanguage("en"));
-  const feature: BotView = {
+  const feature: BotView = { project_id: "default",
     id: "b1",
     handle: "feature",
     display_name: "Feature",
@@ -105,7 +105,7 @@ describe("pickTarget", () => {
     updated_at: "t",
     status: "idle",
   };
-  const session = (id: string, extra: Partial<SessionView> = {}): SessionView => ({
+  const session = (id: string, extra: Partial<SessionView> = {}): SessionView => ({ project_id: "default",
     id,
     bot_id: "b1",
     number: 1,

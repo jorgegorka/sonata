@@ -1,6 +1,7 @@
+import { useProjectApi } from "../projectContext";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, USER, type BotView, type Message, type SessionView } from "../api";
+import { USER, type BotView, type Message, type SessionView } from "../api";
 import { archivedDate } from "../archive";
 import { avatarTextColor } from "../colors";
 import { confirmRemoval } from "../removal";
@@ -35,6 +36,7 @@ export default function ArchivedSessionView({
   onToggleBrowser,
   embedded = false,
 }: Props) {
+  const api = useProjectApi();
   const { t, i18n } = useTranslation();
   const browserLabel = browserOpen ? t("browser.hide") : t("browser.show");
   const endRef = useRef<HTMLDivElement>(null);

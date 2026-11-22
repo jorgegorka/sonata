@@ -117,7 +117,7 @@ fn fingerprint<T: Serialize>(hasher: &mut Sha256, value: &T) {
 
 impl Engine {
     pub fn export_workflow_config(&self, workflow_id: &str) -> Result<ConfigFile> {
-        let store = &self.inner.store;
+        let store = &self.store;
         let workflow = store.get_workflow(workflow_id)?.ok_or_else(|| Refusal::WorkflowNotFound(workflow_id.into()))?;
         let master = self.master_id()?;
         let mut bots = Vec::new();
@@ -225,15 +225,14 @@ impl Engine {
         Ok(if bot.master {
             master
         } else {
-            self.inner
-                .store
+            self.store
                 .get_bot_by_handle(&bot.handle.to_lowercase())?
                 .filter(|b| master.as_ref().is_none_or(|m| b.id != m.id))
         })
     }
 
     fn local_file_bot(&self, bot: &Bot) -> Result<FileBot> {
-        let slugs = self.inner.store.skills_of(&bot.id)?.into_iter().map(|s| s.slug).collect();
+        let slugs = self.store.skills_of(&bot.id)?.into_iter().map(|s| s.slug).collect();
         Ok(file_bot(bot, slugs, self.master_id()?.as_deref() == Some(bot.id.as_str())))
     }
 
@@ -249,7 +248,7 @@ impl Engine {
             .iter()
             .find(|w| w.name == request.workflow)
             .ok_or_else(|| Refusal::WorkflowNotFound(request.workflow.clone()))?;
-        let store = &self.inner.store;
+        let store = &self.store;
         let existing = store.get_workflow_by_name(source.name.trim())?;
         let local_bots = store.list_bots()?;
         let local_handles: HashMap<String, String> =
@@ -282,6 +281,7 @@ impl Engine {
         }
 
         let mut hash = Sha256::new();
+        fingerprint(&mut hash, &self.store.project_key());
         fingerprint(&mut hash, digest);
         fingerprint(&mut hash, request);
         fingerprint(&mut hash, &existing);
@@ -421,16 +421,25 @@ impl Engine {
                 entry.item.target = slug.clone();
             }
             if let Some(local) = &local {
-                entry.used_by_bots = store.bots_using_skill(&local.id)?;
-                let ids: HashSet<&str> = local_bots
-                    .iter()
-                    .filter(|b| entry.used_by_bots.contains(&b.handle))
-                    .map(|b| b.id.as_str())
-                    .collect();
-                entry.used_by_workflows = local_workflows
+                entry.used_by_bots = store.skill_user_labels(&local.id)?;
+                let all_bots = store.unscoped().list_bots()?;
+                let ids: HashSet<&str> =
+                    all_bots.iter().filter(|b| b.skill_ids.contains(&local.id)).map(|b| b.id.as_str()).collect();
+                let projects = store.list_projects()?;
+                entry.used_by_workflows = store
+                    .unscoped()
+                    .list_workflows()?
                     .iter()
                     .filter(|w| w.def.steps.iter().any(|s| ids.contains(s.bot_id.as_str())))
-                    .map(|w| w.name.clone())
+                    .map(|w| {
+                        if projects.len() > 1 {
+                            let project =
+                                projects.iter().find(|p| p.id == w.project_id).expect("workflow project exists");
+                            format!("{} · {}", w.name, project.name)
+                        } else {
+                            w.name.clone()
+                        }
+                    })
                     .collect();
             }
             if let Some(step) = &step {

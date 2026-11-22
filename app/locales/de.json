@@ -55,7 +55,7 @@
     "hideDone": "Erledigte ausblenden",
     "newTask": "Neue Aufgabe",
     "pause": "Alle Bots pausieren",
-    "resume": "Bots fortsetzen",
+    "resume": "Alle Bots fortsetzen",
     "pausedNote": "Die Bots sind pausiert. Nichts Neues wird zugestellt, bis du sie fortsetzt.",
     "empty": "Noch keine Aufgaben. Starte eine und verfolge sie hier, von deiner Anfrage bis zum Ergebnis.",
     "emptyColumn": "Nichts hier",
@@ -403,7 +403,7 @@
     "changeFolder": "Ändern…",
     "folderLocked": "Dieser Ordner bleibt gleich, sobald du Bots hast.",
     "projectTitle": "Projektordner",
-    "projectHint": "Sonata beginnt mit Master, der dir beim Erstellen und Koordinieren deiner Bots hilft. Wähle einen optionalen Projektordner oder warte, bis eine Anfrage einen benötigt.",
+    "projectHint": "Benenne dein erstes Projekt und wähle sein Quellverzeichnis und den Standard-KI-Anbieter. Master hilft dir, Bots in diesem Projekt zu erstellen und zu koordinieren.",
     "projectNone": "Kein Ordner gewählt",
     "chooseCheckout": "Auswählen…",
     "toolsTitle": "Die KI-Werkzeuge, mit denen Bots laufen",
@@ -586,8 +586,8 @@
     "title": "Konfiguration",
     "hint": "Speichere deine Bots, Fähigkeiten und Workflows in einer Datei oder lade eine.",
     "export": "Exportieren…",
-    "exportAll": "Alles exportieren…",
-    "exportAllHint": "Exportiere alle Workflows, Bots und Fähigkeiten samt ihren Dateien in eine einzige YAML-Datei. Stelle alles unter Einstellungen → Konfiguration → Importieren wieder her.",
+    "exportAll": "Projekt exportieren…",
+    "exportAllHint": "Exportiert die Workflows, Bots und verwendeten Skills dieses Projekts einschließlich der Skill-Dateien in eine YAML-Datei. Wiederherstellen unter Einstellungen → Konfiguration → Importieren.",
     "import": "Importieren…",
     "fileFilter": "Sonata-Konfiguration",
     "exported": "{{file}} gespeichert. Bots: {{bots}} · Fähigkeiten: {{skills}} · Workflows: {{workflows}}",
@@ -712,7 +712,16 @@
     "skillUnknown": "Die Fähigkeit {{slug}} ist weder in der Datei noch in deiner Bibliothek.",
     "importDependsOn": "Sie braucht {{name}}, das sich nicht importieren lässt.",
     "languageUnknown": "Diese Sprache ist nicht verfügbar.",
-    "databaseTooNew": "Diese Daten wurden von einer neueren Version von Sonata gesichert."
+    "databaseTooNew": "Diese Daten wurden von einer neueren Version von Sonata gesichert.",
+    "projectNotFound": "Projekt nicht gefunden.",
+    "projectArchived": "Stelle das Projekt wieder her, bevor du es änderst oder Arbeit startest.",
+    "projectNameRequired": "Das Projekt benötigt einen Namen.",
+    "projectNameTaken": "Ein Projekt mit diesem Namen existiert bereits, auch unter den archivierten Projekten.",
+    "projectDirectoryRequired": "Wähle ein Verzeichnis für das Projekt.",
+    "projectMismatch": "Dieses Element gehört zu einem anderen Projekt.",
+    "projectActiveWork": "Beende oder stoppe aktive Bot-Arbeit vor dem Archivieren.",
+    "projectQueuedWork": "Beende oder stoppe wartende Arbeit und unfertige Workflows vor dem Archivieren.",
+    "projectBackgroundWork": "Beende Hintergrundarbeit vor dem Archivieren. Wenn ihr Status unbekannt ist, stoppe zuerst den Bot."
   },
   "linux": {
     "skills": {
@@ -741,5 +750,26 @@
     "errors": {
       "opensPrograms": "Diese Datei kann Programme ausführen oder Software installieren, deshalb zeigt Sonata sie nur im Dateimanager."
     }
+  },
+  "projects": {
+    "select": "Projekt",
+    "add": "Projekt hinzufügen",
+    "manage": "Projekte verwalten",
+    "name": "Projektname",
+    "directory": "Projektverzeichnis",
+    "provider": "Standard-KI-Anbieter",
+    "inherit": "Projektstandard ({{provider}})",
+    "edit": "Projekt bearbeiten",
+    "archive": "Projekt archivieren",
+    "restore": "Projekt wiederherstellen",
+    "archived": "Archiviert",
+    "back": "Zurück zum Board",
+    "none": "Keine aktiven Projekte",
+    "defaultsHint": "Der Anbieter gilt für neue Bots. Verzeichnisänderungen gelten beim nächsten Kontextstart; eigene Anweisungen bleiben erhalten.",
+    "archiveHint": "Archivierte Projekte behalten ihren Verlauf. Aktive Arbeit muss vor dem Archivieren beendet oder gestoppt werden. Geplante Aufgaben laufen nach der Wiederherstellung zum nächsten zukünftigen Termin weiter.",
+    "archiveConfirm": "{{name}} archivieren? Geplante Aufgaben werden bis zur Wiederherstellung ausgesetzt.",
+    "sharedSkills": "Skills werden projektübergreifend geteilt. Das Ersetzen eines Skills betrifft auch Bots in anderen Projekten, die ihn verwenden.",
+    "export": "Projekt exportieren",
+    "import": "In Projekt importieren"
   }
 }

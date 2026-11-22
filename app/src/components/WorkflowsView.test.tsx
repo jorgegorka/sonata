@@ -36,7 +36,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const bot = (id: string, handle: string): BotView => ({
+const bot = (id: string, handle: string): BotView => ({ project_id: "default",
   id,
   handle,
   display_name: handle,
@@ -60,7 +60,7 @@ const step = (id: string, name: string, bot_id: string, to: string): WorkflowSte
   arrows: [{ to, outcome: null }],
   pos: null,
 });
-const workflow = (id: string, name: string, when_to_use: string, steps: WorkflowStep[]): Workflow => ({
+const workflow = (id: string, name: string, when_to_use: string, steps: WorkflowStep[]): Workflow => ({ project_id: "default",
   id,
   name,
   when_to_use,
@@ -209,9 +209,9 @@ describe("the Workflows page", () => {
     await mount([ticket, quick]);
     tauri.saved = "/tmp/everything.yaml";
     tauri.result = { workflows: 2, bots: 5, skills: 7 };
-    const exportAll = buttonIn(host, "Export all…");
+    const exportAll = buttonIn(host, "Export project…");
     const hint = document.getElementById(exportAll.getAttribute("aria-describedby")!);
-    expect(hint?.textContent).toContain("all workflows, bots and skills, including skill files");
+    expect(hint?.textContent).toContain("this project’s workflows, bots and referenced skills, including skill files");
     expect(hint?.textContent).toContain("Settings → Configuration → Import");
     await click(exportAll);
     expect(tauri.invoked).toEqual([["export_config", { path: "/tmp/everything.yaml" }]]);
@@ -228,31 +228,31 @@ describe("the Workflows page", () => {
     await mount([]);
     tauri.saved = "/tmp/team.yaml";
     tauri.result = { workflows: 0, bots: 3, skills: 2 };
-    expect(buttonIn(host, "Export all…").disabled).toBe(false);
-    await click(buttonIn(host, "Export all…"));
+    expect(buttonIn(host, "Export project…").disabled).toBe(false);
+    await click(buttonIn(host, "Export project…"));
     expect(tauri.invoked).toEqual([["export_config", { path: "/tmp/team.yaml" }]]);
     expect(host.querySelector('[role="status"]')?.textContent).toContain("Bots: 3 · Skills: 2 · Workflows: 0");
   });
 
   it("cancels a full export without writing a file", async () => {
     await mount([ticket]);
-    await click(buttonIn(host, "Export all…"));
+    await click(buttonIn(host, "Export project…"));
     expect(tauri.invoked).toEqual([]);
     expect(host.querySelector('[role="status"]')).toBeNull();
-    expect(buttonIn(host, "Export all…").disabled).toBe(false);
+    expect(buttonIn(host, "Export project…").disabled).toBe(false);
   });
 
   it("explains a failed full export and clears the previous success message", async () => {
     await mount([ticket]);
     tauri.saved = "/tmp/team.yaml";
     tauri.result = { workflows: 1, bots: 3, skills: 2 };
-    await click(buttonIn(host, "Export all…"));
+    await click(buttonIn(host, "Export project…"));
     expect(host.querySelector('[role="status"]')).not.toBeNull();
     tauri.failure = { code: "configExportTooLarge", params: { mb: "256" } };
-    await click(buttonIn(host, "Export all…"));
+    await click(buttonIn(host, "Export project…"));
     expect(host.querySelector('[role="status"]')).toBeNull();
     expect(host.querySelector('[role="alert"]')?.textContent).toContain("more than 256 MB");
-    expect(buttonIn(host, "Export all…").disabled).toBe(false);
+    expect(buttonIn(host, "Export project…").disabled).toBe(false);
   });
 
   it("prevents overlapping imports and exports while the full file is being saved", async () => {
@@ -260,12 +260,12 @@ describe("the Workflows page", () => {
     tauri.saved = "/tmp/team.yaml";
     let finish!: (value: unknown) => void;
     tauri.result = new Promise((resolve) => { finish = resolve; });
-    await click(buttonIn(host, "Export all…"));
-    expect(buttonIn(host, "Export all…").disabled).toBe(true);
+    await click(buttonIn(host, "Export project…"));
+    expect(buttonIn(host, "Export project…").disabled).toBe(true);
     expect(buttonIn(host, "Import workflow…").disabled).toBe(true);
     expect(buttonIn(rows()[0], "Export…").disabled).toBe(true);
     await act(async () => finish({ workflows: 1, bots: 3, skills: 2 }));
-    expect(buttonIn(host, "Export all…").disabled).toBe(false);
+    expect(buttonIn(host, "Export project…").disabled).toBe(false);
     expect(buttonIn(host, "Import workflow…").disabled).toBe(false);
     expect(buttonIn(rows()[0], "Export…").disabled).toBe(false);
   });

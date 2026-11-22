@@ -22,14 +22,15 @@ fn names_its_provider(model: &str) -> bool {
 
 impl Engine {
     pub fn update_bot(&self, bot_id: &str, edit: NewBot) -> Result<Bot> {
+        self.store.require_active()?;
         let edit = checked_bot(edit)?;
         let edit = NewBot { skill_ids: self.checked_skill_ids(&edit.skill_ids)?, ..edit };
-        let before = self.inner.store.get_bot(bot_id)?;
-        let bot = self.inner.store.update_bot(bot_id, &edit)?.ok_or_else(|| Refusal::BotNotFound(bot_id.into()))?;
+        let before = self.store.get_bot(bot_id)?;
+        let bot = self.store.update_bot(bot_id, &edit)?.ok_or_else(|| Refusal::BotNotFound(bot_id.into()))?;
         let model = |bot: &Bot| bot.model.as_deref().map(str::trim).filter(|m| !m.is_empty()).map(str::to_string);
         let new_model = before.is_some_and(|before| before.provider == bot.provider && model(&before) != model(&bot));
         if new_model && adapter_for(bot.provider).is_some_and(|adapter| adapter.keeps_its_model_on_resume()) {
-            self.inner.store.forget_cli_sessions(&bot.id)?;
+            self.store.forget_cli_sessions(&bot.id)?;
             tracing::info!(bot = %bot.handle, "a new model: the bot's sessions start new conversations");
         }
         tracing::info!(bot = %bot.handle, config_version = bot.config_version, provider = bot.provider.as_str(), "bot edited");
@@ -43,9 +44,8 @@ impl Engine {
                 return Err(Refusal::BotStarting.into());
             }
             let numbers: HashMap<String, i64> =
-                self.inner.store.sessions_of(bot_id)?.into_iter().map(|s| (s.id, s.number)).collect();
-            let (bot, cancelled) =
-                self.inner.store.delete_bot(bot_id)?.ok_or_else(|| Refusal::BotNotFound(bot_id.into()))?;
+                self.store.sessions_of(bot_id)?.into_iter().map(|s| (s.id, s.number)).collect();
+            let (bot, cancelled) = self.store.delete_bot(bot_id)?.ok_or_else(|| Refusal::BotNotFound(bot_id.into()))?;
             let sessions: Vec<String> =
                 live.iter().filter(|(_, l)| l.bot_id == bot_id).map(|(id, _)| id.clone()).collect();
             let states: Vec<(i64, Live)> = sessions
@@ -69,7 +69,7 @@ impl Engine {
         }
         for (session, state) in &states {
             if let Some(flight) = state.in_flight.as_ref().or(state.limited_turn.as_ref()).filter(|f| !f.follow_up) {
-                match self.inner.store.set_message_status(&flight.message_id, MessageStatus::Cancelled) {
+                match self.store.set_message_status(&flight.message_id, MessageStatus::Cancelled) {
                     Ok(message) => self.emit(UiEvent::MessageUpdated { message }),
                     Err(e) if removed_with_its_conversation(&e) => {
                         tracing::info!(bot = %bot.handle, session, message_id = %flight.message_id, "the message was removed with its conversation")
@@ -86,6 +86,6 @@ impl Engine {
             }
         }
         tracing::info!(bot = %bot.handle, "bot deleted");
-        Ok(self.bot_dir(&bot.handle))
+        Ok(self.bot_directory(&bot))
     }
 }

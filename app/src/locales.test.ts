@@ -119,7 +119,7 @@ describe("en.json", () => {
     expect(en.board.handoffs).toBe("Hand-offs");
     expect(en.board.pickBot).toBe("Bot");
     expect(en.board.pause).toBe("Pause all bots");
-    expect(en.board.resume).toBe("Resume bots");
+    expect(en.board.resume).toBe("Resume all bots");
   });
 
   it("has the strings of a workflow run on the board, in the drawer and in the chat", () => {
@@ -216,8 +216,8 @@ describe("the project folder hints", () => {
       expect(file.settings.projectHint).toContain("Master");
     });
   }
-  it("describe Master and an optional project folder", () => {
-    expect(en.setup.projectHint).toContain("starts with Master");
+  it("describe the first project's directory and default provider", () => {
+    expect(en.setup.projectHint).toContain("source directory and default AI provider");
     expect(en.settings.projectHint).toContain("Master and bots it creates");
     expect(en.settings.projectHint).not.toContain("eight");
   });

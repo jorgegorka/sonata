@@ -25,7 +25,7 @@ vi.mock("@tauri-apps/api/event", () => ({
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const s = (id: string, extra: Partial<SessionView> = {}): SessionView => ({
+const s = (id: string, extra: Partial<SessionView> = {}): SessionView => ({ project_id: "default",
   id,
   bot_id: "b1",
   number: 1,
@@ -94,7 +94,7 @@ describe("the board's data", () => {
     vi.restoreAllMocks();
   });
 
-  it("reads every session on the board on mount, then what the events name, in one call", async () => {
+  it("reads board sessions and ignores events for sessions outside the selected project", async () => {
     tauri.answers.session_activity = (args) =>
       Promise.resolve((args as { sessionIds: string[] }).sessionIds.map((id) => activity(id, 1)));
     await mount([s("a"), s("b", { archived_at: "x" })]);
@@ -107,8 +107,8 @@ describe("the board's data", () => {
     await wait(299);
     expect(called("session_activity")).toHaveLength(1);
     await wait(1);
-    expect(called("session_activity")).toEqual([{ sessionIds: ["a"] }, { sessionIds: ["a", "c"] }]);
-    expect(Object.keys(data.activity).sort()).toEqual(["a", "c"]);
+    expect(called("session_activity")).toEqual([{ sessionIds: ["a"] }, { sessionIds: ["a"] }]);
+    expect(Object.keys(data.activity).sort()).toEqual(["a"]);
   });
 
   it("loads done summaries when revealed, reuses them, and never polls their terminals", async () => {

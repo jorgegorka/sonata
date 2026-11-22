@@ -19,7 +19,7 @@ vi.mock("@tauri-apps/api/core", () => ({
   },
 }));
 
-const s = (id: string, extra: Partial<SessionView> = {}): SessionView => ({
+const s = (id: string, extra: Partial<SessionView> = {}): SessionView => ({ project_id: "default",
   id,
   bot_id: `bot-${id}`,
   number: 1,

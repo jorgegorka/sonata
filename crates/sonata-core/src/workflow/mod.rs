@@ -332,6 +332,7 @@ mod tests {
 
     fn run_of(w: NewWorkflow) -> WorkflowRun {
         WorkflowRun {
+            project_id: "default".into(),
             id: "run".into(),
             workflow_id: None,
             name: w.name,

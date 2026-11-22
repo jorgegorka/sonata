@@ -44,28 +44,30 @@ struct Visited {
 
 impl Engine {
     pub fn list_workflows(&self) -> Result<Vec<Workflow>> {
-        self.inner.store.list_workflows()
+        self.store.list_workflows()
     }
 
     pub fn create_workflow(&self, new: NewWorkflow) -> Result<Workflow> {
+        self.store.require_active()?;
         let new = self.checked_workflow(new, None)?;
-        let workflow = self.inner.store.insert_workflow(&new)?;
+        let workflow = self.store.insert_workflow(&new)?;
         self.emit(UiEvent::WorkflowsChanged);
         Ok(workflow)
     }
 
     pub fn update_workflow(&self, id: &str, edit: NewWorkflow) -> Result<Workflow> {
-        self.inner.store.get_workflow(id)?.ok_or_else(|| Refusal::WorkflowNotFound(id.to_string()))?;
+        self.store.require_active()?;
+        self.store.get_workflow(id)?.ok_or_else(|| Refusal::WorkflowNotFound(id.to_string()))?;
         let edit = self.checked_workflow(edit, Some(id))?;
         let workflow =
-            self.inner.store.update_workflow(id, &edit)?.ok_or_else(|| Refusal::WorkflowNotFound(id.to_string()))?;
+            self.store.update_workflow(id, &edit)?.ok_or_else(|| Refusal::WorkflowNotFound(id.to_string()))?;
         self.emit(UiEvent::WorkflowsChanged);
         Ok(workflow)
     }
 
     pub fn delete_workflow(&self, id: &str) -> Result<Workflow> {
-        let workflow =
-            self.inner.store.delete_workflow(id)?.ok_or_else(|| Refusal::WorkflowNotFound(id.to_string()))?;
+        self.store.require_active()?;
+        let workflow = self.store.delete_workflow(id)?.ok_or_else(|| Refusal::WorkflowNotFound(id.to_string()))?;
         self.emit(UiEvent::WorkflowsChanged);
         Ok(workflow)
     }
@@ -73,7 +75,7 @@ impl Engine {
     pub(super) fn checked_workflow(&self, mut new: NewWorkflow, editing: Option<&str>) -> Result<NewWorkflow> {
         new.name = new.name.trim().to_string();
         self.check_runnable(&new)?;
-        if let Some(other) = self.inner.store.get_workflow_by_name(&new.name)? {
+        if let Some(other) = self.store.get_workflow_by_name(&new.name)? {
             if editing != Some(other.id.as_str()) {
                 return Err(Refusal::WorkflowNameTaken(new.name).into());
             }
@@ -84,7 +86,9 @@ impl Engine {
     fn check_runnable(&self, new: &NewWorkflow) -> Result<()> {
         let mut known = HashSet::new();
         for step in &new.def.steps {
-            if !step.bot_id.is_empty() && self.inner.store.get_bot(&step.bot_id)?.is_some() {
+            if !step.bot_id.is_empty()
+                && self.store.get_bot(&step.bot_id)?.is_some_and(|b| b.project_id == self.store.project_key())
+            {
                 known.insert(step.bot_id.clone());
             }
         }
@@ -93,8 +97,9 @@ impl Engine {
     }
 
     pub fn start_workflow(&self, workflow_id: &str, request: &str, files: &[String]) -> Result<Session> {
+        self.store.require_active()?;
         let workflow =
-            self.inner.store.get_workflow(workflow_id)?.ok_or_else(|| Refusal::WorkflowNotFound(workflow_id.into()))?;
+            self.store.get_workflow(workflow_id)?.ok_or_else(|| Refusal::WorkflowNotFound(workflow_id.into()))?;
         let moved = self.start_run_by(&workflow, request, files, None)?;
         let opened = moved.opened.ok_or_else(|| CoreError::Internal("a started run opened no visit".into()))?;
         Ok(opened.session)
@@ -120,6 +125,7 @@ impl Engine {
         attachments::check(files, Path::new("/")).map_err(Refusal::Attachment)?;
         let first = snapshot.def.start.clone().ok_or(Refusal::WorkflowNoStart)?;
         let run = WorkflowRun {
+            project_id: self.store.project_key().into(),
             id: new_id(),
             workflow_id: Some(workflow.id.clone()),
             name: snapshot.name,
@@ -144,7 +150,7 @@ impl Engine {
             request_files: run.request_files.clone(),
             opener_session: run.opener_session.clone(),
         };
-        let moved = match self.inner.store.start_workflow_run(&new, &open) {
+        let moved = match self.store.start_workflow_run(&new, &open) {
             Ok(moved) => moved,
             Err(e) => {
                 remove_copies(&open.message);
@@ -178,25 +184,24 @@ impl Engine {
         let step = workflow::step(&run.def, step_id)
             .ok_or_else(|| CoreError::Internal(format!("run {} has no step {step_id}", run.id)))?;
         let bot = self
-            .inner
             .store
             .get_bot(&step.bot_id)?
             .ok_or_else(|| Refusal::WorkflowStepNoBot { step: step.name.trim().to_string() })?;
-        let known = self.inner.store.run_session_of(&run.id, &bot.id)?;
+        let known = self.store.run_session_of(&run.id, &bot.id)?;
         let first_visit = known.is_none();
         let (own_session, seen_before) = match &known {
             Some((session, seen)) => (Some(session.as_str()), *seen),
             None => (None, 0),
         };
 
-        let visits = self.inner.store.run_visits(&run.id)?;
+        let visits = self.store.run_visits(&run.id)?;
         let mut earlier: Vec<Earlier> = Vec::new();
         let mut seen_ord = seen_before;
         for visit in visits.iter().filter(|v| v.ord > seen_before && v.ended_at.is_some()) {
             if own_session.is_some() && visit.session_id.as_deref() == own_session {
                 continue;
             }
-            let Some(result) = visit.result_message.as_deref().map(|id| self.inner.store.get_message(id)) else {
+            let Some(result) = visit.result_message.as_deref().map(|id| self.store.get_message(id)) else {
                 continue;
             };
             let Some(result) = result? else { continue };
@@ -322,12 +327,12 @@ impl Engine {
         if let Err(text) = workflow::follow(step, outcome.as_deref()) {
             return refuse(ErrorCode::BadRequest, text);
         }
-        let sender = match self.inner.store.get_bot(&from.bot_id) {
+        let sender = match self.store.get_bot(&from.bot_id) {
             Ok(Some(bot)) => bot,
             Ok(None) => return not_a_bot(),
             Err(e) => return internal(e),
         };
-        let checked = match attachments::check(&files, &self.bot_dir(&sender.handle)) {
+        let checked = match attachments::check(&files, &self.bot_directory(&sender)) {
             Ok(checked) => checked,
             Err(e) => return refuse(file_error_code(&e), format!("{e}.")),
         };
@@ -433,7 +438,7 @@ impl Engine {
             outcome: outcome.clone(),
             answered,
         };
-        let moved = match self.inner.store.advance_workflow_run(&close, &then) {
+        let moved = match self.store.advance_workflow_run(&close, &then) {
             Ok(moved) => moved,
             Err(e) => {
                 if let Some(message) = copies_of(&then) {
@@ -493,7 +498,7 @@ impl Engine {
         seen: Seen,
         files: &[String],
     ) -> Result<RunThen> {
-        let visits = self.inner.store.run_visits(&run.id)?;
+        let visits = self.store.run_visits(&run.id)?;
         let known = self.known_bots(run)?;
         Ok(match decide(run, &visits, to, |id| known.contains(id)) {
             Decision::Visit { step_id, n } => RunThen::Visit(self.visit_open(run, &step_id, n, Some(seen), files)?),
@@ -505,7 +510,7 @@ impl Engine {
                 },
                 None => {
                     let root = match &run.root_session {
-                        Some(root) => self.inner.store.get_session(root)?,
+                        Some(root) => self.store.get_session(root)?,
                         None => None,
                     };
                     let notice = match root {
@@ -531,7 +536,7 @@ impl Engine {
         seen: Seen,
         files: &[String],
     ) -> Result<Option<(String, NewMessage, WorkflowMark)>> {
-        let store = &self.inner.store;
+        let store = &self.store;
         let opener = match store.get_session(opener_id)? {
             Some(session) if session.archived_at.is_none() => store.get_bot(&session.bot_id)?.map(|bot| (session, bot)),
             _ => None,
@@ -617,19 +622,19 @@ impl Engine {
     }
 
     pub(super) fn run_starter(&self, run_id: &str) -> Result<Option<String>> {
-        let Some(opener) = self.inner.store.get_run(run_id)?.and_then(|run| run.opener_session) else {
+        let Some(opener) = self.store.get_run(run_id)?.and_then(|run| run.opener_session) else {
             return Ok(None);
         };
-        let Some(session) = self.inner.store.get_session(&opener)? else {
+        let Some(session) = self.store.get_session(&opener)? else {
             return Ok(None);
         };
-        Ok(self.inner.store.get_bot(&session.bot_id)?.map(|bot| bot.handle))
+        Ok(self.store.get_bot(&session.bot_id)?.map(|bot| bot.handle))
     }
 
     fn known_bots(&self, run: &WorkflowRun) -> Result<HashSet<String>> {
         let mut known = HashSet::new();
         for step in &run.def.steps {
-            if self.inner.store.get_bot(&step.bot_id)?.is_some() {
+            if self.store.get_bot(&step.bot_id)?.is_some_and(|b| b.project_id == self.store.project_key()) {
                 known.insert(step.bot_id.clone());
             }
         }
@@ -647,7 +652,7 @@ impl Engine {
     }
 
     fn remind_or_pause(&self, session_id: &str) -> Result<()> {
-        let store = &self.inner.store;
+        let store = &self.store;
         let Some((run, visit)) = store.open_visit_of_session(session_id)? else { return Ok(()) };
         if run.status != RunStatus::Running {
             return Ok(());
@@ -677,7 +682,7 @@ impl Engine {
     }
 
     fn run_by_id(&self, run_id: &str) -> Result<WorkflowRun> {
-        Ok(self.inner.store.get_run(run_id)?.ok_or_else(|| Refusal::WorkflowRunNotFound(run_id.to_string()))?)
+        Ok(self.store.get_run(run_id)?.ok_or_else(|| Refusal::WorkflowRunNotFound(run_id.to_string()))?)
     }
 
     fn paused_for_result(&self, run_id: &str) -> Result<(WorkflowRun, Visit, Session)> {
@@ -687,7 +692,6 @@ impl Engine {
             _ => return Err(Refusal::WorkflowRunNotPaused.into()),
         };
         let visit = self
-            .inner
             .store
             .run_visits(run_id)?
             .into_iter()
@@ -695,7 +699,7 @@ impl Engine {
             .find(|v| v.step_id == step_id && v.ended_at.is_none())
             .ok_or_else(|| CoreError::Internal(format!("run {run_id} paused at step {step_id} with no visit open")))?;
         let session = match &visit.session_id {
-            Some(id) => self.inner.store.get_session(id)?,
+            Some(id) => self.store.get_session(id)?,
             None => None,
         };
         let session = session.ok_or_else(|| Refusal::SessionNotFound(visit.session_id.clone().unwrap_or_default()))?;
@@ -714,7 +718,7 @@ impl Engine {
             _ => return Err(Refusal::WorkflowRunNotPaused.into()),
         };
         *run.extra_visits.entry(step_id.clone()).or_default() += 1;
-        let visits = self.inner.store.run_visits(run_id)?;
+        let visits = self.store.run_visits(run_id)?;
         let known = self.known_bots(&run)?;
         let then = match decide(&run, &visits, Some(&step_id), |id| known.contains(id)) {
             Decision::Visit { step_id, n } => RunThen::Visit(self.visit_open(&run, &step_id, n, None, &[])?),
@@ -723,7 +727,7 @@ impl Engine {
                 return Err(CoreError::Internal(format!("run {run_id} would finish at step {step_id}")))
             }
         };
-        let moved = self.inner.store.resume_workflow_run(run_id, Some(&step_id), &then).inspect_err(|_| {
+        let moved = self.store.resume_workflow_run(run_id, Some(&step_id), &then).inspect_err(|_| {
             if let Some(message) = copies_of(&then) {
                 remove_copies(message);
             }
@@ -739,9 +743,8 @@ impl Engine {
     pub fn pick_outcome(&self, run_id: &str, outcome: Option<String>) -> Result<()> {
         let (run, visit, session) = self.paused_for_result(run_id)?;
         let sender =
-            self.inner.store.get_bot(&session.bot_id)?.ok_or_else(|| Refusal::BotNotFound(session.bot_id.clone()))?;
+            self.store.get_bot(&session.bot_id)?.ok_or_else(|| Refusal::BotNotFound(session.bot_id.clone()))?;
         let body = self
-            .inner
             .store
             .last_reply_since(&session.id, &visit.started_at)?
             .map(|reply| reply.body.trim_end().to_string())
@@ -758,7 +761,7 @@ impl Engine {
     pub fn remind_step(&self, run_id: &str) -> Result<()> {
         let (run, visit, session) = self.paused_for_result(run_id)?;
         let (id, message, mark) = reminder(&run, &visit, &session)?;
-        let moved = self.inner.store.resume_workflow_run(run_id, None, &RunThen::Remind { id, message, mark })?;
+        let moved = self.store.resume_workflow_run(run_id, None, &RunThen::Remind { id, message, mark })?;
         if let Some(routed) = &moved.opened {
             self.post_to_step(routed);
         }
@@ -769,13 +772,13 @@ impl Engine {
 
     pub fn get_workflow_run(&self, run_id: &str) -> Result<RunView> {
         let run = self.run_by_id(run_id)?;
-        let visits = self.inner.store.run_visits(run_id)?;
+        let visits = self.store.run_visits(run_id)?;
         Ok(RunView { run, visits })
     }
 
     fn emit_run(&self, run: &WorkflowRun) {
-        let read = self.inner.store.run_visits(&run.id).and_then(|visits| {
-            let ids = self.inner.store.run_session_ids(&run.id)?;
+        let read = self.store.run_visits(&run.id).and_then(|visits| {
+            let ids = self.store.run_session_ids(&run.id)?;
             Ok((visits, ids))
         });
         match read {
@@ -797,8 +800,8 @@ impl Engine {
     }
 
     pub(super) fn run_glance_of(&self, session_id: &str) -> Result<Option<RunGlance>> {
-        let Some(run) = self.inner.store.latest_run_of_session(session_id)? else { return Ok(None) };
-        let visits = self.inner.store.run_visits(&run.id)?;
+        let Some(run) = self.store.latest_run_of_session(session_id)? else { return Ok(None) };
+        let visits = self.store.run_visits(&run.id)?;
         let step = run_step(&run, &visits);
         let open = visits.iter().rev().find(|v| v.ended_at.is_none());
         let last_with_session = || visits.iter().rev().find_map(|v| v.session_id.clone());
@@ -810,7 +813,7 @@ impl Engine {
             None => None,
         };
         let handle = match step {
-            Some(step) => self.inner.store.get_bot(&step.bot_id)?.map(|b| b.handle),
+            Some(step) => self.store.get_bot(&step.bot_id)?.map(|b| b.handle),
             None => None,
         };
         Ok(Some(RunGlance {
@@ -831,16 +834,16 @@ impl Engine {
 
     pub async fn stop_run(&self, run_id: &str) -> Result<()> {
         self.run_by_id(run_id)?;
-        let Some(run) = self.inner.store.stop_workflow_run(run_id)? else { return Ok(()) };
+        let Some(run) = self.store.stop_workflow_run(run_id)? else { return Ok(()) };
         self.emit_run(&run);
-        let visits = self.inner.store.run_visits(run_id)?;
+        let visits = self.store.run_visits(run_id)?;
         let cancelled = self.cancel_run_queue(&run, &visits).await?;
         tracing::info!(workflow = %run.name, cancelled, "the user stopped a workflow run");
         self.stop_open_step(&visits).await
     }
 
     async fn cancel_run_queue(&self, run: &WorkflowRun, visits: &[Visit]) -> Result<usize> {
-        let store = &self.inner.store;
+        let store = &self.store;
         let sessions: HashSet<&str> = visits.iter().filter_map(|v| v.session_id.as_deref()).collect();
         let cancelled = {
             let live = self.inner.live.lock().await;
@@ -876,7 +879,7 @@ impl Engine {
 
     pub(super) fn stop_runs_of_sessions(&self, sessions: &[Session], how: &str) -> Result<Vec<WorkflowRun>> {
         let ids: Vec<String> = sessions.iter().map(|s| s.id.clone()).collect();
-        let runs = self.inner.store.stop_runs_of_sessions(&ids)?;
+        let runs = self.store.stop_runs_of_sessions(&ids)?;
         for run in &runs {
             self.emit_run(run);
             tracing::info!(workflow = %run.name, "a session of the workflow run was {how}; the run is stopped");
@@ -886,7 +889,7 @@ impl Engine {
 
     pub(super) async fn wind_down(&self, runs: &[WorkflowRun]) {
         for run in runs {
-            let visits = match self.inner.store.run_visits(&run.id) {
+            let visits = match self.store.run_visits(&run.id) {
                 Ok(visits) => visits,
                 Err(e) => {
                     tracing::error!(workflow = %run.name, error = %e, "could not read the stopped workflow run's visits");
@@ -906,7 +909,7 @@ impl Engine {
     }
 
     pub(super) fn pause_runs_missing_a_session(&self, deleted: Option<&str>) {
-        match self.inner.store.pause_runs_missing_a_session() {
+        match self.store.pause_runs_missing_a_session() {
             Ok(runs) => {
                 for run in runs {
                     self.emit_run(&run);
@@ -967,7 +970,7 @@ fn definition_fingerprint(definition: &str) -> String {
 impl Engine {
     #[allow(clippy::result_large_err)]
     fn named_workflow(&self, name: &str) -> std::result::Result<Workflow, BridgeResponse> {
-        match self.inner.store.get_workflow_by_name(name.trim()) {
+        match self.store.get_workflow_by_name(name.trim()) {
             Ok(Some(workflow)) => Ok(workflow),
             Ok(None) => {
                 Err(refuse(ErrorCode::BadRequest, format!("No workflow named {}; run `sbot workflows`.", name.trim())))
@@ -982,7 +985,7 @@ impl Engine {
         text: &str,
         keep: Option<&WorkflowDef>,
     ) -> std::result::Result<NewWorkflow, BridgeResponse> {
-        let bots = self.inner.store.list_bots().map_err(internal)?;
+        let bots = self.store.list_bots().map_err(internal)?;
         let bot_id_of = |handle: &str| {
             let handle = handle.to_lowercase();
             bots.iter().find(|b| b.handle == handle).map(|b| b.id.clone())
@@ -1032,7 +1035,7 @@ impl Engine {
             Ok(found) => found,
             Err(refusal) => return refusal,
         };
-        match self.inner.store.open_visit_of_session(&caller.session_id) {
+        match self.store.open_visit_of_session(&caller.session_id) {
             Ok(None) => {}
             Ok(Some(_)) => return refuse(ErrorCode::NotAllowed, IN_A_STEP),
             Err(e) => return internal(e),
@@ -1051,7 +1054,7 @@ impl Engine {
             Ok(parts) => parts,
             Err(refusal) => return refusal,
         };
-        let files: Vec<String> = match attachments::check(&files, &self.bot_dir(&master.handle)) {
+        let files: Vec<String> = match attachments::check(&files, &self.bot_directory(&master)) {
             Ok(checked) => checked.iter().map(|f| f.to_string_lossy().into_owned()).collect(),
             Err(e) => return refuse(file_error_code(&e), format!("{e}.")),
         };
@@ -1092,7 +1095,7 @@ impl Engine {
             Ok(new) => new,
             Err(refusal) => return refusal,
         };
-        let store = &self.inner.store;
+        let store = &self.store;
         let key = new.name.trim().to_lowercase();
         let fingerprint = definition_fingerprint(definition);
         let recorded = match store.creation(&session.id, CreationKind::Workflow, &key) {

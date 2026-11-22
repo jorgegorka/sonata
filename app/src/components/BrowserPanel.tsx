@@ -1,7 +1,8 @@
+import { useProjectApi } from "../projectContext";
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { api, type PageState, type Placement } from "../api";
+import { type PageState, type Placement } from "../api";
 import { dragWidth, panelTitle, pickButton, placement, samePlacement, type BrowserState } from "../browser";
 
 const viewport = () => ({ width: window.innerWidth, height: window.innerHeight });
@@ -32,6 +33,7 @@ export default function BrowserPanel({
   onPick,
   onShown,
 }: Props) {
+  const api = useProjectApi();
   const { t } = useTranslation();
   const placeholder = useRef<HTMLDivElement>(null);
   const aside = useRef<HTMLElement>(null);

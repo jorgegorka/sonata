@@ -11,7 +11,9 @@ pub mod ids;
 pub mod limits;
 pub mod model;
 pub mod paths;
+mod project_error;
 pub mod provider;
+pub use project_error::ProjectError;
 pub mod refusal;
 pub mod runtime;
 pub mod schedule;
@@ -31,6 +33,8 @@ pub enum CoreError {
     Json(#[from] serde_json::Error),
     #[error(transparent)]
     Refused(#[from] Refusal),
+    #[error(transparent)]
+    Project(#[from] ProjectError),
     #[error("internal error: {0}")]
     Internal(String),
 }

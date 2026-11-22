@@ -1,5 +1,6 @@
+import { useProjectApi } from "../projectContext";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, type Glance, type SessionActivity, type SessionView } from "../api";
+import { type Glance, type SessionActivity, type SessionView } from "../api";
 import { ACTIVITY_BATCH_MS, GLANCE_MS, activityTargets, glanceTargets, noteAttention } from "../board";
 import { isArchived } from "../state";
 
@@ -21,6 +22,7 @@ function sameGlances(a: Record<string, Glance>, b: Record<string, Glance>): bool
 }
 
 export function useBoardData(sessions: SessionView[], onError: (e: unknown) => void, includeArchived = false): BoardData {
+  const api = useProjectApi();
   const [activity, setActivity] = useState<Record<string, SessionActivity>>({});
   const [glances, setGlances] = useState<Record<string, Glance>>({});
   const [attentionSince, setAttentionSince] = useState<Record<string, string>>({});
@@ -48,7 +50,7 @@ export function useBoardData(sessions: SessionView[], onError: (e: unknown) => v
         });
       })
       .catch((e: unknown) => errorRef.current(e));
-  }, []);
+  }, [api]);
 
   const known = useRef(new Set<string>());
   useEffect(() => {
@@ -64,7 +66,7 @@ export function useBoardData(sessions: SessionView[], onError: (e: unknown) => v
     const pending = new Set<string>();
     api
       .onUiEvent((event) => {
-        for (const id of activityTargets(event)) pending.add(id);
+        for (const id of activityTargets(event)) if (sessionsRef.current.some((s) => s.id === id)) pending.add(id);
         if (pending.size === 0 || timer !== undefined) return;
         timer = setTimeout(() => {
           timer = undefined;

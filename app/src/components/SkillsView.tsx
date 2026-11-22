@@ -1,6 +1,7 @@
+import { useProjectApi } from "../projectContext";
 import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
-import { api, type Skill, type SkillView } from "../api";
+import { type Skill, type SkillView } from "../api";
 import { usedByKey } from "../skills";
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export default function SkillsView({ skills, onNew, onOpen, onImported, onError }: Props) {
+  const api = useProjectApi();
   const { t } = useTranslation();
 
   async function importFolder() {

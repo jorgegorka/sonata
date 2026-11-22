@@ -42,7 +42,27 @@ impl Provider {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Project {
+    pub id: String,
+    pub name: String,
+    pub default_directory: Option<String>,
+    pub default_provider: Provider,
+    pub master_id: Option<String>,
+    pub archived_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProjectInput {
+    pub name: String,
+    pub default_directory: Option<String>,
+    pub default_provider: Provider,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Bot {
+    pub project_id: String,
     pub id: String,
     pub handle: String,
     pub display_name: String,
@@ -59,6 +79,7 @@ pub struct Bot {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Session {
+    pub project_id: String,
     pub id: String,
     pub bot_id: String,
     pub number: i64,
@@ -328,6 +349,7 @@ pub struct ThreadSummary {
 #[cfg(test)]
 pub(crate) fn test_bot(instructions: &str, model: Option<&str>) -> Bot {
     Bot {
+        project_id: "default".into(),
         id: "01JBOT".into(),
         handle: "researcher".into(),
         display_name: "Researcher".into(),
@@ -388,6 +410,7 @@ mod tests {
     fn bot_view_serializes_flat_with_snake_case_status() {
         let view = BotView {
             bot: Bot {
+                project_id: "default".into(),
                 id: "01J".into(),
                 handle: "researcher".into(),
                 display_name: "Researcher".into(),
@@ -411,6 +434,7 @@ mod tests {
     #[test]
     fn system_message_goes_to_user_and_is_delivered() {
         let session = Session {
+            project_id: "default".into(),
             id: "s1".into(),
             bot_id: "bot1".into(),
             number: 1,
@@ -438,6 +462,7 @@ mod tests {
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Task {
+    pub project_id: String,
     pub id: String,
     pub name: String,
     pub bot_id: String,
@@ -590,6 +615,7 @@ pub struct WorkflowMark {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Workflow {
+    pub project_id: String,
     pub id: String,
     pub name: String,
     pub when_to_use: String,
@@ -646,6 +672,7 @@ pub enum PauseReason {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WorkflowRun {
+    pub project_id: String,
     pub id: String,
     pub workflow_id: Option<String>,
     pub name: String,

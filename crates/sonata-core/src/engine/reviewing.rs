@@ -31,8 +31,8 @@ impl Engine {
         let text = reference.trim().trim_start_matches('@');
         let Some((handle, number)) = text.split_once('/') else { return Ok(None) };
         let Ok(number) = number.parse::<i64>() else { return Ok(None) };
-        let Some(bot) = self.inner.store.get_bot_by_handle(&handle.to_lowercase())? else { return Ok(None) };
-        let session = self.inner.store.sessions_of(&bot.id)?.into_iter().find(|s| s.number == number);
+        let Some(bot) = self.store.get_bot_by_handle(&handle.to_lowercase())? else { return Ok(None) };
+        let session = self.store.sessions_of(&bot.id)?.into_iter().find(|s| s.number == number);
         Ok(session.map(|s| (bot, s)))
     }
 
@@ -40,8 +40,8 @@ impl Engine {
         if bot_id == USER {
             return "user".to_string();
         }
-        let session = session_id.and_then(|id| self.inner.store.get_session(id).ok().flatten());
-        match (self.inner.store.get_bot(bot_id), session) {
+        let session = session_id.and_then(|id| self.store.get_session(id).ok().flatten());
+        match (self.store.get_bot(bot_id), session) {
             (Ok(Some(bot)), Some(session)) => Self::session_ref(&bot, &session),
             (Ok(Some(bot)), None) => format!("@{}", bot.handle),
             _ => "a deleted bot".to_string(),
@@ -49,7 +49,7 @@ impl Engine {
     }
 
     fn session_label_by_id(&self, id: &str) -> String {
-        match self.inner.store.get_session(id) {
+        match self.store.get_session(id) {
             Ok(Some(session)) => self.end_label(&session.bot_id, Some(id)),
             _ => "a deleted session".to_string(),
         }
@@ -61,8 +61,8 @@ impl Engine {
         }
         let listed = (|| -> Result<Vec<String>> {
             let mut found = Vec::new();
-            for bot in self.inner.store.list_bots()? {
-                for session in self.inner.store.sessions_of(&bot.id)? {
+            for bot in self.store.list_bots()? {
+                for session in self.store.sessions_of(&bot.id)? {
                     if all || session.archived_at.is_some() == archived {
                         found.push((bot.clone(), session));
                     }
@@ -123,7 +123,7 @@ impl Engine {
     }
 
     fn session_transcript(&self, bot: &Bot, session: &Session) -> Result<String> {
-        let store = &self.inner.store;
+        let store = &self.store;
         let mut out = format!(
             "{} · {}\ncreated {} · last activity {}",
             Self::session_ref(bot, session),
@@ -206,7 +206,7 @@ impl Engine {
                 Err(e) => return internal(e),
             };
             let name = Self::session_ref(&bot, &session);
-            let current = match self.inner.store.get_session(&session.id) {
+            let current = match self.store.get_session(&session.id) {
                 Ok(Some(s)) => s,
                 Ok(None) => {
                     lines.push(format!("{reference}: no such session"));
@@ -249,7 +249,7 @@ impl Engine {
                 BridgeResponse::output(lines.join("\n"))
             };
         }
-        let number = self.inner.store.get_session(&caller.session_id).ok().flatten().map_or(0, |s| s.number);
+        let number = self.store.get_session(&caller.session_id).ok().flatten().map_or(0, |s| s.number);
         tracing::info!(bot = %self.handle_of(&caller.bot_id), session = number, archived = %archived_refs.join(", "), "Master archived sessions");
         self.notice(&caller.session_id, "master_archived_sessions", json!({"sessions": archived_labels.join(", ")}));
         BridgeResponse::output(lines.join("\n"))

@@ -1161,6 +1161,7 @@ async fn start_codex(
     env: std::collections::BTreeMap<String, String>,
 ) -> Result<RuntimeBot, RuntimeError> {
     let bot = Bot {
+        project_id: "default".into(),
         id: "b-live".into(),
         handle: "codex-probe".into(),
         display_name: "Codex Probe".into(),

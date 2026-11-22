@@ -1,6 +1,7 @@
+import { useProjectApi } from "../projectContext";
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { api, type BotView, type Task } from "../api";
+import { type BotView, type Task } from "../api";
 import { errorMessage } from "../errors";
 import { defaultStart, formErrors, type TaskFormInput } from "../tasks";
 
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export default function TaskForm({ task, bots, onSaved, onCancel }: Props) {
+  const api = useProjectApi();
   const { t } = useTranslation();
   const [draft, setDraft] = useState<TaskFormInput>(() => {
     const at = task?.at ?? "09:00";

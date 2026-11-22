@@ -70,7 +70,7 @@ impl Engine {
     }
 
     fn hold(&self, provider: Provider) -> Result<Option<Hold>> {
-        let Some(value) = self.inner.store.get_setting(&hold_key(provider))? else { return Ok(None) };
+        let Some(value) = self.store.get_setting(&hold_key(provider))? else { return Ok(None) };
         let hold = Hold::parse(&value);
         if hold.is_none() {
             tracing::warn!(provider = provider.as_str(), value = %value, "the usage-limit hold cannot be read; the provider's bots are not held");
@@ -140,7 +140,7 @@ impl Engine {
         let hold = match current {
             Some(current) if current.until > new.until => current,
             _ => {
-                if let Err(e) = self.inner.store.set_setting(&hold_key(provider), &new.to_json()) {
+                if let Err(e) = self.store.set_setting(&hold_key(provider), &new.to_json()) {
                     tracing::error!(bot = %who.bot, session = who.session, provider = provider.as_str(), error = %e, "could not record the provider's usage-limit hold");
                 }
                 new
@@ -187,7 +187,7 @@ impl Engine {
     }
 
     pub async fn try_usage_limit_now(&self, provider: Provider) -> Result<()> {
-        self.inner.store.delete_setting(&hold_key(provider))?;
+        self.store.delete_setting(&hold_key(provider))?;
         tracing::info!(provider = provider.as_str(), "Try now: the provider's usage-limit hold is lifted");
         self.emit(UiEvent::UsageLimits { limits: self.usage_limits()? });
         let now = tokio::time::Instant::now();
@@ -217,7 +217,7 @@ impl Engine {
         for provider in PROVIDERS {
             match self.hold(provider) {
                 Ok(Some(hold)) if hold.until <= now => {
-                    if let Err(e) = self.inner.store.delete_setting(&hold_key(provider)) {
+                    if let Err(e) = self.store.delete_setting(&hold_key(provider)) {
                         tracing::error!(provider = provider.as_str(), error = %e, "could not lift the provider's usage-limit hold");
                         continue;
                     }
@@ -503,7 +503,7 @@ impl Engine {
     }
 
     fn pump_provider(&self, provider: Provider) {
-        let sessions = match self.inner.store.sessions_with_queued() {
+        let sessions = match self.store.sessions_with_queued() {
             Ok(sessions) => sessions,
             Err(e) => {
                 tracing::error!(provider = provider.as_str(), error = %e, "could not read the sessions with queued messages");

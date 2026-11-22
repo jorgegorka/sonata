@@ -3,7 +3,7 @@ import type { Bot, Provider } from "./api";
 import { PROVIDERS, deletedAnyway, draftOf, editNotes, modelPlaceholderKey } from "./botForm";
 import { availableProviders } from "./setup";
 
-const bot = (provider: Bot["provider"]): Bot => ({
+const bot = (provider: Bot["provider"]): Bot => ({ project_id: "default",
   id: "b1",
   handle: "upper",
   display_name: "Upper",

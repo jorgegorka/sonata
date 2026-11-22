@@ -99,7 +99,7 @@ fn new_commands_round_trip_and_default_their_fields() {
         BridgeCommand::BotCreate {
             name: "SEO".into(),
             color: "#111111".into(),
-            provider: "claude".into(),
+            provider: "".into(),
             skills: vec![],
             instructions: "SEO.\n".into(),
             recreate: false,

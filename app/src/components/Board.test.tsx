@@ -5,7 +5,7 @@ import i18n from "../i18n";
 import Board from "./Board";
 import type { BoardData } from "./useBoardData";
 
-const bot = (id: string, handle: string, display_name: string): BotView => ({
+const bot = (id: string, handle: string, display_name: string): BotView => ({ project_id: "default",
   id,
   handle,
   display_name,
@@ -23,7 +23,7 @@ const bots = [bot("b1", "master", "Master"), bot("b2", "feature", "Feature")];
 
 const NOW = new Date("2026-11-20T12:00:00.000Z");
 
-const s = (id: string, bot_id: string, extra: Partial<SessionView> = {}): SessionView => ({
+const s = (id: string, bot_id: string, extra: Partial<SessionView> = {}): SessionView => ({ project_id: "default",
   id,
   bot_id,
   number: 1,
@@ -153,7 +153,7 @@ describe("the task board", () => {
   it("says the bots are paused, and offers to resume them", () => {
     expect(board([])).toContain(">Pause all bots</button>");
     const paused = board([], empty, true);
-    expect(paused).toContain(">Resume bots</button>");
+    expect(paused).toContain(">Resume all bots</button>");
     expect(paused).toContain("Bots are paused.");
   });
 });

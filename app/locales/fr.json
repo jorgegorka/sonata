@@ -54,8 +54,8 @@
     "showDone": "Afficher les tâches clôturées",
     "hideDone": "Masquer les tâches clôturées",
     "newTask": "Nouvelle tâche",
-    "pause": "Mettre tous les bots en pause",
-    "resume": "Reprendre les bots",
+    "pause": "Suspendre tous les bots",
+    "resume": "Reprendre tous les bots",
     "pausedNote": "Les bots sont en pause. Rien de nouveau n'est remis tant que vous ne les reprenez pas.",
     "empty": "Aucune tâche pour l'instant. Lancez-en une et suivez-la ici, de votre demande à son résultat.",
     "emptyColumn": "Rien ici",
@@ -403,7 +403,7 @@
     "changeFolder": "Changer…",
     "folderLocked": "Ce dossier ne change plus une fois que vous avez des bots.",
     "projectTitle": "Dossier du projet",
-    "projectHint": "Sonata commence avec Master, qui vous aide à créer et coordonner vos bots. Choisissez un dossier de projet facultatif ou attendez qu’une demande en ait besoin.",
+    "projectHint": "Nommez votre premier projet, choisissez son dossier source et son fournisseur d’IA par défaut. Master vous aide à créer et coordonner les bots de ce projet.",
     "projectNone": "Aucun dossier choisi",
     "chooseCheckout": "Choisir…",
     "toolsTitle": "Les outils d'IA sur lesquels les bots fonctionnent",
@@ -586,8 +586,8 @@
     "title": "Configuration",
     "hint": "Enregistrez vos bots, compétences et workflows dans un fichier, ou chargez-en un.",
     "export": "Exporter…",
-    "exportAll": "Tout exporter…",
-    "exportAllHint": "Exportez tous les workflows, bots et compétences, y compris les fichiers des compétences, dans un seul fichier YAML. Restaurez le tout depuis Réglages → Configuration → Importer.",
+    "exportAll": "Exporter le projet…",
+    "exportAllHint": "Exportez les workflows, bots et compétences utilisés par ce projet, y compris leurs fichiers, dans un fichier YAML. Restaurez-les depuis Réglages → Configuration → Importer.",
     "import": "Importer…",
     "fileFilter": "Configuration de Sonata",
     "exported": "{{file}} enregistré. Bots : {{bots}} · Compétences : {{skills}} · Workflows : {{workflows}}",
@@ -712,7 +712,16 @@
     "skillUnknown": "La compétence {{slug}} n'est ni dans le fichier ni dans votre bibliothèque.",
     "importDependsOn": "Il a besoin de {{name}}, qui ne peut pas être importé.",
     "languageUnknown": "Cette langue n'est pas disponible.",
-    "databaseTooNew": "Ces données ont été enregistrées par une version plus récente de Sonata."
+    "databaseTooNew": "Ces données ont été enregistrées par une version plus récente de Sonata.",
+    "projectNotFound": "Projet introuvable.",
+    "projectArchived": "Restaurez ce projet avant de le modifier ou de lancer du travail.",
+    "projectNameRequired": "Le projet doit avoir un nom.",
+    "projectNameTaken": "Un projet porte déjà ce nom, y compris parmi les projets archivés.",
+    "projectDirectoryRequired": "Choisissez un dossier pour le projet.",
+    "projectMismatch": "Cet élément appartient à un autre projet.",
+    "projectActiveWork": "Terminez ou arrêtez le travail actif des bots avant d’archiver.",
+    "projectQueuedWork": "Terminez ou arrêtez le travail en attente et les workflows inachevés avant d’archiver.",
+    "projectBackgroundWork": "Terminez le travail en arrière-plan avant d’archiver. Si son état est indisponible, arrêtez d’abord le bot."
   },
   "linux": {
     "skills": {
@@ -741,5 +750,26 @@
     "errors": {
       "opensPrograms": "Ce fichier peut exécuter des programmes ou installer des logiciels, Sonata ne fait donc que l'afficher dans le gestionnaire de fichiers."
     }
+  },
+  "projects": {
+    "select": "Projet",
+    "add": "Ajouter un projet",
+    "manage": "Gérer les projets",
+    "name": "Nom du projet",
+    "directory": "Dossier du projet",
+    "provider": "Fournisseur d’IA par défaut",
+    "inherit": "Par défaut du projet ({{provider}})",
+    "edit": "Modifier le projet",
+    "archive": "Archiver le projet",
+    "restore": "Restaurer le projet",
+    "archived": "Archivé",
+    "back": "Retour au tableau",
+    "none": "Aucun projet actif",
+    "defaultsHint": "Le fournisseur s’applique aux nouveaux bots. Le changement de dossier s’applique au prochain démarrage du contexte ; les instructions personnalisées sont conservées.",
+    "archiveHint": "Les projets archivés conservent leur historique. Terminez ou arrêtez le travail actif avant d’archiver. Les tâches planifiées reprennent à leur prochaine échéance future après restauration.",
+    "archiveConfirm": "Archiver {{name}} ? Ses tâches planifiées seront suspendues jusqu’à sa restauration.",
+    "sharedSkills": "Les compétences sont partagées entre projets. Remplacer une compétence affecte aussi les bots qui l’utilisent dans d’autres projets.",
+    "export": "Exporter le projet",
+    "import": "Importer dans le projet"
   }
 }

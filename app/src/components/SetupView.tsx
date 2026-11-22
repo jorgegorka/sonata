@@ -1,7 +1,9 @@
+import { PROVIDERS } from "../botForm";
+import { useProjectApi } from "../projectContext";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
-import { api, type AppSettings, type ProviderStatus } from "../api";
+import { type AppSettings, type Provider, type ProviderStatus } from "../api";
 import HerdrCheck from "./HerdrCheck";
 import ProviderChecks from "./ProviderChecks";
 
@@ -13,9 +15,12 @@ interface Props {
 }
 
 export default function SetupView({ providers, onCheckProviders, onError, onDone }: Props) {
+  const api = useProjectApi();
   const { t } = useTranslation();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [checkout, setCheckout] = useState<string | null>(null);
+  const [name, setName] = useState("Default");
+  const [provider, setProvider] = useState<Provider>("claude");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -45,7 +50,7 @@ export default function SetupView({ providers, onCheckProviders, onError, onDone
   async function finish() {
     setBusy(true);
     try {
-      await api.finishSetup(checkout);
+      await api.finishProjectSetup({ name, default_directory: checkout, default_provider: provider });
       onDone();
     } catch (e) {
       onError(e);
@@ -77,6 +82,10 @@ export default function SetupView({ providers, onCheckProviders, onError, onDone
       </section>
       <section>
         <h2>{t("setup.projectTitle")}</h2>
+        <label>{t("projects.name")}<input value={name} onChange={(e) => setName(e.target.value)} required /></label>
+        <label>{t("projects.provider")}<select value={provider} onChange={(e) => setProvider(e.target.value as Provider)}>
+          {PROVIDERS.map((p) => <option key={p} value={p}>{t(`providers.${p}`)}</option>)}
+        </select></label>
         <p className="muted">{t("setup.projectHint")}</p>
         <p className="path">{checkout ?? t("setup.projectNone")}</p>
         <div>
@@ -90,7 +99,7 @@ export default function SetupView({ providers, onCheckProviders, onError, onDone
         <HerdrCheck onError={onError} />
       </section>
       <div className="actions">
-        <button className="primary" disabled={busy} onClick={() => void finish()}>
+        <button className="primary" disabled={busy || !name.trim() || !checkout} onClick={() => void finish()}>
           {t("setup.finish")}
         </button>
       </div>

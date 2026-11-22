@@ -36,11 +36,15 @@ impl Engine {
     }
 
     pub fn list_skills(&self) -> Result<Vec<SkillView>> {
-        self.inner.store.list_skills()
+        let mut skills = self.store.list_skills()?;
+        for view in &mut skills {
+            view.used_by = self.store.skill_user_labels(&view.skill.id)?;
+        }
+        Ok(skills)
     }
 
     fn taken_slugs(&self) -> Result<Vec<String>> {
-        let mut taken = self.inner.store.skill_slugs()?;
+        let mut taken = self.store.skill_slugs()?;
         let entries = match std::fs::read_dir(self.skills_dir()) {
             Ok(entries) => entries,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(taken),
@@ -83,7 +87,7 @@ impl Engine {
             SkillFile { name: slug.clone(), description: description.clone(), other_lines: Vec::new(), body: new.body };
         let stored = std::fs::write(dir.join(SKILL_FILE), skills::render_skill_md(&file))
             .map_err(CoreError::from)
-            .and_then(|()| self.inner.store.insert_skill(&slug, &name, &description, SkillSource::Written));
+            .and_then(|()| self.store.insert_skill(&slug, &name, &description, SkillSource::Written));
         match stored {
             Ok(skill) => {
                 tracing::info!(skill = %slug, "skill created");
@@ -111,7 +115,7 @@ impl Engine {
     ) -> Result<Skill> {
         let (slug, dir) = self.claim_skill_dir(&file.name)?;
         let renamed = SkillFile { name: slug.clone(), ..file.clone() };
-        let store = &self.inner.store;
+        let store = &self.store;
         let stored = fill(&dir)
             .and_then(|()| std::fs::write(dir.join(SKILL_FILE), skills::render_skill_md(&renamed)))
             .map_err(CoreError::from)
@@ -153,7 +157,7 @@ impl Engine {
         }
         let stored = fill(&dir)
             .map_err(CoreError::from)
-            .and_then(|()| self.inner.store.insert_skill(slug, name, description, SkillSource::Imported));
+            .and_then(|()| self.store.insert_skill(slug, name, description, SkillSource::Imported));
         if stored.is_err() {
             remove_claimed(slug, &dir);
         }
@@ -165,8 +169,7 @@ impl Engine {
     }
 
     fn read_skill_file(&self, skill_id: &str) -> Result<(Skill, SkillFile, String)> {
-        let skill =
-            self.inner.store.get_skill(skill_id)?.ok_or_else(|| Refusal::SkillNotFound(skill_id.to_string()))?;
+        let skill = self.store.get_skill(skill_id)?.ok_or_else(|| Refusal::SkillNotFound(skill_id.to_string()))?;
         let folder = self.skills_dir().join(&skill.slug);
         let text = match std::fs::read_to_string(folder.join(SKILL_FILE)) {
             Ok(text) => text,
@@ -196,24 +199,22 @@ impl Engine {
         }
         let changed = file_changed || skill.name != name;
         let skill = self
-            .inner
             .store
             .update_skill(skill_id, &name, &description)?
             .ok_or_else(|| Refusal::SkillNotFound(skill_id.to_string()))?;
         if changed {
-            let bots = self.inner.store.bump_bots_with_skill(skill_id)?;
+            let bots = self.store.bump_bots_with_skill(skill_id)?;
             tracing::info!(skill = %skill.slug, bots = ?bots, "skill edited; its bots restart with their next message");
         }
         Ok(skill)
     }
 
     pub fn delete_skill(&self, skill_id: &str) -> Result<PathBuf> {
-        let used_by = self.inner.store.bots_using_skill(skill_id)?;
+        let used_by = self.store.bots_using_skill(skill_id)?;
         if !used_by.is_empty() {
             return Err(Refusal::SkillInUse(used_by).into());
         }
-        let skill =
-            self.inner.store.delete_skill(skill_id)?.ok_or_else(|| Refusal::SkillNotFound(skill_id.to_string()))?;
+        let skill = self.store.delete_skill(skill_id)?.ok_or_else(|| Refusal::SkillNotFound(skill_id.to_string()))?;
         tracing::info!(skill = %skill.slug, "skill deleted");
         Ok(self.skills_dir().join(skill.slug))
     }
@@ -223,7 +224,7 @@ impl Engine {
         ids.sort();
         ids.dedup();
         for id in &ids {
-            if self.inner.store.get_skill(id)?.is_none() {
+            if self.store.get_skill(id)?.is_none() {
                 return Err(Refusal::SkillNotFound(id.clone()).into());
             }
         }

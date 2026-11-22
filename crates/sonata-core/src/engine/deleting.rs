@@ -14,11 +14,10 @@ impl Engine {
                 }
                 Ok(())
             };
-            let tree = self.inner.store.session_tree(session_id)?;
+            let tree = self.store.session_tree(session_id)?;
             starting(&live, &tree)?;
             let runs = self.stop_runs_of_sessions(&tree, "removed")?;
             let removed = self
-                .inner
                 .store
                 .remove_session(session_id, |sessions| starting(&live, sessions))?
                 .ok_or_else(|| Refusal::SessionNotFound(session_id.into()))?;
@@ -66,7 +65,7 @@ impl Engine {
     fn removed_drafts(&self, removed: &[RemovedSession]) -> Vec<PathBuf> {
         let mut drafts = Vec::new();
         for r in removed {
-            let bot = match self.inner.store.get_bot(&r.session.bot_id) {
+            let bot = match self.store.get_bot(&r.session.bot_id) {
                 Ok(Some(bot)) => bot,
                 Ok(None) => continue,
                 Err(e) => {
@@ -74,7 +73,7 @@ impl Engine {
                     continue;
                 }
             };
-            let dir = self.bot_dir(&bot.handle);
+            let dir = self.bot_directory(&bot);
             let relative = drafts_relative(&r.session);
             let folder = dir.join(&relative);
             let Ok(meta) = std::fs::symlink_metadata(&folder) else { continue };
@@ -111,7 +110,7 @@ impl Engine {
             by_bot.entry(&m.recipient).or_default().push(format!("{}-", m.id));
         }
         for (bot_id, prefixes) in by_bot {
-            let bot = match self.inner.store.get_bot(bot_id) {
+            let bot = match self.store.get_bot(bot_id) {
                 Ok(Some(bot)) => bot,
                 Ok(None) => continue,
                 Err(e) => {
@@ -119,7 +118,7 @@ impl Engine {
                     continue;
                 }
             };
-            let dir = self.bot_dir(&bot.handle);
+            let dir = self.bot_directory(&bot);
             let inbox = dir.join("inbox");
             match std::fs::symlink_metadata(&inbox) {
                 Ok(meta) if meta.is_dir() && folder_inside(&dir, &self.bots_root()) => {}
@@ -184,10 +183,9 @@ mod tests {
             engine.create_bot(new).unwrap()
         };
         let (planner, reviewer) = (bot("Planner"), bot("Reviewer"));
-        let x = engine.inner.store.create_session(&planner.id, None, None).unwrap();
-        let r = engine.inner.store.create_session(&reviewer.id, None, Some(&x.id)).unwrap();
+        let x = engine.store.create_session(&planner.id, None, None).unwrap();
+        let r = engine.store.create_session(&reviewer.id, None, Some(&x.id)).unwrap();
         let question = engine
-            .inner
             .store
             .insert_message(&NewMessage {
                 sender: reviewer.id.clone(),
@@ -244,9 +242,9 @@ mod tests {
         let prompts = rt.state().prompts.clone();
         assert_eq!(prompts.len(), 1, "{prompts:?}");
         assert_eq!((prompts[0].0.as_str(), prompts[0].1.lines().nth(1)), ("w1:p1", Some("Plan the release.")));
-        let delivered = engine.inner.store.get_message(&waiting.id).unwrap().unwrap();
+        let delivered = engine.store.get_message(&waiting.id).unwrap().unwrap();
         assert_eq!(delivered.status, MessageStatus::Delivered);
-        let chat = engine.inner.store.thread_messages(&waiting.thread_id).unwrap();
+        let chat = engine.store.thread_messages(&waiting.thread_id).unwrap();
         assert!(chat.iter().all(|m| m.system_code.is_none()), "no failed delivery to report: {chat:?}");
         let live = engine.inner.live.lock().await;
         assert_eq!(live[&x.id].in_flight.as_ref().map(|f| f.message_id.as_str()), Some(waiting.id.as_str()));

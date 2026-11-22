@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { onOmarchyTheme, readOmarchyTheme, type OmarchyPalette } from "./omarchyTheme";
 
@@ -10,7 +10,24 @@ export type MessageKind = "text" | "raw_fallback" | "system";
 export type MessageStatus = "queued" | "delivered" | "cancelled" | "interrupted" | "failed" | "retried";
 export type DialogAnswer = "continue" | "cancel";
 
+export interface Project {
+  id: string;
+  name: string;
+  default_directory: string | null;
+  default_provider: Provider;
+  master_id: string | null;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+export interface ProjectInput {
+  name: string;
+  default_directory: string | null;
+  default_provider: Provider;
+}
+
 export interface Bot {
+  project_id: string;
   id: string;
   handle: string;
   display_name: string;
@@ -74,6 +91,7 @@ export interface Glance {
 }
 
 export interface SessionView {
+  project_id: string;
   id: string;
   bot_id: string;
   number: number;
@@ -141,7 +159,7 @@ export interface UsageLimit {
   resets_at: string | null;
 }
 
-export type UiEvent =
+export type UiEvent = { project_id?: string } & (
   | { type: "message_added"; message: Message }
   | { type: "message_updated"; message: Message }
   | { type: "bot_status"; bot_id: string; status: BotStatus }
@@ -151,6 +169,7 @@ export type UiEvent =
   | { type: "session_removed"; session_id: string; bot_id: string; thread_ids: string[] }
   | { type: "paused"; paused: boolean }
   | { type: "usage_limits"; limits: UsageLimit[] }
+  | { type: "projects_changed" }
   | { type: "skills_changed" }
   | { type: "bot_added"; bot: BotView }
   | { type: "bot_updated"; bot: BotView }
@@ -164,9 +183,12 @@ export type UiEvent =
       pause: PauseReason | null;
       step: string | null;
       session_ids: string[];
-    };
+    }
+
+);
 
 export interface Task {
+  project_id: string;
   id: string;
   name: string;
   bot_id: string;
@@ -220,6 +242,7 @@ export interface WorkflowDef {
 }
 
 export interface Workflow {
+  project_id: string;
   id: string;
   name: string;
   when_to_use: string;
@@ -242,6 +265,7 @@ export type PauseReason =
   | { kind: "bot_missing"; step_id: string };
 
 export interface WorkflowRun {
+  project_id: string;
   id: string;
   workflow_id: string | null;
   name: string;
@@ -304,7 +328,7 @@ export interface WorkflowMark {
 export interface CreateBotInput {
   display_name: string;
   color: string;
-  provider: Provider;
+  provider?: Provider | null;
   model: string | null;
   instructions: string;
   skill_ids: string[];
@@ -467,7 +491,16 @@ export interface WorkflowImportPreview {
 export type WorkflowImportOutcome =
   { outcome: "changed" | "blocked"; preview: WorkflowImportPreview } | { outcome: "done"; report: ImportReport };
 
-export const api = {
+export function projectApi(projectId?: string) {
+  const invoke = <T>(command: string, args?: Record<string, unknown>): Promise<T> =>
+    tauriInvoke<T>(command, { ...(projectId ? { projectId } : {}), ...args });
+  return {
+  listProjects: () => invoke<Project[]>("list_projects"),
+  createProject: (input: ProjectInput) => invoke<Project>("create_project", { input }),
+  updateProject: (projectId: string, input: ProjectInput) => invoke<Project>("update_project", { projectId, input }),
+  archiveProject: (projectId: string) => invoke<Project>("archive_project", { projectId }),
+  restoreProject: (projectId: string) => invoke<Project>("restore_project", { projectId }),
+  finishProjectSetup: (input: ProjectInput) => invoke<Project>("finish_project_setup", { input }),
   listBots: () => invoke<BotView[]>("list_bots"),
   createBot: (input: CreateBotInput) => invoke<Bot>("create_bot", { input }),
   listSessions: () => invoke<SessionView[]>("list_sessions"),
@@ -579,3 +612,6 @@ export const api = {
   onUiEvent: (handler: (event: UiEvent) => void): Promise<UnlistenFn> =>
     listen<UiEvent>("ui-event", (e) => handler(e.payload)),
 };
+
+}
+export const api = projectApi();

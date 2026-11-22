@@ -314,7 +314,7 @@ impl Engine {
     }
 
     pub fn export_config(&self) -> Result<ConfigFile> {
-        let store = &self.inner.store;
+        let store = &self.store;
         let master = self.master_id()?;
         let mut bots = Vec::new();
         let mut handles = HashMap::new();
@@ -329,7 +329,9 @@ impl Engine {
                 bots.push(entry);
             }
         }
-        let library = store.list_skills()?;
+        let used: HashSet<String> = store.list_bots()?.iter().flat_map(|b| b.skill_ids.clone()).collect();
+        let library: Vec<_> =
+            store.list_skills()?.into_iter().filter(|s| !store.is_scoped() || used.contains(&s.skill.id)).collect();
         let mut size = 0;
         for view in &library {
             let folder = self.skills_dir().join(&view.skill.slug);
@@ -452,7 +454,7 @@ impl Engine {
                 }
             }
         }
-        let store = &self.inner.store;
+        let store = &self.store;
         let master = self.master_id()?;
         let file_bots = old_bots
             .iter()
@@ -565,7 +567,7 @@ impl Engine {
     }
 
     fn write_bot(&self, step: &BotStep) -> Result<Bot> {
-        let store = &self.inner.store;
+        let store = &self.store;
         let mut skill_ids = Vec::new();
         for slug in &step.skills {
             let skill = store.get_skill_by_slug(slug)?.ok_or_else(|| Refusal::SkillUnknown(slug.clone()))?;
@@ -587,7 +589,7 @@ impl Engine {
         for def_step in &mut new.def.steps {
             def_step.bot_id = match ids.get(&def_step.bot_id) {
                 Some(id) => id.clone(),
-                None => self.inner.store.get_bot_by_handle(&def_step.bot_id)?.map(|bot| bot.id).unwrap_or_default(),
+                None => self.store.get_bot_by_handle(&def_step.bot_id)?.map(|bot| bot.id).unwrap_or_default(),
             };
         }
         match &step.existing {
@@ -608,6 +610,7 @@ impl Engine {
         let (bots, bot_steps) = self.plan_bots(file, &skills)?;
         let (workflows, workflow_steps) = self.plan_workflows(file, &bots)?;
         let mut hasher = Sha256::new();
+        hasher.update(self.store.project_key().as_bytes());
         hasher.update(digest);
         hasher.update(serde_json::to_vec(&(&skills, &bots, &workflows)).expect("a preview serializes"));
         let token = format!("{:x}", hasher.finalize());
@@ -629,7 +632,7 @@ impl Engine {
         skills: &[PlannedItem],
         check_dependencies: bool,
     ) -> Result<(Vec<PlannedItem>, Vec<BotStep>)> {
-        let store = &self.inner.store;
+        let store = &self.store;
         let importable: HashMap<&str, bool> = file
             .skills
             .iter()
@@ -736,7 +739,7 @@ impl Engine {
     }
 
     fn plan_workflows(&self, file: &ConfigFile, bots: &[PlannedItem]) -> Result<(Vec<PlannedItem>, Vec<WorkflowStep>)> {
-        let store = &self.inner.store;
+        let store = &self.store;
         let decided: HashMap<String, &PlannedItem> =
             file.bots.iter().zip(bots).map(|(bot, item)| (bot.handle.to_lowercase(), item)).collect();
         let here: HashMap<String, String> = store.list_bots()?.into_iter().map(|bot| (bot.id, bot.handle)).collect();
@@ -797,7 +800,7 @@ impl Engine {
         let description = decoded.file.description;
         let blobs = decoded.blobs;
         let folder = self.skills_dir().join(slug);
-        let existing = self.inner.store.get_skill_by_slug(slug)?;
+        let existing = self.store.get_skill_by_slug(slug)?;
         let status = match &existing {
             Some(here) => {
                 let same_files = config_file::read_skill_folder(&folder).is_ok_and(|files| files == blobs);

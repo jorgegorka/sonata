@@ -26,30 +26,33 @@ impl Engine {
     }
 
     pub fn list_tasks(&self) -> Result<Vec<Task>> {
-        self.inner.store.list_tasks()
+        self.store.list_tasks()
     }
 
     pub fn tasks_of_bot(&self, bot_id: &str) -> Result<Vec<Task>> {
-        self.inner.store.tasks_of_bot(bot_id)
+        self.store.tasks_of_bot(bot_id)
     }
 
     pub fn create_task(&self, new: NewTask) -> Result<Task> {
+        self.store.require_active()?;
         let row = self.checked_task(new, None)?;
-        let task = self.inner.store.insert_task(&row)?;
+        let task = self.store.insert_task(&row)?;
         self.emit(UiEvent::TasksChanged);
         Ok(task)
     }
 
     pub fn update_task(&self, id: &str, edit: NewTask) -> Result<Task> {
-        let current = self.inner.store.get_task(id)?.ok_or_else(|| Refusal::TaskNotFound(id.to_string()))?;
+        self.store.require_active()?;
+        let current = self.store.get_task(id)?.ok_or_else(|| Refusal::TaskNotFound(id.to_string()))?;
         let row = self.checked_task(edit, Some(&current))?;
-        let task = self.inner.store.update_task(id, &row)?.ok_or_else(|| Refusal::TaskNotFound(id.to_string()))?;
+        let task = self.store.update_task(id, &row)?.ok_or_else(|| Refusal::TaskNotFound(id.to_string()))?;
         self.emit(UiEvent::TasksChanged);
         Ok(task)
     }
 
     pub fn set_task_enabled(&self, id: &str, enabled: bool) -> Result<Task> {
-        let current = self.inner.store.get_task(id)?.ok_or_else(|| Refusal::TaskNotFound(id.to_string()))?;
+        self.store.require_active()?;
+        let current = self.store.get_task(id)?.ok_or_else(|| Refusal::TaskNotFound(id.to_string()))?;
         let next_run_at = if enabled {
             Some(stamp(Self::schedule_of(&current)?.first_slot_after(self.now_utc(), &Local)))
         } else {
@@ -65,13 +68,14 @@ impl Engine {
             enabled,
             next_run_at,
         };
-        let task = self.inner.store.update_task(id, &row)?.ok_or_else(|| Refusal::TaskNotFound(id.to_string()))?;
+        let task = self.store.update_task(id, &row)?.ok_or_else(|| Refusal::TaskNotFound(id.to_string()))?;
         self.emit(UiEvent::TasksChanged);
         Ok(task)
     }
 
     pub fn delete_task(&self, id: &str) -> Result<Task> {
-        let task = self.inner.store.delete_task(id)?.ok_or_else(|| Refusal::TaskNotFound(id.to_string()))?;
+        self.store.require_active()?;
+        let task = self.store.delete_task(id)?.ok_or_else(|| Refusal::TaskNotFound(id.to_string()))?;
         self.emit(UiEvent::TasksChanged);
         Ok(task)
     }
@@ -93,7 +97,7 @@ impl Engine {
 
     pub async fn scheduler_tick(&self) {
         let now = self.now_utc();
-        let due = match self.inner.store.tasks_due(&stamp(now)) {
+        let due = match self.store.tasks_due(&stamp(now)) {
             Ok(due) => due,
             Err(e) => {
                 tracing::error!(error = %e, "could not read the recurring tasks that are due");
@@ -108,7 +112,11 @@ impl Engine {
             if self.closing() {
                 break;
             }
-            if let Err(e) = self.run_due(&task, now).await {
+            let engine = match self.for_project(&task.project_id) {
+                Ok(engine) => engine,
+                Err(_) => continue,
+            };
+            if let Err(e) = engine.run_due(&task, now).await {
                 tracing::error!(bot = %self.handle_of(&task.bot_id), task = %task.name, error = %e, "could not run the recurring task");
             }
         }
@@ -116,7 +124,8 @@ impl Engine {
     }
 
     pub fn run_task_now(&self, id: &str) -> Result<Session> {
-        let task = self.inner.store.get_task(id)?.ok_or_else(|| Refusal::TaskNotFound(id.to_string()))?;
+        self.store.require_active()?;
+        let task = self.store.get_task(id)?.ok_or_else(|| Refusal::TaskNotFound(id.to_string()))?;
         let session = self.start_run(&task, None)?.ok_or_else(|| Refusal::TaskNotFound(id.to_string()))?;
         self.emit(UiEvent::TasksChanged);
         Ok(session)
@@ -131,7 +140,7 @@ impl Engine {
                 Some(slot) => stamp(slot),
                 None => task.next_run_at.clone().unwrap_or_else(|| stamp(now)),
             };
-            if self.inner.store.skip_task_slot(slot, &skipped)?.is_some() {
+            if self.store.skip_task_slot(slot, &skipped)?.is_some() {
                 tracing::info!(bot = %self.handle_of(&task.bot_id), task = %task.name, slot = %skipped, "skipped the recurring task's slot: its last run is still busy");
             }
             return Ok(());
@@ -141,7 +150,7 @@ impl Engine {
     }
 
     fn task_held(&self, task: &Task) -> bool {
-        let held = match self.inner.store.get_bot(&task.bot_id) {
+        let held = match self.store.get_bot(&task.bot_id) {
             Ok(Some(bot)) => self.held(bot.provider),
             Ok(None) => Ok(false),
             Err(e) => Err(e),
@@ -154,7 +163,7 @@ impl Engine {
 
     async fn last_run_busy(&self, task: &Task) -> Result<bool> {
         let Some(session_id) = task.last_run_session.as_deref() else { return Ok(false) };
-        let Some(session) = self.inner.store.get_session(session_id)? else { return Ok(false) };
+        let Some(session) = self.store.get_session(session_id)? else { return Ok(false) };
         if session.archived_at.is_some() {
             return Ok(false);
         }
@@ -168,14 +177,13 @@ impl Engine {
             .await
             .get(session_id)
             .is_some_and(|l| l.in_flight.is_some() || l.status == BotStatus::Limited);
-        Ok(in_flight || !self.inner.store.queued_for_session(session_id)?.is_empty())
+        Ok(in_flight || !self.store.queued_for_session(session_id)?.is_empty())
     }
 
     fn start_run(&self, task: &Task, slot: Option<Scheduled<'_>>) -> Result<Option<Session>> {
         let title = format!("{} · {}", task.name, local_date(self.now_utc(), &Local).format("%Y-%m-%d"));
-        let since = self.inner.store.last_completed_run(&task.id)?;
-        let Some((routed, task)) =
-            self.inner.store.start_task_run(&task.id, &title, &task.prompt, since.as_deref(), slot)?
+        let since = self.store.last_completed_run(&task.id)?;
+        let Some((routed, task)) = self.store.start_task_run(&task.id, &title, &task.prompt, since.as_deref(), slot)?
         else {
             return Ok(None);
         };
@@ -186,7 +194,7 @@ impl Engine {
         Ok(Some(routed.session))
     }
 
-    fn schedule_of(task: &Task) -> Result<Schedule> {
+    pub(super) fn schedule_of(task: &Task) -> Result<Schedule> {
         let at = parse_at(&task.at).ok_or_else(|| Refusal::TaskTimeInvalid(task.at.clone()))?;
         let starts_on = parse_date(&task.starts_on).ok_or_else(|| Refusal::TaskStartInvalid(task.starts_on.clone()))?;
         Ok(Schedule { every_days: task.every_days.max(EVERY_MIN), at, starts_on })
@@ -211,10 +219,10 @@ impl Engine {
             Some(text) => Some(parse_date(text.trim()).ok_or_else(|| Refusal::TaskStartInvalid(text.to_string()))?),
             None => None,
         };
-        if self.inner.store.get_bot(&new.bot_id)?.is_none() {
+        if self.store.get_bot(&new.bot_id)?.is_none() {
             return Err(Refusal::BotNotFound(new.bot_id).into());
         }
-        if let Some(other) = self.inner.store.get_task_by_name(&name)? {
+        if let Some(other) = self.store.get_task_by_name(&name)? {
             if editing.map(|t| t.id.as_str()) != Some(other.id.as_str()) {
                 return Err(Refusal::TaskNameTaken(name).into());
             }
@@ -267,7 +275,7 @@ pub(super) fn bad_request(e: CoreError) -> BridgeResponse {
 impl Engine {
     #[allow(clippy::result_large_err)]
     fn named_task(&self, name: &str) -> std::result::Result<Task, BridgeResponse> {
-        match self.inner.store.get_task_by_name(name.trim()) {
+        match self.store.get_task_by_name(name.trim()) {
             Ok(Some(task)) => Ok(task),
             Ok(None) => Err(refuse(
                 ErrorCode::BadRequest,
@@ -280,7 +288,7 @@ impl Engine {
     #[allow(clippy::result_large_err)]
     pub(super) fn bot_named(&self, handle: &str) -> std::result::Result<Bot, BridgeResponse> {
         let handle = handle.trim().trim_start_matches('@').to_lowercase();
-        match self.inner.store.get_bot_by_handle(&handle) {
+        match self.store.get_bot_by_handle(&handle) {
             Ok(Some(bot)) => Ok(bot),
             Ok(None) => Err(refuse(
                 ErrorCode::UnknownRecipient,
@@ -291,7 +299,7 @@ impl Engine {
     }
 
     fn task_block(&self, task: &Task) -> Result<String> {
-        let store = &self.inner.store;
+        let store = &self.store;
         let minute = |stamp: &str| {
             DateTime::parse_from_rfc3339(stamp)
                 .map(|t| local_minute(t.with_timezone(&Utc), &Local))
@@ -372,7 +380,7 @@ impl Engine {
         if !on_users_turn(flight.as_ref()) {
             return refuse(ErrorCode::NotAllowed, CHANGE_ONLY_ON_USERS_TURN);
         }
-        let store = &self.inner.store;
+        let store = &self.store;
         let (master, session) = match (store.get_bot(&caller.bot_id), store.get_session(&caller.session_id)) {
             (Ok(Some(master)), Ok(Some(session))) => (master, session),
             (Err(e), _) | (_, Err(e)) => return internal(e),
@@ -505,7 +513,7 @@ impl Engine {
             };
         }
         let handle = self.handle_of(&caller.bot_id);
-        let number = self.inner.store.get_session(&caller.session_id).ok().flatten().map_or(0, |s| s.number);
+        let number = self.store.get_session(&caller.session_id).ok().flatten().map_or(0, |s| s.number);
         tracing::info!(bot = %handle, session = number, task = %changed.name, "Master changed a recurring task");
         self.notice(&caller.session_id, "master_changed_task", json!({"name": changed.name}));
         match self.task_block(&changed) {
@@ -529,7 +537,7 @@ impl Engine {
         match self.delete_task(&current.id) {
             Ok(gone) => {
                 let handle = self.handle_of(&caller.bot_id);
-                let number = self.inner.store.get_session(&caller.session_id).ok().flatten().map_or(0, |s| s.number);
+                let number = self.store.get_session(&caller.session_id).ok().flatten().map_or(0, |s| s.number);
                 tracing::info!(bot = %handle, session = number, task = %gone.name, "Master deleted a recurring task");
                 self.notice(&caller.session_id, "master_deleted_task", json!({"name": gone.name}));
                 BridgeResponse::output(format!(

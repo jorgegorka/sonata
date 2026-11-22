@@ -24,8 +24,8 @@ use sonata_core::detect::{self, ProviderStatus};
 use sonata_core::engine::{Engine, EngineConfig, ExportSummary, ImportMode, ImportOutcome, ImportPreview, UiEvent};
 use sonata_core::engine::{WorkflowFileEntry, WorkflowImportOutcome, WorkflowImportPreview, WorkflowImportRequest};
 use sonata_core::model::{
-    Bot, BotView, Glance, Message, NewSkill, NewTask, NewWorkflow, Provider, RunView, SessionActivity, SessionView,
-    Skill, SkillView, Task, ThreadSummary, UsageLimitView, Workflow,
+    Bot, BotView, Glance, Message, NewSkill, NewTask, NewWorkflow, Project, ProjectInput, Provider, RunView,
+    SessionActivity, SessionView, Skill, SkillView, Task, ThreadSummary, UsageLimitView, Workflow,
 };
 use sonata_core::paths::{resolve_bots_root, AppPaths};
 use sonata_core::runtime::herdr::{EnvSource, HerdrRuntime};
@@ -87,22 +87,62 @@ fn window_in_front(app: &tauri::AppHandle) -> bool {
 }
 
 #[tauri::command]
-async fn list_bots(engine: State<'_, Engine>) -> Result<Vec<BotView>, CommandError> {
+fn list_projects(engine: State<'_, Engine>) -> Result<Vec<Project>, CommandError> {
+    Ok(engine.list_projects()?)
+}
+#[tauri::command]
+fn create_project(engine: State<'_, Engine>, input: ProjectInput) -> Result<Project, CommandError> {
+    Ok(engine.create_project(input)?)
+}
+#[tauri::command]
+fn update_project(engine: State<'_, Engine>, project_id: String, input: ProjectInput) -> Result<Project, CommandError> {
+    Ok(engine.update_project(&project_id, input)?)
+}
+#[tauri::command]
+async fn archive_project(engine: State<'_, Engine>, project_id: String) -> Result<Project, CommandError> {
+    Ok(engine.archive_project(&project_id).await?)
+}
+#[tauri::command]
+fn restore_project(engine: State<'_, Engine>, project_id: String) -> Result<Project, CommandError> {
+    Ok(engine.restore_project(&project_id)?)
+}
+#[tauri::command]
+fn finish_project_setup(engine: State<'_, Engine>, input: ProjectInput) -> Result<Project, CommandError> {
+    Ok(engine.finish_project_setup(input)?)
+}
+
+#[tauri::command]
+async fn list_bots(engine: State<'_, Engine>, project_id: Option<String>) -> Result<Vec<BotView>, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
     commands::list_bots(&engine).await
 }
 
 #[tauri::command]
-async fn create_bot(engine: State<'_, Engine>, input: CreateBotInput) -> Result<Bot, CommandError> {
+async fn create_bot(
+    engine: State<'_, Engine>,
+    input: CreateBotInput,
+    project_id: Option<String>,
+) -> Result<Bot, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
     commands::create_bot(&engine, input)
 }
 
 #[tauri::command]
-async fn list_sessions(engine: State<'_, Engine>) -> Result<Vec<SessionView>, CommandError> {
+async fn list_sessions(
+    engine: State<'_, Engine>,
+    project_id: Option<String>,
+) -> Result<Vec<SessionView>, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
     commands::list_sessions(&engine).await
 }
 
 #[tauri::command]
-async fn get_session_messages(engine: State<'_, Engine>, session_id: String) -> Result<Vec<Message>, CommandError> {
+async fn get_session_messages(
+    engine: State<'_, Engine>,
+    session_id: String,
+    project_id: Option<String>,
+) -> Result<Vec<Message>, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("sessions", session_id.as_str())])?;
     commands::get_session_messages(&engine, &session_id)
 }
 
@@ -113,57 +153,113 @@ async fn send_message(
     session_id: Option<String>,
     body: String,
     files: Vec<String>,
+    project_id: Option<String>,
 ) -> Result<commands::Sent, CommandError> {
+    let engine = engine.request_project(
+        project_id.as_deref(),
+        &[("bots", bot_id.as_str()), ("sessions", session_id.as_deref().unwrap_or(""))],
+    )?;
     commands::send_message(&engine, &bot_id, session_id.as_deref(), &body, &files).await
 }
 
 #[tauri::command]
-async fn request_workflow(engine: State<'_, Engine>, body: String) -> Result<commands::Sent, CommandError> {
+async fn request_workflow(
+    engine: State<'_, Engine>,
+    body: String,
+    project_id: Option<String>,
+) -> Result<commands::Sent, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
     commands::request_workflow(&engine, &body).await
 }
 
 #[tauri::command]
-async fn cancel_message(engine: State<'_, Engine>, message_id: String) -> Result<Message, CommandError> {
+async fn cancel_message(
+    engine: State<'_, Engine>,
+    message_id: String,
+    project_id: Option<String>,
+) -> Result<Message, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("messages", message_id.as_str())])?;
     commands::cancel_message(&engine, &message_id).await
 }
 
 #[tauri::command]
-async fn retry_message(engine: State<'_, Engine>, message_id: String) -> Result<Message, CommandError> {
+async fn retry_message(
+    engine: State<'_, Engine>,
+    message_id: String,
+    project_id: Option<String>,
+) -> Result<Message, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("messages", message_id.as_str())])?;
     commands::retry_message(&engine, &message_id).await
 }
 
 #[tauri::command]
-async fn stop_turn(engine: State<'_, Engine>, session_id: String) -> Result<(), CommandError> {
+async fn stop_turn(
+    engine: State<'_, Engine>,
+    session_id: String,
+    project_id: Option<String>,
+) -> Result<(), CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("sessions", session_id.as_str())])?;
     commands::stop_turn(&engine, &session_id).await
 }
 
 #[tauri::command]
-async fn answer_dialog(engine: State<'_, Engine>, session_id: String, answer: String) -> Result<(), CommandError> {
+async fn answer_dialog(
+    engine: State<'_, Engine>,
+    session_id: String,
+    answer: String,
+    project_id: Option<String>,
+) -> Result<(), CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("sessions", session_id.as_str())])?;
     commands::answer_dialog(&engine, &session_id, &answer).await
 }
 
 #[tauri::command]
-async fn session_snapshot(engine: State<'_, Engine>, session_id: String) -> Result<Option<String>, CommandError> {
+async fn session_snapshot(
+    engine: State<'_, Engine>,
+    session_id: String,
+    project_id: Option<String>,
+) -> Result<Option<String>, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("sessions", session_id.as_str())])?;
     commands::session_snapshot(&engine, &session_id).await
 }
 
 #[tauri::command]
-async fn session_terminal(engine: State<'_, Engine>, session_id: String) -> Result<Option<String>, CommandError> {
+async fn session_terminal(
+    engine: State<'_, Engine>,
+    session_id: String,
+    project_id: Option<String>,
+) -> Result<Option<String>, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("sessions", session_id.as_str())])?;
     commands::session_terminal(&engine, &session_id).await
 }
 
 #[tauri::command]
-async fn restart_session(engine: State<'_, Engine>, session_id: String) -> Result<(), CommandError> {
+async fn restart_session(
+    engine: State<'_, Engine>,
+    session_id: String,
+    project_id: Option<String>,
+) -> Result<(), CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("sessions", session_id.as_str())])?;
     commands::restart_session(&engine, &session_id).await
 }
 
 #[tauri::command]
-async fn stop_session(engine: State<'_, Engine>, session_id: String) -> Result<(), CommandError> {
+async fn stop_session(
+    engine: State<'_, Engine>,
+    session_id: String,
+    project_id: Option<String>,
+) -> Result<(), CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("sessions", session_id.as_str())])?;
     commands::stop_session(&engine, &session_id).await
 }
 
 #[tauri::command]
-async fn remove_session(engine: State<'_, Engine>, session_id: String) -> Result<Vec<String>, CommandError> {
+async fn remove_session(
+    engine: State<'_, Engine>,
+    session_id: String,
+    project_id: Option<String>,
+) -> Result<Vec<String>, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("sessions", session_id.as_str())])?;
     commands::remove_session(&engine, &session_id, commands::move_to_trash).await
 }
 
@@ -172,12 +268,19 @@ async fn rename_session(
     engine: State<'_, Engine>,
     session_id: String,
     name: String,
+    project_id: Option<String>,
 ) -> Result<SessionView, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("sessions", session_id.as_str())])?;
     commands::rename_session(&engine, &session_id, &name).await
 }
 
 #[tauri::command]
-async fn mark_session_seen(engine: State<'_, Engine>, session_id: String) -> Result<(), CommandError> {
+async fn mark_session_seen(
+    engine: State<'_, Engine>,
+    session_id: String,
+    project_id: Option<String>,
+) -> Result<(), CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("sessions", session_id.as_str())])?;
     commands::mark_session_seen(&engine, &session_id)
 }
 
@@ -185,62 +288,113 @@ async fn mark_session_seen(engine: State<'_, Engine>, session_id: String) -> Res
 async fn session_activity(
     engine: State<'_, Engine>,
     session_ids: Vec<String>,
+    project_id: Option<String>,
 ) -> Result<Vec<SessionActivity>, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
     commands::session_activity(&engine, &session_ids).await
 }
 
 #[tauri::command]
-async fn session_glances(engine: State<'_, Engine>, session_ids: Vec<String>) -> Result<Vec<Glance>, CommandError> {
+async fn session_glances(
+    engine: State<'_, Engine>,
+    session_ids: Vec<String>,
+    project_id: Option<String>,
+) -> Result<Vec<Glance>, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
     Ok(commands::session_glances(&engine, &session_ids).await)
 }
 
 #[tauri::command]
-async fn archive_session(engine: State<'_, Engine>, session_id: String) -> Result<Vec<String>, CommandError> {
+async fn archive_session(
+    engine: State<'_, Engine>,
+    session_id: String,
+    project_id: Option<String>,
+) -> Result<Vec<String>, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("sessions", session_id.as_str())])?;
     commands::archive_session(&engine, &session_id).await
 }
 
 #[tauri::command]
-async fn restore_session(engine: State<'_, Engine>, session_id: String) -> Result<Vec<String>, CommandError> {
+async fn restore_session(
+    engine: State<'_, Engine>,
+    session_id: String,
+    project_id: Option<String>,
+) -> Result<Vec<String>, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("sessions", session_id.as_str())])?;
     commands::restore_session(&engine, &session_id).await
 }
 
 #[tauri::command]
-async fn list_tasks(engine: State<'_, Engine>) -> Result<Vec<Task>, CommandError> {
+async fn list_tasks(engine: State<'_, Engine>, project_id: Option<String>) -> Result<Vec<Task>, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
     commands::list_tasks(&engine)
 }
 
 #[tauri::command]
-async fn create_task(engine: State<'_, Engine>, input: NewTask) -> Result<Task, CommandError> {
+async fn create_task(
+    engine: State<'_, Engine>,
+    input: NewTask,
+    project_id: Option<String>,
+) -> Result<Task, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
     commands::create_task(&engine, input)
 }
 
 #[tauri::command]
-async fn update_task(engine: State<'_, Engine>, task_id: String, input: NewTask) -> Result<Task, CommandError> {
+async fn update_task(
+    engine: State<'_, Engine>,
+    task_id: String,
+    input: NewTask,
+    project_id: Option<String>,
+) -> Result<Task, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("tasks", task_id.as_str())])?;
     commands::update_task(&engine, &task_id, input)
 }
 
 #[tauri::command]
-async fn set_task_enabled(engine: State<'_, Engine>, task_id: String, enabled: bool) -> Result<Task, CommandError> {
+async fn set_task_enabled(
+    engine: State<'_, Engine>,
+    task_id: String,
+    enabled: bool,
+    project_id: Option<String>,
+) -> Result<Task, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("tasks", task_id.as_str())])?;
     commands::set_task_enabled(&engine, &task_id, enabled)
 }
 
 #[tauri::command]
-async fn delete_task(engine: State<'_, Engine>, task_id: String) -> Result<(), CommandError> {
+async fn delete_task(
+    engine: State<'_, Engine>,
+    task_id: String,
+    project_id: Option<String>,
+) -> Result<(), CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("tasks", task_id.as_str())])?;
     commands::delete_task(&engine, &task_id)
 }
 
 #[tauri::command]
-async fn run_task_now(engine: State<'_, Engine>, task_id: String) -> Result<SessionView, CommandError> {
+async fn run_task_now(
+    engine: State<'_, Engine>,
+    task_id: String,
+    project_id: Option<String>,
+) -> Result<SessionView, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("tasks", task_id.as_str())])?;
     commands::run_task_now(&engine, &task_id).await
 }
 
 #[tauri::command]
-async fn list_workflows(engine: State<'_, Engine>) -> Result<Vec<Workflow>, CommandError> {
+async fn list_workflows(engine: State<'_, Engine>, project_id: Option<String>) -> Result<Vec<Workflow>, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
     commands::list_workflows(&engine)
 }
 
 #[tauri::command]
-async fn create_workflow(engine: State<'_, Engine>, input: NewWorkflow) -> Result<Workflow, CommandError> {
+async fn create_workflow(
+    engine: State<'_, Engine>,
+    input: NewWorkflow,
+    project_id: Option<String>,
+) -> Result<Workflow, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
     commands::create_workflow(&engine, input)
 }
 
@@ -249,12 +403,19 @@ async fn update_workflow(
     engine: State<'_, Engine>,
     workflow_id: String,
     input: NewWorkflow,
+    project_id: Option<String>,
 ) -> Result<Workflow, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("workflows", workflow_id.as_str())])?;
     commands::update_workflow(&engine, &workflow_id, input)
 }
 
 #[tauri::command]
-async fn delete_workflow(engine: State<'_, Engine>, workflow_id: String) -> Result<(), CommandError> {
+async fn delete_workflow(
+    engine: State<'_, Engine>,
+    workflow_id: String,
+    project_id: Option<String>,
+) -> Result<(), CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("workflows", workflow_id.as_str())])?;
     commands::delete_workflow(&engine, &workflow_id)
 }
 
@@ -264,32 +425,56 @@ async fn start_workflow(
     workflow_id: String,
     body: String,
     files: Vec<String>,
+    project_id: Option<String>,
 ) -> Result<SessionView, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("workflows", workflow_id.as_str())])?;
     commands::start_workflow(&engine, &workflow_id, &body, &files).await
 }
 
 #[tauri::command]
-async fn get_workflow_run(engine: State<'_, Engine>, run_id: String) -> Result<RunView, CommandError> {
+async fn get_workflow_run(
+    engine: State<'_, Engine>,
+    run_id: String,
+    project_id: Option<String>,
+) -> Result<RunView, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("workflow_runs", run_id.as_str())])?;
     commands::get_workflow_run(&engine, &run_id)
 }
 
 #[tauri::command]
-async fn another_round(engine: State<'_, Engine>, run_id: String) -> Result<(), CommandError> {
+async fn another_round(
+    engine: State<'_, Engine>,
+    run_id: String,
+    project_id: Option<String>,
+) -> Result<(), CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("workflow_runs", run_id.as_str())])?;
     commands::another_round(&engine, &run_id)
 }
 
 #[tauri::command]
-async fn pick_outcome(engine: State<'_, Engine>, run_id: String, outcome: Option<String>) -> Result<(), CommandError> {
+async fn pick_outcome(
+    engine: State<'_, Engine>,
+    run_id: String,
+    outcome: Option<String>,
+    project_id: Option<String>,
+) -> Result<(), CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("workflow_runs", run_id.as_str())])?;
     commands::pick_outcome(&engine, &run_id, outcome)
 }
 
 #[tauri::command]
-async fn remind_step(engine: State<'_, Engine>, run_id: String) -> Result<(), CommandError> {
+async fn remind_step(
+    engine: State<'_, Engine>,
+    run_id: String,
+    project_id: Option<String>,
+) -> Result<(), CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("workflow_runs", run_id.as_str())])?;
     commands::remind_step(&engine, &run_id)
 }
 
 #[tauri::command]
-async fn stop_run(engine: State<'_, Engine>, run_id: String) -> Result<(), CommandError> {
+async fn stop_run(engine: State<'_, Engine>, run_id: String, project_id: Option<String>) -> Result<(), CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("workflow_runs", run_id.as_str())])?;
     commands::stop_run(&engine, &run_id).await
 }
 
@@ -314,12 +499,21 @@ async fn try_usage_limit_now(engine: State<'_, Engine>, provider: Provider) -> R
 }
 
 #[tauri::command]
-async fn list_bot_threads(engine: State<'_, Engine>) -> Result<Vec<ThreadSummary>, CommandError> {
+async fn list_bot_threads(
+    engine: State<'_, Engine>,
+    project_id: Option<String>,
+) -> Result<Vec<ThreadSummary>, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
     commands::list_bot_threads(&engine)
 }
 
 #[tauri::command]
-async fn get_thread_messages(engine: State<'_, Engine>, thread_id: String) -> Result<Vec<Message>, CommandError> {
+async fn get_thread_messages(
+    engine: State<'_, Engine>,
+    thread_id: String,
+    project_id: Option<String>,
+) -> Result<Vec<Message>, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("threads", thread_id.as_str())])?;
     commands::get_thread_messages(&engine, &thread_id)
 }
 
@@ -329,22 +523,36 @@ async fn open_attachment(
     message_id: String,
     index: usize,
     reveal: bool,
+    project_id: Option<String>,
 ) -> Result<(), CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("messages", message_id.as_str())])?;
     commands::open_attachment(&engine, &message_id, index, reveal).await
 }
 
 #[tauri::command]
-async fn update_bot(engine: State<'_, Engine>, bot_id: String, input: CreateBotInput) -> Result<Bot, CommandError> {
+async fn update_bot(
+    engine: State<'_, Engine>,
+    bot_id: String,
+    input: CreateBotInput,
+    project_id: Option<String>,
+) -> Result<Bot, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("bots", bot_id.as_str())])?;
     commands::update_bot(&engine, &bot_id, input)
 }
 
 #[tauri::command]
-async fn delete_bot(engine: State<'_, Engine>, bot_id: String) -> Result<(), CommandError> {
+async fn delete_bot(engine: State<'_, Engine>, bot_id: String, project_id: Option<String>) -> Result<(), CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("bots", bot_id.as_str())])?;
     commands::delete_bot(&engine, &bot_id, commands::move_to_trash).await
 }
 
 #[tauri::command]
-async fn open_bot_folder(engine: State<'_, Engine>, bot_id: String) -> Result<(), CommandError> {
+async fn open_bot_folder(
+    engine: State<'_, Engine>,
+    bot_id: String,
+    project_id: Option<String>,
+) -> Result<(), CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[("bots", bot_id.as_str())])?;
     commands::open_bot_folder(&engine, &bot_id).await
 }
 
@@ -359,7 +567,8 @@ async fn open_logs_folder(engine: State<'_, Engine>) -> Result<(), CommandError>
 }
 
 #[tauri::command]
-async fn open_project_folder(engine: State<'_, Engine>) -> Result<(), CommandError> {
+async fn open_project_folder(engine: State<'_, Engine>, project_id: Option<String>) -> Result<(), CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
     commands::open_project_folder(&engine).await
 }
 
@@ -385,8 +594,13 @@ async fn blocking<T: Send + 'static>(
 }
 
 #[tauri::command]
-async fn export_config(engine: State<'_, Engine>, path: String) -> Result<ExportSummary, CommandError> {
-    let engine = engine.inner().clone();
+async fn export_config(
+    engine: State<'_, Engine>,
+    path: String,
+    project_id: Option<String>,
+) -> Result<ExportSummary, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
+
     blocking(move || commands::export_config(&engine, &path)).await
 }
 
@@ -395,8 +609,10 @@ async fn export_workflow_config(
     engine: State<'_, Engine>,
     workflow_id: String,
     path: String,
+    project_id: Option<String>,
 ) -> Result<ExportSummary, CommandError> {
-    let engine = engine.inner().clone();
+    let engine = engine.request_project(project_id.as_deref(), &[("workflows", workflow_id.as_str())])?;
+
     blocking(move || commands::export_workflow_config(&engine, &workflow_id, &path)).await
 }
 
@@ -411,8 +627,10 @@ async fn preview_workflow_import(
     engine: State<'_, Engine>,
     path: String,
     request: WorkflowImportRequest,
+    project_id: Option<String>,
 ) -> Result<WorkflowImportPreview, CommandError> {
-    let engine = engine.inner().clone();
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
+
     blocking(move || commands::preview_workflow_import(&engine, &path, &request)).await
 }
 
@@ -422,14 +640,21 @@ async fn import_workflow_config(
     path: String,
     request: WorkflowImportRequest,
     token: String,
+    project_id: Option<String>,
 ) -> Result<WorkflowImportOutcome, CommandError> {
-    let engine = engine.inner().clone();
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
+
     blocking(move || commands::import_workflow_config(&engine, &path, &request, &token)).await
 }
 
 #[tauri::command]
-async fn preview_config_import(engine: State<'_, Engine>, path: String) -> Result<ImportPreview, CommandError> {
-    let engine = engine.inner().clone();
+async fn preview_config_import(
+    engine: State<'_, Engine>,
+    path: String,
+    project_id: Option<String>,
+) -> Result<ImportPreview, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
+
     blocking(move || commands::preview_config_import(&engine, &path)).await
 }
 
@@ -439,8 +664,10 @@ async fn import_config(
     path: String,
     mode: ImportMode,
     token: String,
+    project_id: Option<String>,
 ) -> Result<ImportOutcome, CommandError> {
-    let engine = engine.inner().clone();
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
+
     blocking(move || commands::import_config(&engine, &path, mode, &token)).await
 }
 
@@ -465,7 +692,8 @@ async fn open_skills_folder(engine: State<'_, Engine>) -> Result<(), CommandErro
 }
 
 #[tauri::command]
-async fn get_settings(engine: State<'_, Engine>) -> Result<AppSettings, CommandError> {
+async fn get_settings(engine: State<'_, Engine>, project_id: Option<String>) -> Result<AppSettings, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
     commands::get_settings(&engine)
 }
 
@@ -499,7 +727,12 @@ async fn set_bots_root(engine: State<'_, Engine>, path: String) -> Result<(), Co
 }
 
 #[tauri::command]
-async fn set_project_folder(engine: State<'_, Engine>, path: String) -> Result<Vec<String>, CommandError> {
+async fn set_project_folder(
+    engine: State<'_, Engine>,
+    path: String,
+    project_id: Option<String>,
+) -> Result<Vec<String>, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
     commands::set_project_folder(&engine, &path)
 }
 
@@ -738,6 +971,12 @@ fn main() {
         .manage(browser::Browser::default())
         .manage(menu::ViewState::default())
         .invoke_handler(tauri::generate_handler![
+            list_projects,
+            create_project,
+            update_project,
+            archive_project,
+            restore_project,
+            finish_project_setup,
             list_bots,
             create_bot,
             list_tasks,
@@ -877,12 +1116,23 @@ fn main() {
                                 tray::set_paused(&handle, *paused);
                             }
                             let in_front = || window_in_front(&handle);
-                            if let Some(notice) = notify::notice_for(&event, in_front, |id| {
+                            if let Some(mut notice) = notify::notice_for(&event, in_front, |id| {
                                 notify::session_name(id, |id| engine.session_with_bot(id))
                             }) {
+                                if let Some(id) = engine.event_project(&event) {
+                                    if let Ok(projects) = engine.list_projects() {
+                                        if let Some(project) = projects.iter().find(|p| p.id == id) {
+                                            notice.title = format!("{} · {}", project.name, notice.title);
+                                        }
+                                    }
+                                }
                                 notify::send(&handle, &notice);
                             }
-                            let _ = handle.emit("ui-event", event);
+                            let mut payload = serde_json::to_value(&event).unwrap_or_default();
+                            if let Some(project) = engine.event_project(&event) {
+                                payload["project_id"] = project.into();
+                            }
+                            let _ = handle.emit("ui-event", payload);
                         }
                         Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
                         Err(tokio::sync::broadcast::error::RecvError::Closed) => break,

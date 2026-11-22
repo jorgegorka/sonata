@@ -124,6 +124,7 @@ async fn watchdog_takes_a_vanished_agent_offline_and_interrupts_its_turn() {
             | UiEvent::SessionAdded { .. }
             | UiEvent::SessionUpdated { .. }
             | UiEvent::SessionRemoved { .. }
+            | UiEvent::ProjectsChanged
             | UiEvent::SkillsChanged
             | UiEvent::TasksChanged
             | UiEvent::WorkflowsChanged

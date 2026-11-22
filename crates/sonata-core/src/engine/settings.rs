@@ -12,7 +12,7 @@ pub(crate) enum FolderError {
 
 impl Engine {
     pub fn hop_limit(&self) -> Result<i64> {
-        let stored = self.inner.store.get_setting("hop_limit")?.and_then(|v| v.trim().parse::<i64>().ok());
+        let stored = self.store.get_setting("hop_limit")?.and_then(|v| v.trim().parse::<i64>().ok());
         Ok(stored.unwrap_or(DEFAULT_HOP_LIMIT).clamp(1, MAX_HOP_LIMIT))
     }
 
@@ -20,13 +20,13 @@ impl Engine {
         if !(1..=MAX_HOP_LIMIT).contains(&limit) {
             return Err(Refusal::HopLimitRange { min: 1, max: MAX_HOP_LIMIT }.into());
         }
-        self.inner.store.set_setting("hop_limit", &limit.to_string())?;
+        self.store.set_setting("hop_limit", &limit.to_string())?;
         tracing::info!(limit, "hop limit changed");
         Ok(())
     }
 
     pub fn language_choice(&self) -> Result<String> {
-        let stored = self.inner.store.get_setting("language")?;
+        let stored = self.store.get_setting("language")?;
         Ok(stored.filter(|v| LANGUAGES.contains(&v.as_str())).unwrap_or_else(|| SYSTEM_LANGUAGE.to_string()))
     }
 
@@ -34,7 +34,7 @@ impl Engine {
         if choice != SYSTEM_LANGUAGE && !LANGUAGES.contains(&choice) {
             return Err(Refusal::LanguageUnknown(choice.to_string()).into());
         }
-        self.inner.store.set_setting("language", choice)?;
+        self.store.set_setting("language", choice)?;
         tracing::info!(language = choice, "language chosen");
         Ok(())
     }
@@ -54,7 +54,7 @@ impl Engine {
     }
 
     pub fn setup_done(&self) -> Result<bool> {
-        Ok(self.inner.store.get_setting("setup_done")?.as_deref() == Some("true"))
+        Ok(self.store.get_setting("setup_done")?.as_deref() == Some("true"))
     }
 
     pub fn finish_setup(&self, project_folder: Option<&Path>) -> Result<()> {
@@ -66,24 +66,24 @@ impl Engine {
         if !self.setup_done()? {
             self.seed_default_bots(project_folder)?;
             if let Some(path) = project_folder {
-                self.inner.store.set_setting(super::defaults::CHECKOUT_SETTING, &path.to_string_lossy())?;
+                self.store.set_setting(super::defaults::CHECKOUT_SETTING, &path.to_string_lossy())?;
             }
         }
-        self.inner.store.set_setting("setup_done", "true")?;
+        self.store.set_setting("setup_done", "true")?;
         tracing::info!("first-run setup finished");
         Ok(())
     }
 
     pub fn close_hint_shown(&self) -> Result<bool> {
-        Ok(self.inner.store.get_setting("close_hint_shown")?.as_deref() == Some("true"))
+        Ok(self.store.get_setting("close_hint_shown")?.as_deref() == Some("true"))
     }
 
     pub fn mark_close_hint_shown(&self) -> Result<()> {
-        self.inner.store.set_setting("close_hint_shown", "true")
+        self.store.set_setting("close_hint_shown", "true")
     }
 
     pub fn has_bots(&self) -> Result<bool> {
-        Ok(!self.inner.store.bot_handles()?.is_empty())
+        Ok(!self.store.bot_handles()?.is_empty())
     }
 
     pub fn paths(&self) -> AppPaths {
@@ -102,15 +102,15 @@ impl Engine {
         if std::fs::write(&probe, b"").and_then(|()| std::fs::remove_file(&probe)).is_err() {
             return Err(Refusal::BadFolder(root.to_string_lossy().into_owned()).into());
         }
-        self.inner.store.set_setting("bots_root", &root.to_string_lossy())?;
+        self.store.set_setting("bots_root", &root.to_string_lossy())?;
         *self.inner.bots_root.write().unwrap() = root.to_path_buf();
         tracing::info!(bots_root = %root.display(), "bots folder chosen");
         Ok(())
     }
 
     pub fn bot_folder(&self, bot_id: &str) -> Result<PathBuf> {
-        let bot = self.inner.store.get_bot(bot_id)?.ok_or_else(|| Refusal::BotNotFound(bot_id.into()))?;
-        Ok(self.bot_dir(&bot.handle))
+        let bot = self.store.get_bot(bot_id)?.ok_or_else(|| Refusal::BotNotFound(bot_id.into()))?;
+        Ok(self.bot_directory(&bot))
     }
 
     pub async fn runtime_health(&self) -> std::result::Result<RuntimeHealth, RuntimeError> {
@@ -132,6 +132,6 @@ impl Engine {
     }
 
     pub(crate) fn bot_dir(&self, handle: &str) -> PathBuf {
-        self.bots_root().join(handle)
+        self.project_workspace().join(handle)
     }
 }

@@ -12,7 +12,7 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: () => Promise.resolve(null) }))
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const bot = (id: string, handle: string): BotView => ({
+const bot = (id: string, handle: string): BotView => ({ project_id: "default",
   id,
   handle,
   display_name: handle[0].toUpperCase() + handle.slice(1),
@@ -28,7 +28,7 @@ const bot = (id: string, handle: string): BotView => ({
 });
 const bots = ["master", "feature", "testing", "review", "debug", "query"].map((h, i) => bot(`b${i + 1}`, h));
 
-const s = (id: string, bot_id: string, opened_by: string | null, minute: number): SessionView => ({
+const s = (id: string, bot_id: string, opened_by: string | null, minute: number): SessionView => ({ project_id: "default",
   id,
   bot_id,
   number: 1,

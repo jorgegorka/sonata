@@ -55,7 +55,7 @@
     "hideDone": "Ocultar hechas",
     "newTask": "Nueva tarea",
     "pause": "Pausar todos los bots",
-    "resume": "Reanudar los bots",
+    "resume": "Reanudar todos los bots",
     "pausedNote": "Los bots están en pausa. No se entrega nada nuevo hasta que los reanudes.",
     "empty": "Aún no hay tareas. Empieza una y síguela aquí, desde tu petición hasta su resultado.",
     "emptyColumn": "Nada por aquí",
@@ -403,7 +403,7 @@
     "changeFolder": "Cambiar…",
     "folderLocked": "Esta carpeta no cambia una vez que tienes bots.",
     "projectTitle": "Carpeta del proyecto",
-    "projectHint": "Sonata empieza con Master, que te ayuda a crear y coordinar tus bots. Elige una carpeta de proyecto opcional o déjala sin configurar hasta que una solicitud la necesite.",
+    "projectHint": "Nombra tu primer proyecto y elige su directorio de código y proveedor de IA predeterminado. Master te ayuda a crear y coordinar bots dentro de este proyecto.",
     "projectNone": "Sin carpeta elegida",
     "chooseCheckout": "Elegir…",
     "toolsTitle": "Las herramientas de IA con las que funcionan los bots",
@@ -586,8 +586,8 @@
     "title": "Configuración",
     "hint": "Guarda tus bots, habilidades y flujos de trabajo en un archivo, o carga uno.",
     "export": "Exportar…",
-    "exportAll": "Exportar todo…",
-    "exportAllHint": "Exporta todos los flujos de trabajo, bots y habilidades, incluidos los archivos de las habilidades, en un único archivo YAML. Restáuralo todo desde Ajustes → Configuración → Importar.",
+    "exportAll": "Exportar proyecto…",
+    "exportAllHint": "Exporta los flujos, bots y habilidades utilizadas de este proyecto, incluidos sus archivos, en un archivo YAML. Restáuralos desde Ajustes → Configuración → Importar.",
     "import": "Importar…",
     "fileFilter": "Configuración de Sonata",
     "exported": "Se guardó {{file}}. Bots: {{bots}} · Habilidades: {{skills}} · Flujos de trabajo: {{workflows}}",
@@ -712,7 +712,16 @@
     "skillUnknown": "La habilidad {{slug}} no está ni en el archivo ni en tu biblioteca.",
     "importDependsOn": "Necesita {{name}}, que no se puede importar.",
     "languageUnknown": "Este idioma no está disponible.",
-    "databaseTooNew": "Estos datos los guardó una versión más nueva de Sonata."
+    "databaseTooNew": "Estos datos los guardó una versión más nueva de Sonata.",
+    "projectNotFound": "No se encuentra el proyecto.",
+    "projectArchived": "Restaura este proyecto antes de modificarlo o ejecutar trabajo.",
+    "projectNameRequired": "El proyecto necesita un nombre.",
+    "projectNameTaken": "Ya existe un proyecto con ese nombre, incluidos los archivados.",
+    "projectDirectoryRequired": "Elige un directorio para el proyecto.",
+    "projectMismatch": "Este elemento pertenece a otro proyecto.",
+    "projectActiveWork": "Finaliza o detén el trabajo activo de los bots antes de archivar.",
+    "projectQueuedWork": "Finaliza o detén el trabajo en cola y los flujos pendientes antes de archivar.",
+    "projectBackgroundWork": "Finaliza el trabajo en segundo plano antes de archivar. Si no se conoce su estado, detén primero el bot."
   },
   "linux": {
     "skills": {
@@ -741,5 +750,26 @@
     "errors": {
       "opensPrograms": "Este archivo puede ejecutar programas o instalar software, así que Sonata solo lo muestra en el gestor de archivos."
     }
+  },
+  "projects": {
+    "select": "Proyecto",
+    "add": "Añadir proyecto",
+    "manage": "Gestionar proyectos",
+    "name": "Nombre del proyecto",
+    "directory": "Directorio del proyecto",
+    "provider": "Proveedor de IA predeterminado",
+    "inherit": "Predeterminado del proyecto ({{provider}})",
+    "edit": "Editar proyecto",
+    "archive": "Archivar proyecto",
+    "restore": "Restaurar proyecto",
+    "archived": "Archivado",
+    "back": "Volver al tablero",
+    "none": "No hay proyectos activos",
+    "defaultsHint": "El proveedor se aplica a los bots nuevos. Los cambios de directorio se aplican al iniciar el contexto del bot; se conservan las instrucciones personalizadas.",
+    "archiveHint": "Los proyectos archivados conservan su historial. Finaliza o detén el trabajo activo antes de archivar. Las tareas programadas se reanudan en su próxima fecha futura al restaurar.",
+    "archiveConfirm": "¿Archivar {{name}}? Sus tareas programadas quedarán suspendidas hasta que lo restaures.",
+    "sharedSkills": "Las habilidades se comparten entre proyectos. Reemplazar una habilidad también afecta a los bots que la usan en otros proyectos.",
+    "export": "Exportar proyecto",
+    "import": "Importar en el proyecto"
   }
 }

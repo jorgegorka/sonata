@@ -1,7 +1,8 @@
+import { useProjectApi } from "../projectContext";
 import { useId, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { ask, open, save } from "@tauri-apps/plugin-dialog";
-import { api, type BotView, type SentMessage, type Workflow, type WorkflowFileEntry } from "../api";
+import { type BotView, type SentMessage, type Workflow, type WorkflowFileEntry } from "../api";
 import { errorMessage } from "../errors";
 import { exportFileName, workflowExportFileName } from "../configImport";
 import WorkflowImportPanel from "./WorkflowImportPanel";
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export default function WorkflowsView({ workflows, bots, onNew, onEdit, onRun, onRequested, onImported }: Props) {
+  const api = useProjectApi();
   const { t } = useTranslation();
   const exportAllHintId = useId();
   const [error, setError] = useState<string | null>(null);

@@ -1,7 +1,8 @@
+import { useProjectApi } from "../projectContext";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { api, type AppSettings, type ImportPreview, type ProviderStatus } from "../api";
+import { type AppSettings, type ImportPreview, type ProviderStatus } from "../api";
 import { exportFileName } from "../configImport";
 import i18n from "../i18n";
 import { LANGUAGES, nativeName } from "../language";
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export default function SettingsView({ providers, onCheckProviders, onBotsChanged, onError }: Props) {
+  const api = useProjectApi();
   const { t } = useTranslation();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [hopLimit, setHopLimit] = useState("");
@@ -203,12 +205,13 @@ export default function SettingsView({ providers, onCheckProviders, onBotsChange
       </section>
       <section>
         <h2>{t("config.title")}</h2>
+        <p className="muted">{t("projects.sharedSkills")}</p>
         <div className="folder-row">
           <button disabled={configBusy} onClick={() => void exportConfig()}>
-            {t("config.export")}
+            {t("projects.export")}
           </button>
           <button disabled={configBusy} onClick={() => void importConfig()}>
-            {t("config.import")}
+            {t("projects.import")}
           </button>
         </div>
         {importing ? (

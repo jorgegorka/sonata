@@ -1,7 +1,8 @@
+import { useProjectApi } from "../projectContext";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ask } from "@tauri-apps/plugin-dialog";
-import { api, type BotView, type SessionView, type Task } from "../api";
+import { type BotView, type SessionView, type Task } from "../api";
 import { lastRunText, nextRunText, scheduleText, skipText, sortTasks } from "../tasks";
 
 interface Props {
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function TasksView({ tasks, bots, sessions, onNew, onEdit, onOpenSession, onError }: Props) {
+  const api = useProjectApi();
   const { t, i18n } = useTranslation();
   const [running, setRunning] = useState<string[]>([]);
 

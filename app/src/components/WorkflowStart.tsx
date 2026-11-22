@@ -1,6 +1,7 @@
+import { useProjectApi } from "../projectContext";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, type BotView, type SessionView, type Workflow } from "../api";
+import { type BotView, type SessionView, type Workflow } from "../api";
 import { EMPTY_DRAFT, type Draft } from "../drafts";
 import Composer from "./Composer";
 import WorkflowMap from "./WorkflowMap";
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export default function WorkflowStart({ workflow, bots, onStarted, onError }: Props) {
+  const api = useProjectApi();
   const { t } = useTranslation();
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const { def } = workflow;

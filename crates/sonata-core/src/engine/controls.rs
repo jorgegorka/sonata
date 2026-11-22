@@ -25,7 +25,7 @@ impl Engine {
         if live.values().any(|l| l.in_flight.as_ref().is_some_and(|f| f.message_id == message_id)) {
             return Err(Refusal::AlreadyDelivering.into());
         }
-        let message = self.inner.store.cancel_queued(message_id)?.ok_or(Refusal::NotQueued)?;
+        let message = self.store.cancel_queued(message_id)?.ok_or(Refusal::NotQueued)?;
         drop(live);
         self.emit(UiEvent::MessageUpdated { message: message.clone() });
         Ok(message)
@@ -33,13 +33,12 @@ impl Engine {
 
     pub fn retry_message(&self, message_id: &str) -> Result<Message> {
         let only_interrupted = || Refusal::NotInterrupted;
-        let old =
-            self.inner.store.get_message(message_id)?.ok_or_else(|| Refusal::MessageNotFound(message_id.into()))?;
+        let old = self.store.get_message(message_id)?.ok_or_else(|| Refusal::MessageNotFound(message_id.into()))?;
         if old.status != MessageStatus::Interrupted {
             return Err(only_interrupted().into());
         }
         for bot_id in [Some(&old.recipient), Some(&old.sender).filter(|s| *s != USER)].into_iter().flatten() {
-            if self.inner.store.get_bot(bot_id)?.is_none() {
+            if self.store.get_bot(bot_id)?.is_none() {
                 return Err(Refusal::BotNotFound(bot_id.clone()).into());
             }
         }
@@ -59,8 +58,7 @@ impl Engine {
             hop: if from_user { 0 } else { old.hop },
             in_reply_to: if from_user { None } else { old.in_reply_to },
         };
-        let (original, message) =
-            self.inner.store.retry_interrupted(message_id, &copy)?.ok_or_else(only_interrupted)?;
+        let (original, message) = self.store.retry_interrupted(message_id, &copy)?.ok_or_else(only_interrupted)?;
         self.emit(UiEvent::MessageUpdated { message: original });
         self.emit_message(message.clone());
         Ok(message)
@@ -133,7 +131,7 @@ impl Engine {
         let (rt, flight) = {
             let mut live = self.inner.live.lock().await;
             let session =
-                self.inner.store.get_session(session_id)?.ok_or_else(|| Refusal::SessionNotFound(session_id.into()))?;
+                self.store.get_session(session_id)?.ok_or_else(|| Refusal::SessionNotFound(session_id.into()))?;
             if session.archived_at.is_some() {
                 return Err(Refusal::SessionArchived(session.id).into());
             }
@@ -146,7 +144,7 @@ impl Engine {
         };
         let who = self.who(session_id);
         if let Some(f) = flight.filter(|f| !f.follow_up) {
-            match self.inner.store.set_message_status(&f.message_id, MessageStatus::Interrupted) {
+            match self.store.set_message_status(&f.message_id, MessageStatus::Interrupted) {
                 Ok(message) => self.report_interrupted(message),
                 Err(e) if removed_with_its_conversation(&e) => {
                     tracing::info!(bot = %who.bot, session = who.session, message_id = %f.message_id, "the message was removed with its conversation")
@@ -168,7 +166,7 @@ impl Engine {
     }
 
     pub async fn stop_session(&self, session_id: &str) -> Result<()> {
-        if self.inner.store.get_session(session_id)?.is_none() {
+        if self.store.get_session(session_id)?.is_none() {
             return Err(Refusal::SessionNotFound(session_id.into()).into());
         }
         let stop = {
@@ -187,10 +185,9 @@ impl Engine {
     pub(super) fn stop_locked(&self, live: &mut HashMap<String, Live>, session_id: &str) -> Result<Stop> {
         let claimed = live.get(session_id).and_then(|l| l.in_flight.as_ref()).map(|f| f.message_id.clone());
         let mut cancelled = Vec::new();
-        for queued in
-            self.inner.store.queued_for_session(session_id)?.into_iter().filter(|m| Some(&m.id) != claimed.as_ref())
+        for queued in self.store.queued_for_session(session_id)?.into_iter().filter(|m| Some(&m.id) != claimed.as_ref())
         {
-            cancelled.extend(self.inner.store.cancel_queued(&queued.id)?);
+            cancelled.extend(self.store.cancel_queued(&queued.id)?);
         }
         let (rt, flight) = self.drop_live(live, session_id);
         Ok(Stop { session_id: session_id.to_string(), rt, flight, cancelled })
@@ -200,7 +197,7 @@ impl Engine {
         let Stop { session_id, rt, flight, cancelled } = stop;
         let who = self.who(&session_id);
         if let Some(f) = flight.filter(|f| !f.follow_up) {
-            match self.inner.store.set_message_status(&f.message_id, MessageStatus::Interrupted) {
+            match self.store.set_message_status(&f.message_id, MessageStatus::Interrupted) {
                 Ok(message) => self.report_interrupted(message),
                 Err(e) if removed_with_its_conversation(&e) => {
                     tracing::info!(bot = %who.bot, session = who.session, message_id = %f.message_id, "the message was removed with its conversation")
@@ -231,15 +228,15 @@ impl Engine {
     }
 
     pub fn paused(&self) -> Result<bool> {
-        Ok(self.inner.store.get_setting("paused")?.as_deref() == Some("true"))
+        Ok(self.store.get_setting("paused")?.as_deref() == Some("true"))
     }
 
     pub async fn set_paused(&self, paused: bool) -> Result<()> {
-        self.inner.store.set_setting("paused", if paused { "true" } else { "false" })?;
+        self.store.set_setting("paused", if paused { "true" } else { "false" })?;
         tracing::info!(paused, "pause all bots");
         self.emit(UiEvent::Paused { paused });
         if !paused {
-            for session_id in self.inner.store.sessions_with_queued()? {
+            for session_id in self.store.sessions_with_queued()? {
                 tokio::spawn(self.pump_session(&session_id));
             }
         }
@@ -285,7 +282,7 @@ mod tests {
                 skill_ids: vec![],
             })
             .unwrap();
-        let session = engine.inner.store.create_session(&bot.id, None, None).unwrap();
+        let session = engine.store.create_session(&bot.id, None, None).unwrap();
         let claimed = engine.queue_user_message_to_session(&session.id, "being sent", &[]).unwrap();
         let behind = engine.queue_user_message_to_session(&session.id, "behind it", &[]).unwrap();
         let pane =
@@ -324,7 +321,7 @@ mod tests {
 
         engine.stop_session(&session.id).await.unwrap();
 
-        let status = |m: &Message| engine.inner.store.get_message(&m.id).unwrap().unwrap().status;
+        let status = |m: &Message| engine.store.get_message(&m.id).unwrap().unwrap().status;
         assert_eq!(status(&claimed), MessageStatus::Interrupted);
         assert_eq!(status(&behind), MessageStatus::Cancelled);
         let seen: Vec<UiEvent> = std::iter::from_fn(|| rx.try_recv().ok()).collect();
@@ -347,7 +344,7 @@ mod tests {
 
         engine.send_claimed(&session.id, pane, claimed.clone(), false, "being sent".into()).await.unwrap();
 
-        let status = engine.inner.store.get_message(&claimed.id).unwrap().unwrap().status;
+        let status = engine.store.get_message(&claimed.id).unwrap().unwrap().status;
         assert_eq!(status, MessageStatus::Interrupted);
         assert!(!prompted(&rt, "being sent"), "{:?}", rt.state().prompts);
         let seen: Vec<UiEvent> = std::iter::from_fn(|| rx.try_recv().ok()).collect();
@@ -362,7 +359,7 @@ mod tests {
 
         engine.send_claimed(&session.id, pane, claimed.clone(), false, "being sent".into()).await.unwrap();
 
-        let status = |m: &Message| engine.inner.store.get_message(&m.id).unwrap().unwrap().status;
+        let status = |m: &Message| engine.store.get_message(&m.id).unwrap().unwrap().status;
         assert_eq!(status(&claimed), MessageStatus::Interrupted);
         for _ in 0..100 {
             if status(&behind) == MessageStatus::Delivered {
@@ -377,11 +374,11 @@ mod tests {
     #[tokio::test]
     async fn a_claim_on_a_message_no_longer_queued_is_released() {
         let Claimed { engine, rt, session, pane, claimed, behind, .. } = claimed().await;
-        engine.inner.store.set_message_status(&claimed.id, MessageStatus::Interrupted).unwrap();
+        engine.store.set_message_status(&claimed.id, MessageStatus::Interrupted).unwrap();
 
         engine.send_claimed(&session.id, pane, claimed.clone(), false, "being sent".into()).await.unwrap();
 
-        let status = |m: &Message| engine.inner.store.get_message(&m.id).unwrap().unwrap().status;
+        let status = |m: &Message| engine.store.get_message(&m.id).unwrap().unwrap().status;
         for _ in 0..100 {
             if status(&behind) == MessageStatus::Delivered {
                 break;

@@ -1,3 +1,4 @@
+import { useProjectApi } from "../projectContext";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -72,6 +73,7 @@ export default function Board({
   data,
   now,
 }: Props) {
+  const api = useProjectApi();
   const { t } = useTranslation();
   const [showDone, setShowDone] = useState(false);
   const live = useBoardData(sessions, onError, showDone);

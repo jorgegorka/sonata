@@ -23,7 +23,7 @@ const T2 = "2026-11-04T11:00:00.000Z";
 const T3 = "2026-11-04T12:00:00.000Z";
 
 let counter = 0;
-const s = (id: string, extra: Partial<SessionView> = {}): SessionView => ({
+const s = (id: string, extra: Partial<SessionView> = {}): SessionView => ({ project_id: "default",
   id,
   bot_id: `bot-${id}`,
   number: 1,

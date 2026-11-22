@@ -22,17 +22,18 @@ vi.mock("@tauri-apps/api/event", () => ({
     return () => tauri.listeners.delete(handler);
   },
 }));
-vi.mock("@tauri-apps/plugin-dialog", () => ({ ask: async () => true }));
+vi.mock("@tauri-apps/api/webview", () => ({ getCurrentWebview: () => ({ onDragDropEvent: async () => () => {} }) }));
+vi.mock("@tauri-apps/plugin-dialog", () => ({ ask: async () => true, open: async () => "/checkout/new" }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const NOW = new Date().toISOString();
 const OLD = "2026-01-01T00:00:00.000Z";
-const bot = (id: string): BotView => ({
+const bot = (id: string): BotView => ({ project_id: "default",
   id, handle: id, display_name: id, color: "#4f46e5", provider: "claude", model: null,
   instructions: "", config_version: 1, skill_ids: [], created_at: OLD, updated_at: OLD, status: "offline",
 });
-const session = (id: string, extra: Partial<SessionView> = {}): SessionView => ({
+const session = (id: string, extra: Partial<SessionView> = {}): SessionView => ({ project_id: "default",
   id, bot_id: "master", number: 1, title: id, provider_session_id: null, session_config_version: null,
   opened_by: null, created_at: OLD, last_activity_at: NOW, archived_at: null, waiting_question_id: null,
   waiting_options: [], waiting_since: null, open_request_id: null, seen_at: null, status: "offline", ...extra,
@@ -73,6 +74,7 @@ function archive(archived_at: string | null) {
 
 describe("done tasks on the board", () => {
   beforeEach(() => {
+    globalThis.localStorage?.clear();
     tauri.calls = [];
     tauri.listeners.clear();
     sessions = [
@@ -81,6 +83,7 @@ describe("done tasks on the board", () => {
       session("Previously done", { archived_at: OLD, last_activity_at: OLD }),
     ];
     tauri.answers = {
+      list_projects: () => [{ id: "default", name: "Default", default_directory: null, default_provider: "claude", archived_at: null }],
       get_settings: () => ({ setup_done: true, language_resolved: "en" }),
       list_bots: () => [bot("master"), bot("worker")],
       list_sessions: () => sessions,
@@ -144,7 +147,7 @@ describe("done tasks on the board", () => {
     await click(restore);
     expect(restore.disabled).toBe(true);
     await click(restore);
-    expect(called("restore_session")).toEqual([{ sessionId: "task" }]);
+    expect(called("restore_session")).toEqual([{ projectId: "default", sessionId: "task" }]);
     await act(async () => finish());
     expect(drawer()).toBeNull();
     expect(titles(column("done"))).toEqual(["Previously done"]);
@@ -180,5 +183,108 @@ describe("done tasks on the board", () => {
     await click(button("Tasks"));
     expect(column("done")).toBeNull();
     expect(button("Show done").getAttribute("aria-expanded")).toBe("false");
+  });
+});
+
+// Project switching exercises the same board and drawer as the completion flow above.
+describe("project selection", () => {
+  const projects = [
+    { id: "default", name: "Default", default_directory: "/checkout/a", default_provider: "claude", archived_at: null as string | null },
+    { id: "second", name: "Second", default_directory: "/checkout/b", default_provider: "codex", archived_at: null as string | null },
+  ];
+  beforeEach(() => {
+    tauri.calls = [];
+    tauri.listeners.clear();
+    sessions = [session("First card"), session("Second card", { project_id: "second", bot_id: "second-master" })];
+    tauri.answers = {
+      get_settings: () => ({ setup_done: true, language_resolved: "en" }),
+      list_projects: () => projects,
+      list_bots: () => [bot("master"), { ...bot("second-master"), project_id: "second", handle: "master", provider: "codex" }],
+      list_sessions: () => sessions, list_bot_threads: () => [], get_paused: () => false,
+      usage_limits: () => [], detect_providers: () => [], list_skills: () => [], list_tasks: () => [], list_workflows: () => [],
+      session_activity: () => [], session_glances: () => [], get_session_messages: () => [],
+    };
+    host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host);
+  });
+  afterEach(async () => { await act(async () => root.unmount()); host.remove(); });
+  async function select(id: string) {
+    await act(async () => {
+      const picker = host.querySelector<HTMLSelectElement>('select[aria-label="Project"]')!;
+      picker.value = id; picker.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
+  it("filters cards and bots, closes the drawer, and keeps background events in their owning project", async () => {
+    await mount();
+    expect(titles(host)).toEqual(["First card"]);
+    await click(button("First card"));
+    expect(drawer()).not.toBeNull();
+    await select("second");
+    expect(drawer()).toBeNull();
+    expect(titles(host)).toEqual(["Second card"]);
+    expect(called("set_paused")).toEqual([]);
+    await act(async () => emit({ type: "session_added", session: session("Background card") }));
+    expect(titles(host)).toEqual(["Second card"]);
+    await select("default");
+    expect(titles(host)).toContain("Background card");
+  });
+  it("uses the selected project's provider by default when creating a bot", async () => {
+    await mount(); await select("second"); await click(button("New bot"));
+    const provider = host.querySelector<HTMLSelectElement>('form.create-bot select')!;
+    expect(provider.value).toBe("default");
+    expect(provider.selectedOptions[0].textContent).toBe("Project default (codex)");
+    const name = host.querySelector<HTMLInputElement>('form.create-bot input[required]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(name, "Helper");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    tauri.answers.create_bot = () => ({ ...bot("helper"), project_id: "second", provider: "codex" });
+    await act(async () => { host.querySelector("form.create-bot")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
+    expect(called("create_bot")).toMatchObject([{ projectId: "second", input: { display_name: "Helper", provider: null } }]);
+  });
+  it("hides the selector for one project and keeps creation and restoration reachable", async () => {
+    tauri.answers.list_projects = () => [projects[0]];
+    await mount();
+    expect(host.querySelector('select[aria-label="Project"]')).toBeNull();
+    expect(button("Add project")).toBeDefined();
+    tauri.answers.list_projects = () => projects.map((p) => ({ ...p, archived_at: NOW }));
+    await act(async () => emit({ type: "projects_changed" }));
+    expect(titles(host)).toEqual([]);
+    expect(host.textContent).toContain("No active projects");
+    expect([...host.querySelectorAll("button")].filter((b) => b.textContent === "Restore project")).toHaveLength(2);
+  });
+  it("keeps a pending project creation bound to its form without changing a later selection", async () => {
+    await mount(); await click(button("Add project"));
+    const name = host.querySelector<HTMLInputElement>('form.create-bot input[required]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(name, "New project");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await click(button("Choose…"));
+    let finish!: () => void;
+    const created = { ...projects[0], id: "third", name: "New project", default_directory: "/checkout/new" };
+    tauri.answers.create_project = () => new Promise((resolve) => { finish = () => resolve(created); });
+    await act(async () => { host.querySelector("form.create-bot")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
+    expect(called("create_project")).toEqual([{ input: { name: "New project", default_directory: "/checkout/new", default_provider: "claude" } }]);
+    await select("second");
+    tauri.answers.list_projects = () => [...projects, created];
+    await act(async () => finish());
+    expect(host.querySelector<HTMLSelectElement>('select[aria-label="Project"]')?.value).toBe("second");
+    expect(titles(host)).toEqual(["Second card"]);
+  });
+  it("shows archive failures and can archive the last active project then restore it", async () => {
+    let items = [projects[0]];
+    tauri.answers.list_projects = () => items;
+    tauri.answers.archive_project = () => Promise.reject({ code: "projectActiveWork", params: {} });
+    await mount(); await click(button("Manage projects"));
+    await click(button("Archive project"));
+    expect(host.querySelector('[role="alert"]')).not.toBeNull();
+    expect(called("archive_project")).toEqual([{ projectId: "default" }]);
+    tauri.answers.archive_project = () => { items = items.map((p) => ({ ...p, archived_at: NOW })); return items[0]; };
+    await click(button("Archive project"));
+    expect(host.textContent).toContain("No active projects");
+    tauri.answers.restore_project = () => { items = [projects[0]]; return items[0]; };
+    await click(button("Restore project"));
+    expect(called("restore_project")).toEqual([{ projectId: "default" }]);
+    expect(titles(host)).toEqual(["First card"]);
   });
 });

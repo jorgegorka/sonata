@@ -1,9 +1,10 @@
+import { useProjectApi } from "../projectContext";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
 import { answerBody } from "../answer";
-import { api, type BotView, type SessionView } from "../api";
+import { type BotView, type SessionView } from "../api";
 import { EMPTY_DRAFT, type Draft } from "../drafts";
 import { addFiles, fileName } from "../files";
 
@@ -32,6 +33,7 @@ export default function Composer({
   send: sendVia,
   placeholder: placeholderText,
 }: Props) {
+  const api = useProjectApi();
   const { t } = useTranslation();
   const [dragging, setDragging] = useState(false);
   const [sending, setSending] = useState(false);

@@ -102,6 +102,21 @@ pub(super) fn status_word(status: BotStatus) -> &'static str {
 
 impl Engine {
     pub async fn handle_bridge(&self, req: BridgeRequest) -> BridgeResponse {
+        let session = {
+            let live = self.inner.live.lock().await;
+            session_for_pane(&live, &req.pane_id)
+        };
+        let scoped = match session.and_then(|id| self.for_session(&id).ok()) {
+            Some(engine) => engine,
+            None => return not_a_bot(),
+        };
+        if let Err(e) = scoped.store.require_active() {
+            return internal(e);
+        }
+        scoped.handle_project_bridge(req).await
+    }
+
+    async fn handle_project_bridge(&self, req: BridgeRequest) -> BridgeResponse {
         if req.v != PROTOCOL_VERSION {
             return refuse(
                 ErrorCode::UnsupportedVersion,
@@ -209,7 +224,7 @@ impl Engine {
         let to = if flight.sender == USER {
             Target::User
         } else {
-            match self.inner.store.get_bot(&flight.sender) {
+            match self.store.get_bot(&flight.sender) {
                 Ok(Some(bot)) => Target::Bot { bot: Box::new(bot), session: flight.sender_session.clone() },
                 Ok(None) => {
                     return refuse(ErrorCode::UnknownRecipient, "The bot that sent this message no longer exists.")
@@ -240,7 +255,7 @@ impl Engine {
         if name == USER {
             return Ok(Target::User);
         }
-        match self.inner.store.get_bot_by_handle(&name) {
+        match self.store.get_bot_by_handle(&name) {
             Ok(Some(bot)) if bot.id == from => {
                 Err(refuse(ErrorCode::SelfSend, "You cannot send a message to yourself."))
             }
@@ -268,20 +283,20 @@ impl Engine {
                 "The message is empty. Pass the text on stdin: sbot send @handle <<'EOF' ... EOF",
             );
         }
-        let sender = match self.inner.store.get_bot(&from.bot_id) {
+        let sender = match self.store.get_bot(&from.bot_id) {
             Ok(Some(bot)) => bot,
             Ok(None) => return not_a_bot(),
             Err(e) => return internal(e),
         };
         if let Some(session) = to.session() {
-            match self.inner.store.get_session(session) {
+            match self.store.get_session(session) {
                 Ok(Some(session)) if session.archived_at.is_some() => return conversation_archived(),
                 Ok(Some(_)) => {}
                 Ok(None) => return conversation_removed(),
                 Err(e) => return internal(e),
             }
         }
-        let checked = match attachments::check(&files, &self.bot_dir(&sender.handle)) {
+        let checked = match attachments::check(&files, &self.bot_directory(&sender)) {
             Ok(checked) => checked,
             Err(e) => return refuse(file_error_code(&e), format!("{e}.")),
         };
@@ -391,12 +406,12 @@ impl Engine {
                 }
             }
             (PostKind::Result { .. }, _) => {
-                self.inner.store.insert_result(&id, &new, answered.as_deref()).map(|(message, _)| (message, false))
+                self.store.insert_result(&id, &new, answered.as_deref()).map(|(message, _)| (message, false))
             }
             (_, Target::Bot { session: None, .. }) => {
-                self.inner.store.insert_routed(&id, &new, Route::Shared).map(|routed| (routed.message, routed.created))
+                self.store.insert_routed(&id, &new, Route::Shared).map(|routed| (routed.message, routed.created))
             }
-            _ => self.inner.store.insert_message_with_id(&id, &new).map(|message| (message, false)),
+            _ => self.store.insert_message_with_id(&id, &new).map(|message| (message, false)),
         };
         let (message, opened) = match inserted {
             Ok(inserted) => inserted,
@@ -421,7 +436,7 @@ impl Engine {
             self.emit_activity(&message, false);
         }
         if let (Some(session), true) = (&recipient_session, opened) {
-            match self.inner.store.get_session(session) {
+            match self.store.get_session(session) {
                 Ok(Some(session)) => self.emit(UiEvent::SessionAdded { session: self.session_view(session) }),
                 Ok(None) => {}
                 Err(e) => tracing::error!(session_id = %session, error = %e, "could not read the session just opened"),
@@ -454,7 +469,7 @@ impl Engine {
         }
         let limit = self.hop_limit()?;
         let master_run = match self.master_id()? {
-            Some(master) => from_bot == master || self.inner.store.chain_has_party(chain_id, &master)?,
+            Some(master) => from_bot == master || self.store.chain_has_party(chain_id, &master)?,
             None => false,
         };
         Ok(Some(if master_run { MASTER_HOP_FACTOR * limit } else { limit }))
@@ -462,7 +477,7 @@ impl Engine {
 
     fn master_to_report_to(&self, chain_id: &str, from_bot: &str) -> Result<Option<String>> {
         match self.master_bot()? {
-            Some(master) if master.id != from_bot && self.inner.store.chain_has_party(chain_id, &master.id)? => {
+            Some(master) if master.id != from_bot && self.store.chain_has_party(chain_id, &master.id)? => {
                 Ok(Some(master.handle))
             }
             _ => Ok(None),

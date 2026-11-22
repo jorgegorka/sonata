@@ -1,7 +1,9 @@
+import { useProject } from "../projectContext";
+import { useProjectApi } from "../projectContext";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { ask } from "@tauri-apps/plugin-dialog";
-import { api, type Bot, type BotView, type Provider, type ProviderStatus, type SkillView } from "../api";
+import { type Bot, type BotView, type Provider, type ProviderStatus, type SkillView } from "../api";
 import { PROVIDERS, deletedAnyway, draftOf, editNotes, modelPlaceholderKey, type BotDraft } from "../botForm";
 import { errorMessage } from "../errors";
 import { availableProviders } from "../setup";
@@ -32,6 +34,9 @@ interface Props {
 }
 
 export default function BotForm({ bot, providers, skills, taskCount = 0, onSaved, onDeleted, onCancel, onError }: Props) {
+  const api = useProjectApi();
+  const project = useProject();
+  const [inheritProvider, setInheritProvider] = useState(!bot);
   const { t } = useTranslation();
   const available = availableProviders(providers, PROVIDERS);
   const [draft, setDraft] = useState<BotDraft>(() =>
@@ -40,7 +45,7 @@ export default function BotForm({ bot, providers, skills, taskCount = 0, onSaved
       : {
           display_name: "",
           color: COLORS[0],
-          provider: available[0] ?? PROVIDERS[0],
+          provider: project?.default_provider ?? available[0] ?? PROVIDERS[0],
           model: "",
           instructions: t("createBot.instructionsTemplate"),
           skill_ids: [],
@@ -53,7 +58,7 @@ export default function BotForm({ bot, providers, skills, taskCount = 0, onSaved
   const custom = !COLORS.includes(draft.color);
 
   useEffect(() => {
-    if (bot) return;
+    if (bot || project) return;
     const found = availableProviders(providers, PROVIDERS);
     if (found.length > 0 && !found.includes(draft.provider)) setDraft((d) => ({ ...d, provider: found[0] }));
   }, [bot, providers, draft.provider]);
@@ -65,7 +70,7 @@ export default function BotForm({ bot, providers, skills, taskCount = 0, onSaved
     const input = {
       display_name: draft.display_name,
       color: draft.color,
-      provider: draft.provider,
+      provider: !bot && inheritProvider ? null : draft.provider,
       model: draft.model.trim() || null,
       instructions: draft.instructions,
       skill_ids: draft.skill_ids,
@@ -155,7 +160,11 @@ export default function BotForm({ bot, providers, skills, taskCount = 0, onSaved
       </fieldset>
       <label>
         {t("createBot.provider")}
-        <select value={draft.provider} onChange={(e) => set("provider", e.target.value as Provider)}>
+        <select value={!bot && inheritProvider ? "default" : draft.provider} onChange={(e) => {
+          setInheritProvider(e.target.value === "default");
+          set("provider", e.target.value === "default" ? (project?.default_provider ?? draft.provider) : e.target.value as Provider);
+        }}>
+          {!bot && <option value="default">{t("projects.inherit", { provider: project?.default_provider ?? draft.provider })}</option>}
           {PROVIDERS.map((p) => (
             <option key={p} value={p} disabled={!selectable(p)}>
               {selectable(p) ? t(`providers.${p}`) : t("createBot.notInstalled", { name: t(`providers.${p}`) })}
@@ -219,7 +228,7 @@ export default function BotForm({ bot, providers, skills, taskCount = 0, onSaved
         <button
           type="submit"
           className="primary"
-          disabled={busy || !draft.display_name.trim() || (!bot && available.length === 0)}
+          disabled={busy || !draft.display_name.trim()}
         >
           {busy ? t(bot ? "botForm.saving" : "createBot.creating") : t(bot ? "botForm.save" : "createBot.create")}
         </button>

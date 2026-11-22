@@ -2,11 +2,8 @@ use super::*;
 
 impl Engine {
     pub fn mark_session_seen(&self, session_id: &str) -> Result<()> {
-        let session = self
-            .inner
-            .store
-            .set_session_seen(session_id)?
-            .ok_or_else(|| Refusal::SessionNotFound(session_id.into()))?;
+        let session =
+            self.store.set_session_seen(session_id)?.ok_or_else(|| Refusal::SessionNotFound(session_id.into()))?;
         self.emit(UiEvent::SessionUpdated { session: self.session_view(session) });
         Ok(())
     }
@@ -26,7 +23,7 @@ impl Engine {
         };
         let mut out = Vec::new();
         for id in session_ids {
-            let Some(rows) = self.inner.store.activity_rows(id, in_flight.get(id).map(String::as_str))? else {
+            let Some(rows) = self.store.activity_rows(id, in_flight.get(id).map(String::as_str))? else {
                 continue;
             };
             let cut_off = rows.last_to.filter(|m| m.status == MessageStatus::Interrupted).map(|m| CutOff {

@@ -55,7 +55,7 @@
     "hideDone": "Hide done",
     "newTask": "New task",
     "pause": "Pause all bots",
-    "resume": "Resume bots",
+    "resume": "Resume all bots",
     "pausedNote": "Bots are paused. Nothing new is delivered until you resume them.",
     "empty": "No tasks yet. Start one, and follow it here from your request to its result.",
     "emptyColumn": "Nothing here",
@@ -403,7 +403,7 @@
     "changeFolder": "Change…",
     "folderLocked": "This folder stays the same once you have bots.",
     "projectTitle": "Project folder",
-    "projectHint": "Sonata starts with Master, which helps you create and coordinate your bots. Choose an optional project folder, or leave it unset until a request needs one.",
+    "projectHint": "Name your first project, choose its source directory and default AI provider. Master helps you create and coordinate bots within this project.",
     "projectNone": "No folder chosen",
     "chooseCheckout": "Choose…",
     "toolsTitle": "The AI tools bots run on",
@@ -586,8 +586,8 @@
     "title": "Configuration",
     "hint": "Save your bots, skills and workflows to a file, or load one.",
     "export": "Export…",
-    "exportAll": "Export all…",
-    "exportAllHint": "Export all workflows, bots and skills, including skill files, together in one YAML file. Restore everything from Settings → Configuration → Import.",
+    "exportAll": "Export project…",
+    "exportAllHint": "Export this project’s workflows, bots and referenced skills, including skill files, together in one YAML file. Restore them from Settings → Configuration → Import.",
     "import": "Import…",
     "fileFilter": "Sonata configuration",
     "exported": "Saved {{file}}. Bots: {{bots}} · Skills: {{skills}} · Workflows: {{workflows}}",
@@ -712,7 +712,16 @@
     "skillUnknown": "The skill {{slug}} is neither in the file nor in your library.",
     "importDependsOn": "It needs {{name}}, which can't be imported.",
     "languageUnknown": "This language is not available.",
-    "databaseTooNew": "This data was saved by a newer version of Sonata."
+    "databaseTooNew": "This data was saved by a newer version of Sonata.",
+    "projectNotFound": "Project not found.",
+    "projectArchived": "Restore this project before changing it or running work.",
+    "projectNameRequired": "A project needs a name.",
+    "projectNameTaken": "A project with this name already exists, including archived projects.",
+    "projectDirectoryRequired": "Choose a source directory for the project.",
+    "projectMismatch": "This item belongs to another project.",
+    "projectActiveWork": "Finish or stop active bot work before archiving this project.",
+    "projectQueuedWork": "Finish or stop queued work and unfinished workflows before archiving this project.",
+    "projectBackgroundWork": "Finish background work before archiving. If its status is unavailable, stop the bot first."
   },
   "linux": {
     "skills": {
@@ -741,5 +750,26 @@
     "errors": {
       "opensPrograms": "This file can run programs or install software, so Sonata only shows it in the file manager."
     }
+  },
+  "projects": {
+    "select": "Project",
+    "add": "Add project",
+    "manage": "Manage projects",
+    "name": "Project name",
+    "directory": "Source directory",
+    "provider": "Default AI provider",
+    "inherit": "Project default ({{provider}})",
+    "edit": "Edit project",
+    "archive": "Archive project",
+    "restore": "Restore project",
+    "archived": "Archived",
+    "back": "Back to board",
+    "none": "No active projects",
+    "defaultsHint": "The provider applies to new bots. Directory changes apply when bot context next starts; custom instructions are preserved.",
+    "archiveHint": "Archived projects keep their history. Finish or stop active work before archiving. Schedules resume at their next future occurrence after restoration.",
+    "archiveConfirm": "Archive {{name}}? Its schedules will be suspended until you restore it.",
+    "sharedSkills": "Skills are shared across projects. Replacing a skill also affects bots using it in other projects.",
+    "export": "Export project",
+    "import": "Import into project"
   }
 }

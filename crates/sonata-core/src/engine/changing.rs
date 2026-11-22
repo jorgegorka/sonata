@@ -116,7 +116,7 @@ impl Engine {
                 ),
             );
         }
-        let skill = match self.inner.store.get_skill_by_slug(slug) {
+        let skill = match self.store.get_skill_by_slug(slug) {
             Ok(Some(skill)) => skill,
             Ok(None) => {
                 return refuse(
@@ -236,7 +236,7 @@ impl Engine {
             }
             return Err(e.into());
         }
-        let store = &self.inner.store;
+        let store = &self.store;
         let stored = store
             .update_skill(&skill.id, name, description)
             .and_then(|updated| updated.ok_or_else(|| Refusal::SkillNotFound(skill.id.clone()).into()))
@@ -296,7 +296,7 @@ impl Engine {
             }
             Err(e) => return internal(e),
         }
-        let store = &self.inner.store;
+        let store = &self.store;
         let mut skill_ids = target.skill_ids.clone();
         for (slug, add) in add_skills.iter().map(|s| (s, true)).chain(remove_skills.iter().map(|s| (s, false))) {
             let slug = slug.trim();
@@ -388,7 +388,7 @@ impl Engine {
         let dir = self.inner.cfg.paths.previous_dir();
         std::fs::create_dir_all(&dir)?;
         let now = self.now_utc();
-        let slugs: Vec<String> = self.inner.store.skills_of(&bot.id)?.into_iter().map(|s| s.slug).collect();
+        let slugs: Vec<String> = self.store.skills_of(&bot.id)?.into_iter().map(|s| s.slug).collect();
         let skills = if slugs.is_empty() { "none".to_string() } else { slugs.join(", ") };
         let model = bot.model.as_deref().map(|model| format!("Model: {model}\n")).unwrap_or_default();
         let text = format!(

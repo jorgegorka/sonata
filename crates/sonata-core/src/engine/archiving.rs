@@ -22,7 +22,7 @@ impl Engine {
         let (archived, stops, runs) = {
             let mut live = self.inner.live.lock().await;
             if let Some(asker) = guard {
-                let tree = self.inner.store.session_tree(session_id)?;
+                let tree = self.store.session_tree(session_id)?;
                 if tree.iter().any(|s| s.id == asker) {
                     return Ok(Archive::Blocked(Block::HoldsAsker));
                 }
@@ -30,13 +30,12 @@ impl Engine {
                     let working = live.get(&session.id).is_some_and(|l| {
                         l.in_flight.is_some() || l.limited_turn.is_some() || l.status == BotStatus::Working
                     });
-                    if working || !self.inner.store.queued_for_session(&session.id)?.is_empty() {
+                    if working || !self.store.queued_for_session(&session.id)?.is_empty() {
                         return Ok(Archive::Blocked(Block::Working));
                     }
                 }
             }
             let archived = self
-                .inner
                 .store
                 .archive_session(session_id, |sessions| {
                     if sessions.iter().any(|s| live.get(&s.id).is_some_and(|l| l.status == BotStatus::Starting)) {
@@ -78,7 +77,7 @@ impl Engine {
 
     pub async fn restore_session(&self, session_id: &str) -> Result<Vec<Session>> {
         let restored =
-            self.inner.store.restore_session(session_id)?.ok_or_else(|| Refusal::SessionNotFound(session_id.into()))?;
+            self.store.restore_session(session_id)?.ok_or_else(|| Refusal::SessionNotFound(session_id.into()))?;
         for session in &restored {
             self.emit(UiEvent::SessionUpdated { session: self.session_view(session.clone()) });
             tracing::info!(bot = %self.handle_of(&session.bot_id), session = session.number, "session restored");
@@ -88,10 +87,9 @@ impl Engine {
 
     pub async fn rename_session(&self, session_id: &str, name: &str) -> Result<SessionView> {
         let _live = self.inner.live.lock().await;
-        self.inner.store.get_session(session_id)?.ok_or_else(|| Refusal::SessionNotFound(session_id.into()))?;
-        self.inner.store.set_session_title(session_id, session_title(name).as_deref())?;
-        let session =
-            self.inner.store.get_session(session_id)?.ok_or_else(|| Refusal::SessionNotFound(session_id.into()))?;
+        self.store.get_session(session_id)?.ok_or_else(|| Refusal::SessionNotFound(session_id.into()))?;
+        self.store.set_session_title(session_id, session_title(name).as_deref())?;
+        let session = self.store.get_session(session_id)?.ok_or_else(|| Refusal::SessionNotFound(session_id.into()))?;
         let view = self.session_view(session);
         self.emit(UiEvent::SessionUpdated { session: view.clone() });
         Ok(view)
@@ -138,7 +136,7 @@ mod tests {
             skill_ids: vec![],
         };
         let planner = engine.create_bot(new).unwrap();
-        let x = engine.inner.store.create_session(&planner.id, None, None).unwrap();
+        let x = engine.store.create_session(&planner.id, None, None).unwrap();
         (engine, rt, x, tmp)
     }
 
@@ -175,7 +173,7 @@ mod tests {
             tokio::task::yield_now().await;
         }
         assert!(!rename.is_finished(), "it waits for the archive under way");
-        engine.inner.store.archive_session(&x.id, |_| Ok(())).unwrap();
+        engine.store.archive_session(&x.id, |_| Ok(())).unwrap();
         drop(live);
 
         let view = rename.await.unwrap().unwrap();
@@ -202,7 +200,7 @@ mod tests {
 
         engine.archive_session(&x.id).await.unwrap();
 
-        let status = |m: &Message| engine.inner.store.get_message(&m.id).unwrap().unwrap().status;
+        let status = |m: &Message| engine.store.get_message(&m.id).unwrap().unwrap().status;
         assert_eq!((status(&claimed), status(&waiting)), (MessageStatus::Interrupted, MessageStatus::Cancelled));
         assert_eq!(rt.state().stopped, vec!["w1:p1".to_string()]);
         assert!(!engine.inner.live.lock().await.contains_key(&x.id), "it is offline");
@@ -212,7 +210,7 @@ mod tests {
     async fn a_fallback_for_a_session_archived_after_its_turn_ended_is_dropped() {
         let (engine, _rt, x, _tmp) = planner();
         let asked = engine.queue_user_message_to_session(&x.id, "Plan the release.", &[]).unwrap();
-        engine.inner.store.archive_session(&x.id, |_| Ok(())).unwrap();
+        engine.store.archive_session(&x.id, |_| Ok(())).unwrap();
         let log = Log::default();
         let writer = log.clone();
         let subscriber = tracing_subscriber::fmt().with_ansi(false).with_writer(move || writer.clone()).finish();
@@ -220,7 +218,7 @@ mod tests {
 
         engine.post_fallback(&x.id, "The plan.", &flight(&asked));
 
-        let chat = engine.inner.store.thread_messages(&asked.thread_id).unwrap();
+        let chat = engine.store.thread_messages(&asked.thread_id).unwrap();
         assert_eq!(chat.len(), 1, "{chat:?}");
         let text = String::from_utf8_lossy(&log.0.lock().unwrap()).into_owned();
         let line = text.lines().find(|l| l.contains("the session was archived; no fallback")).unwrap_or_default();

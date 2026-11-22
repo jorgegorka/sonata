@@ -43,12 +43,12 @@ pub(super) fn failed(what: &str, e: impl std::fmt::Display) -> BridgeResponse {
 
 impl Engine {
     pub fn master_id(&self) -> Result<Option<String>> {
-        self.inner.store.get_setting(MASTER_SETTING)
+        self.store.get_setting(MASTER_SETTING)
     }
 
     pub fn master_bot(&self) -> Result<Option<Bot>> {
         match self.master_id()? {
-            Some(id) => self.inner.store.get_bot(&id),
+            Some(id) => self.store.get_bot(&id),
             None => Ok(None),
         }
     }
@@ -58,10 +58,20 @@ impl Engine {
     }
 
     pub(super) fn ensure_master(&self, checkout: Option<&Path>) -> Result<Option<Bot>> {
-        if self.master_id()?.is_some() {
+        if self.store.master_initialized()? {
             return Ok(None);
         }
-        let skill = match self.inner.store.get_skill_by_slug(MASTER.skill_slug)? {
+        let new = self.new_master(checkout, self.default_provider()?)?;
+        let store = &self.store;
+        let bot = self.create_bot_with(new, None, Some(MASTER.handle), |new, handle| {
+            store.insert_bot_recorded_as(new, handle, MASTER_SETTING)
+        })?;
+        tracing::info!(bot = %bot.handle, "Master is in place");
+        Ok(Some(bot))
+    }
+
+    pub(super) fn new_master(&self, checkout: Option<&Path>, provider: Provider) -> Result<NewBot> {
+        let skill = match self.store.get_skill_by_slug(MASTER.skill_slug)? {
             Some(skill) => skill,
             None => self.create_skill(NewSkill {
                 name: MASTER.skill_slug.to_string(),
@@ -69,20 +79,14 @@ impl Engine {
                 body: bundled::master_skill_body(),
             })?,
         };
-        let new = NewBot {
+        Ok(NewBot {
             display_name: MASTER.display_name.to_string(),
             color: MASTER.color.to_string(),
-            provider: Provider::Claude,
+            provider,
             model: None,
             instructions: bundled::master_instructions(checkout),
             skill_ids: vec![skill.id],
-        };
-        let store = &self.inner.store;
-        let bot = self.create_bot_with(new, None, Some(MASTER.handle), |new, handle| {
-            store.insert_bot_recorded_as(new, handle, MASTER_SETTING)
-        })?;
-        tracing::info!(bot = %bot.handle, "Master is in place");
-        Ok(Some(bot))
+        })
     }
 
     #[allow(clippy::result_large_err)]
@@ -107,7 +111,7 @@ impl Engine {
 
     #[allow(clippy::result_large_err)]
     pub(super) fn caller_parts(&self, caller: &Caller) -> std::result::Result<(Bot, Session), BridgeResponse> {
-        let store = &self.inner.store;
+        let store = &self.store;
         match (store.get_bot(&caller.bot_id), store.get_session(&caller.session_id)) {
             (Ok(Some(bot)), Ok(Some(session))) => Ok((bot, session)),
             (Err(e), _) | (_, Err(e)) => Err(internal(e)),
@@ -116,7 +120,7 @@ impl Engine {
     }
 
     pub fn drafts_dir(&self, bot: &Bot, session: &Session) -> PathBuf {
-        self.bot_dir(&bot.handle).join(drafts_relative(session))
+        self.bot_directory(&bot).join(drafts_relative(session))
     }
 
     pub(super) async fn bridge_bot_show(&self, pane_id: &str, handle: &str) -> BridgeResponse {
@@ -124,7 +128,7 @@ impl Engine {
             return refusal;
         }
         let name = handle.trim().trim_start_matches('@').to_lowercase();
-        let store = &self.inner.store;
+        let store = &self.store;
         let bot = match store.get_bot_by_handle(&name) {
             Ok(Some(bot)) => bot,
             Ok(None) => {
@@ -203,7 +207,7 @@ impl Engine {
             Err(refusal) => return refusal,
         };
         let slug = slug.trim();
-        let skill = match self.inner.store.get_skill_by_slug(slug) {
+        let skill = match self.store.get_skill_by_slug(slug) {
             Ok(Some(skill)) => skill,
             Ok(None) => {
                 return refuse(
@@ -254,7 +258,7 @@ impl Engine {
     }
 
     pub(super) fn own_draft(&self, bot: &Bot, session: &Session, folder: &Path) -> Option<(PathBuf, String)> {
-        let dir = std::fs::canonicalize(self.bot_dir(&bot.handle)).ok()?;
+        let dir = std::fs::canonicalize(self.bot_directory(&bot)).ok()?;
         let drafts = dir.join(drafts_relative(session));
         let draft = std::fs::canonicalize(folder).ok()?;
         if draft == drafts || !draft.starts_with(&drafts) || !draft.is_dir() {
@@ -311,7 +315,7 @@ impl Engine {
             Ok(fingerprint) => fingerprint,
             Err(e) => return failed("read the draft", e),
         };
-        let store = &self.inner.store;
+        let store = &self.store;
         let recorded = match store.creation(&session.id, CreationKind::Skill, &key) {
             Ok(recorded) => recorded,
             Err(e) => return internal(e),
@@ -386,6 +390,12 @@ impl Engine {
             Ok(parts) => parts,
             Err(refusal) => return refusal,
         };
+        let requested_provider = provider;
+        let provider_default = match self.default_provider() {
+            Ok(p) => p.as_str(),
+            Err(e) => return internal(e),
+        };
+        let provider = if provider.trim().is_empty() { provider_default } else { provider };
         let unavailable =
             |provider: &str| refuse(ErrorCode::BadRequest, Refusal::ProviderUnavailable(provider.into()).to_string());
         let parsed = match Provider::parse(provider.trim()) {
@@ -399,7 +409,7 @@ impl Engine {
         if !is_hex_color(color) {
             return refuse(ErrorCode::BadRequest, "Give the color as #rrggbb, for example #4f46e5.");
         }
-        let store = &self.inner.store;
+        let store = &self.store;
         let mut skill_ids = Vec::new();
         let mut slugs = Vec::new();
         for slug in skills {
@@ -419,7 +429,7 @@ impl Engine {
             Ok(checkout) => checkout,
             Err(e) => return internal(e),
         };
-        let fingerprint = bot_fingerprint(name, color, provider, skills, instructions, model);
+        let fingerprint = bot_fingerprint(name, color, requested_provider, skills, instructions, model);
         let recorded = match store.creation(&session.id, CreationKind::Bot, &key) {
             Ok(recorded) => recorded,
             Err(e) => return internal(e),

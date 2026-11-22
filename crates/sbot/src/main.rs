@@ -249,7 +249,7 @@ struct CreateBot {
     #[arg(long)]
     color: String,
     #[arg(help = "The provider CLI: claude, codex, grok or opencode")]
-    #[arg(long, default_value = "claude")]
+    #[arg(long, default_value = "")]
     provider: String,
     #[arg(
         help = "The model, as the provider's CLI names it (opencode: provider/model, e.g. opencode-go/kimi-k3). Leave it out for the CLI's default"

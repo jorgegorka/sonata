@@ -39,6 +39,7 @@ mod follow_up;
 mod limits;
 mod master;
 mod messaging;
+mod projects;
 mod reviewing;
 mod settings;
 mod skills;
@@ -100,6 +101,7 @@ pub enum UiEvent {
         paused: bool,
     },
     SkillsChanged,
+    ProjectsChanged,
     TasksChanged,
     WorkflowsChanged,
     WorkflowRunChanged {
@@ -194,7 +196,6 @@ impl Live {
 }
 
 struct Inner {
-    store: Store,
     runtime: Arc<dyn BotRuntime>,
     cfg: EngineConfig,
     bots_root: std::sync::RwLock<PathBuf>,
@@ -214,6 +215,7 @@ struct Inner {
 
 #[derive(Clone)]
 pub struct Engine {
+    pub(crate) store: Store,
     inner: Arc<Inner>,
 }
 
@@ -294,8 +296,8 @@ impl Engine {
     pub fn new(store: Store, runtime: Arc<dyn BotRuntime>, cfg: EngineConfig) -> Self {
         let (ui, _) = broadcast::channel(1024);
         Self {
+            store,
             inner: Arc::new(Inner {
-                store,
                 runtime,
                 bots_root: std::sync::RwLock::new(cfg.paths.bots_root.clone()),
                 cfg,
@@ -338,15 +340,14 @@ impl Engine {
             let live = self.inner.live.lock().await;
             live.iter().filter_map(|(id, l)| Some((id.clone(), l.in_flight.as_ref()?.message_id.clone()))).collect()
         };
-        for m in self.inner.store.unanswered_deliveries()? {
+        for m in self.store.unanswered_deliveries()? {
             if m.recipient_session.as_ref().and_then(|s| in_flight.get(s)) != Some(&m.id) {
-                let message = self.inner.store.set_message_status(&m.id, MessageStatus::Interrupted)?;
+                let message = self.store.set_message_status(&m.id, MessageStatus::Interrupted)?;
                 self.report_interrupted(message);
             }
         }
         self.pause_runs_missing_a_session(None);
         let pumps: Vec<_> = self
-            .inner
             .store
             .sessions_with_queued()?
             .iter()
@@ -359,12 +360,12 @@ impl Engine {
     }
 
     pub fn create_bot(&self, new: NewBot) -> Result<Bot> {
-        self.create_bot_with(new, None, None, |new, handle| self.inner.store.insert_bot(new, handle))
+        self.create_bot_with(new, None, None, |new, handle| self.store.insert_bot(new, handle))
     }
 
     fn taken_handles(&self) -> Result<Vec<String>> {
-        let mut taken = self.inner.store.bot_handles()?;
-        if let Ok(entries) = std::fs::read_dir(self.bots_root()) {
+        let mut taken = self.store.scoped(self.store.project_key()).bot_handles()?;
+        if let Ok(entries) = std::fs::read_dir(self.project_workspace()) {
             taken.extend(entries.filter_map(|e| Some(e.ok()?.file_name().into_string().ok()?.to_lowercase())));
         }
         Ok(taken)
@@ -377,6 +378,7 @@ impl Engine {
         reuse_empty: Option<&str>,
         insert: impl FnOnce(&NewBot, &str) -> Result<Bot>,
     ) -> Result<Bot> {
+        self.store.require_active()?;
         let new = editing::checked_bot(new)?;
         let new = NewBot { skill_ids: self.checked_skill_ids(&new.skill_ids)?, ..new };
         let mut taken = self.taken_handles()?;
@@ -384,7 +386,7 @@ impl Engine {
             let dir = self.bot_dir(reuse);
             let real_dir = std::fs::symlink_metadata(&dir).is_ok_and(|m| m.is_dir());
             let empty = real_dir && std::fs::read_dir(&dir).is_ok_and(|mut entries| entries.next().is_none());
-            if empty && self.inner.store.get_bot_by_handle(reuse)?.is_none() {
+            if empty && self.store.get_bot_by_handle(reuse)?.is_none() {
                 taken.retain(|t| t != reuse);
             }
         }
@@ -410,7 +412,7 @@ impl Engine {
     pub async fn list_bots(&self) -> Result<Vec<BotView>> {
         let master = self.master_id()?;
         let (mut bots, others): (Vec<Bot>, Vec<Bot>) =
-            self.inner.store.list_bots()?.into_iter().partition(|bot| master.as_deref() == Some(bot.id.as_str()));
+            self.store.list_bots()?.into_iter().partition(|bot| master.as_deref() == Some(bot.id.as_str()));
         bots.extend(others);
         let live = self.inner.live.lock().await;
         Ok(bots
@@ -423,53 +425,52 @@ impl Engine {
     }
 
     pub async fn list_sessions(&self, bot_id: &str) -> Result<Vec<SessionView>> {
-        let sessions = self.inner.store.sessions_of(bot_id)?;
+        let sessions = self.store.sessions_of(bot_id)?;
         let live = self.inner.live.lock().await;
         Ok(sessions.into_iter().map(|session| view_of(&live, session)).collect())
     }
 
     pub async fn all_sessions(&self) -> Result<Vec<SessionView>> {
         let mut all = Vec::new();
-        for bot in self.inner.store.list_bots()? {
-            all.extend(self.inner.store.sessions_of(&bot.id)?);
+        for bot in self.store.list_bots()? {
+            all.extend(self.store.sessions_of(&bot.id)?);
         }
         let live = self.inner.live.lock().await;
         Ok(all.into_iter().map(|session| view_of(&live, session)).collect())
     }
 
     pub fn user_thread(&self, bot_id: &str) -> Result<Vec<Message>> {
-        let Some(session) = self.inner.store.latest_session(bot_id)? else { return Ok(Vec::new()) };
-        let thread = self.inner.store.thread_for(USER, &session.id)?;
-        self.inner.store.thread_messages(&thread)
+        let Some(session) = self.store.latest_session(bot_id)? else { return Ok(Vec::new()) };
+        let thread = self.store.thread_for(USER, &session.id)?;
+        self.store.thread_messages(&thread)
     }
 
     pub fn session_messages(&self, session_id: &str) -> Result<Vec<Message>> {
-        self.inner.store.get_session(session_id)?.ok_or_else(|| Refusal::SessionNotFound(session_id.into()))?;
-        let thread = self.inner.store.thread_for(USER, session_id)?;
-        self.inner.store.thread_messages(&thread)
+        self.store.get_session(session_id)?.ok_or_else(|| Refusal::SessionNotFound(session_id.into()))?;
+        let thread = self.store.thread_for(USER, session_id)?;
+        self.store.thread_messages(&thread)
     }
 
     pub async fn find_session_view(&self, session_id: &str) -> Result<SessionView> {
-        let session =
-            self.inner.store.get_session(session_id)?.ok_or_else(|| Refusal::SessionNotFound(session_id.into()))?;
+        let session = self.store.get_session(session_id)?.ok_or_else(|| Refusal::SessionNotFound(session_id.into()))?;
         let live = self.inner.live.lock().await;
         Ok(view_of(&live, session))
     }
 
     pub fn session_with_bot(&self, session_id: &str) -> Option<(Bot, Session)> {
-        let session = self.inner.store.get_session(session_id).ok().flatten()?;
-        let bot = self.inner.store.get_bot(&session.bot_id).ok().flatten()?;
+        let session = self.store.get_session(session_id).ok().flatten()?;
+        let bot = self.store.get_bot(&session.bot_id).ok().flatten()?;
         Some((bot, session))
     }
 
     pub fn sessions_of(&self, bot_id: &str) -> Result<Vec<Session>> {
-        self.inner.store.sessions_of(bot_id)
+        self.store.sessions_of(bot_id)
     }
 
     pub fn start_session_with_message(&self, bot_id: &str, body: &str, files: &[String]) -> Result<(Session, Message)> {
         let (id, new) = self.user_message(bot_id, None, body, files)?;
         let title = session_title(body);
-        let routed = self.inner.store.insert_routed(&id, &new, Route::New { title: title.as_deref() })?;
+        let routed = self.store.insert_routed(&id, &new, Route::New { title: title.as_deref() })?;
         self.emit_routed(&routed);
         Ok((routed.session, routed.message))
     }
@@ -478,7 +479,7 @@ impl Engine {
         let master = self.master_bot()?.ok_or(Refusal::MasterMissing)?;
         let (id, new) = self.user_message(&master.id, None, body, &[])?;
         let title = session_title(body);
-        let routed = self.inner.store.insert_workflow_request(&id, &new, title.as_deref())?;
+        let routed = self.store.insert_workflow_request(&id, &new, title.as_deref())?;
         self.emit_routed(&routed);
         Ok((routed.session, routed.message))
     }
@@ -490,19 +491,18 @@ impl Engine {
     pub fn queue_user_message_with_files(&self, bot_id: &str, body: &str, files: &[String]) -> Result<Message> {
         let (id, new) = self.user_message(bot_id, None, body, files)?;
         let title = session_title(body);
-        let routed = self.inner.store.insert_routed(&id, &new, Route::Latest { title: title.as_deref() })?;
+        let routed = self.store.insert_routed(&id, &new, Route::Latest { title: title.as_deref() })?;
         self.emit_routed(&routed);
         Ok(routed.message)
     }
 
     pub fn queue_user_message_to_session(&self, session_id: &str, body: &str, files: &[String]) -> Result<Message> {
-        let session =
-            self.inner.store.get_session(session_id)?.ok_or_else(|| Refusal::SessionNotFound(session_id.into()))?;
+        let session = self.store.get_session(session_id)?.ok_or_else(|| Refusal::SessionNotFound(session_id.into()))?;
         if session.archived_at.is_some() {
             return Err(Refusal::SessionArchived(session.id).into());
         }
         let (id, new) = self.user_message(&session.bot_id, Some(session.id), body, files)?;
-        let message = self.inner.store.insert_message_with_id(&id, &new)?;
+        let message = self.store.insert_message_with_id(&id, &new)?;
         self.emit_message(message.clone());
         Ok(message)
     }
@@ -517,13 +517,13 @@ impl Engine {
         if body.trim().is_empty() && files.is_empty() {
             return Err(Refusal::MessageEmpty.into());
         }
-        let bot = self.inner.store.get_bot(bot_id)?.ok_or_else(|| Refusal::BotNotFound(bot_id.into()))?;
+        let bot = self.store.get_bot(bot_id)?.ok_or_else(|| Refusal::BotNotFound(bot_id.into()))?;
         let checked = attachments::check(files, Path::new("/")).map_err(Refusal::Attachment)?;
         let id = new_id();
         let stored = if checked.is_empty() {
             Vec::new()
         } else {
-            let dir = self.inbox_bot_dir(&bot.handle)?;
+            let dir = self.for_project(&bot.project_id)?.inbox_bot_dir(&bot.handle)?;
             attachments::copy_to_inbox(&checked, &dir, &id).map_err(Refusal::Attachment)?
         };
         let new = NewMessage {
@@ -555,8 +555,7 @@ impl Engine {
     }
 
     pub fn attachment_path(&self, message_id: &str, index: usize) -> Result<PathBuf> {
-        let message =
-            self.inner.store.get_message(message_id)?.ok_or_else(|| Refusal::MessageNotFound(message_id.into()))?;
+        let message = self.store.get_message(message_id)?.ok_or_else(|| Refusal::MessageNotFound(message_id.into()))?;
         let file = message
             .attachments
             .get(index)
@@ -584,14 +583,18 @@ impl Engine {
     }
 
     fn queued_sessions_of(&self, bot_id: &str) -> Result<Vec<String>> {
-        let mine: HashSet<String> = self.inner.store.sessions_of(bot_id)?.into_iter().map(|s| s.id).collect();
-        Ok(self.inner.store.sessions_with_queued()?.into_iter().filter(|id| mine.contains(id)).collect())
+        let mine: HashSet<String> = self.store.sessions_of(bot_id)?.into_iter().map(|s| s.id).collect();
+        Ok(self.store.sessions_with_queued()?.into_iter().filter(|id| mine.contains(id)).collect())
     }
 
     pub fn pump_session(&self, session_id: &str) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
         let engine = self.clone();
         let session_id = session_id.to_string();
         Box::pin(async move {
+            let engine = match engine.for_session(&session_id) {
+                Ok(engine) => engine,
+                Err(_) => return,
+            };
             if let Err(e) = engine.try_pump(&session_id).await {
                 engine.notice(&session_id, "engine_error", error_params(&e));
             }
@@ -599,20 +602,23 @@ impl Engine {
     }
 
     async fn try_pump(&self, session_id: &str) -> Result<()> {
-        if self.closing() || self.paused()? {
+        if self.closing() || self.paused()? || self.current_project()?.archived_at.is_some() {
             return Ok(());
         }
-        let Some(session) = self.inner.store.get_session(session_id)? else { return Ok(()) };
+        let Some(session) = self.store.get_session(session_id)? else { return Ok(()) };
         if session.archived_at.is_some() {
             return Ok(());
         }
-        let Some(bot) = self.inner.store.get_bot(&session.bot_id)? else { return Ok(()) };
+        let Some(bot) = self.store.get_bot(&session.bot_id)? else { return Ok(()) };
         if self.held(bot.provider)? {
             return Ok(());
         }
         let (needs_start, stale) = {
             let mut live = self.inner.live.lock().await;
-            if self.inner.store.queued_for_session(session_id)?.is_empty() {
+            if self.current_project()?.archived_at.is_some() {
+                return Ok(());
+            }
+            if self.store.queued_for_session(session_id)?.is_empty() {
                 return Ok(());
             }
             let l = live.entry(session_id.to_string()).or_insert_with(|| Live::new(&bot.id));
@@ -652,15 +658,15 @@ impl Engine {
     }
 
     async fn start(&self, session_id: &str) -> Result<bool> {
-        let Some(bot_id) = self.inner.store.get_session(session_id)?.map(|s| s.bot_id) else {
+        let Some(bot_id) = self.store.get_session(session_id)?.map(|s| s.bot_id) else {
             return Ok(self.went_away_before_start(session_id).await);
         };
         let lock = self.start_lock(&bot_id);
         let _one_at_a_time = lock.lock().await;
-        let Some(session) = self.inner.store.get_session(session_id)?.filter(|s| s.archived_at.is_none()) else {
+        let Some(session) = self.store.get_session(session_id)?.filter(|s| s.archived_at.is_none()) else {
             return Ok(self.went_away_before_start(session_id).await);
         };
-        let bot = self.inner.store.get_bot(&bot_id)?.ok_or_else(|| Refusal::BotNotFound(bot_id.clone()))?;
+        let bot = self.store.get_bot(&bot_id)?.ok_or_else(|| Refusal::BotNotFound(bot_id.clone()))?;
         let Some(adapter) = adapter_for(bot.provider) else {
             self.set_status(session_id, BotStatus::NeedsAttention).await;
             self.notice(session_id, "provider_unsupported", json!({"provider": bot.provider.as_str()}));
@@ -736,14 +742,14 @@ impl Engine {
         match result {
             Ok(rt) => {
                 if let Some(id) = rt.session_id.as_deref().or(resumed) {
-                    self.inner.store.set_session_cli_id(&session.id, Some(id), bot.config_version, bot.provider)?;
+                    self.store.set_session_cli_id(&session.id, Some(id), bot.config_version, bot.provider)?;
                 }
                 if saved.is_some() && resume.is_none() {
                     self.notice(session_id, "config_new_session", json!({}));
                 }
                 let gone = {
                     let mut live = self.inner.live.lock().await;
-                    let went_away = match self.inner.store.get_session(session_id) {
+                    let went_away = match self.store.get_session(session_id) {
                         Ok(session) => session.is_none_or(|s| s.archived_at.is_some()),
                         Err(_) => false,
                     };
@@ -805,7 +811,7 @@ impl Engine {
         });
         let result = self.inner.runtime.start_bot(spec).await;
         if result.is_ok() {
-            self.inner.store.set_session_cli_id(session_id, chosen.as_deref(), bot.config_version, bot.provider)?;
+            self.store.set_session_cli_id(session_id, chosen.as_deref(), bot.config_version, bot.provider)?;
         }
         Ok(result)
     }
@@ -857,17 +863,17 @@ impl Engine {
 
     fn next_to_deliver(&self, session_id: &str) -> Result<Option<Message>> {
         loop {
-            let Some(msg) = self.inner.store.queued_for_session(session_id)?.into_iter().next() else {
+            let Some(msg) = self.store.queued_for_session(session_id)?.into_iter().next() else {
                 return Ok(None);
             };
             let stale = match &msg.workflow_mark {
-                Some(mark) if mark.role == MarkRole::Reminder => self.inner.store.visit_is_over(mark)?,
+                Some(mark) if mark.role == MarkRole::Reminder => self.store.visit_is_over(mark)?,
                 _ => false,
             };
             if !stale {
                 return Ok(Some(msg));
             }
-            if let Some(cancelled) = self.inner.store.cancel_queued(&msg.id)? {
+            if let Some(cancelled) = self.store.cancel_queued(&msg.id)? {
                 let who = self.who(session_id);
                 tracing::info!(bot = %who.bot, session = who.session, message_id = %msg.id, "a workflow step's reminder came up after the step no longer waited for its result; cancelled, not delivered");
                 self.emit(UiEvent::MessageUpdated { message: cancelled });
@@ -883,11 +889,7 @@ impl Engine {
         remind: bool,
         text: String,
     ) -> Result<()> {
-        let failure: Option<(&'static str, String, Option<RuntimeError>)> = match self
-            .inner
-            .store
-            .mark_delivered(&msg.id)
-        {
+        let failure: Option<(&'static str, String, Option<RuntimeError>)> = match self.store.mark_delivered(&msg.id) {
             Err(e) => Some(("engine_error", e.to_string(), None)),
             Ok(None) => {
                 self.claim_lost(session_id, &msg.id, remind).await;
@@ -895,7 +897,7 @@ impl Engine {
             }
             Ok(Some(delivered)) => {
                 self.emit(UiEvent::MessageUpdated { message: delivered });
-                if let Err(e) = self.inner.store.touch_session(session_id) {
+                if let Err(e) = self.store.touch_session(session_id) {
                     let who = self.who(session_id);
                     tracing::warn!(bot = %who.bot, session = who.session, error = %e, "could not record the session's activity");
                 } else {
@@ -944,7 +946,7 @@ impl Engine {
             if gone {
                 l.rt = None;
             }
-            self.inner.store.set_message_status(&msg.id, MessageStatus::Queued)
+            self.store.set_message_status(&msg.id, MessageStatus::Queued)
         };
         if let Ok(message) = requeued {
             self.emit(UiEvent::MessageUpdated { message });
@@ -1025,9 +1027,9 @@ impl Engine {
     }
 
     fn envelope_for(&self, session_id: &str, msg: &Message, language: &str, remind: bool) -> Result<String> {
-        let session = self.inner.store.get_session(session_id)?;
+        let session = self.store.get_session(session_id)?;
         let bot = match &session {
-            Some(session) => self.inner.store.get_bot(&session.bot_id)?,
+            Some(session) => self.store.get_bot(&session.bot_id)?,
             None => None,
         };
         let owed_to = match session.and_then(|s| s.open_request_id).filter(|_| msg.sender == USER) {
@@ -1035,7 +1037,7 @@ impl Engine {
             None => None,
         };
         let dir = match bot {
-            Some(bot) => self.bot_dir(&bot.handle),
+            Some(bot) => self.bot_directory(&bot),
             None => PathBuf::new(),
         };
         let files: Vec<String> = msg
@@ -1065,7 +1067,7 @@ impl Engine {
         } else if let Some(mark) = msg.workflow_mark.as_ref().filter(|m| m.role == MarkRole::Finished) {
             (Origin::WorkflowDone { language: language_name(language), workflow: &mark.workflow }, msg.body.clone())
         } else if let Some(task_id) = msg.task_id.as_deref() {
-            let every_days = self.inner.store.get_task(task_id)?.map(|t| t.every_days);
+            let every_days = self.store.get_task(task_id)?.map(|t| t.every_days);
             last_run = msg.task_since.as_deref().map(|since| match chrono::DateTime::parse_from_rfc3339(since) {
                 Ok(t) => local_minute(t.with_timezone(&chrono::Utc), &chrono::Local),
                 Err(_) => since.to_string(),
@@ -1082,8 +1084,7 @@ impl Engine {
         } else if msg.sender == USER {
             (Origin::User { language: language_name(language) }, msg.body.clone())
         } else {
-            sender_handle =
-                self.inner.store.get_bot(&msg.sender)?.map(|b| b.handle).unwrap_or_else(|| "unknown".into());
+            sender_handle = self.store.get_bot(&msg.sender)?.map(|b| b.handle).unwrap_or_else(|| "unknown".into());
             let body = if msg.kind == MessageKind::RawFallback {
                 raw_output_body(&sender_handle, &msg.body)
             } else {
@@ -1093,7 +1094,7 @@ impl Engine {
         };
         let mut text = envelope(from, &body, &files, remind, owed_to.as_deref());
         if step_mark.is_none() {
-            if let Some((run, visit)) = self.inner.store.open_visit_of_session(session_id)? {
+            if let Some((run, visit)) = self.store.open_visit_of_session(session_id)? {
                 if let Some(step) = crate::workflow::step(&run.def, &visit.step_id) {
                     let outcomes = crate::workflow::outcomes(step);
                     text.push_str("\n\n");
@@ -1105,17 +1106,25 @@ impl Engine {
     }
 
     pub fn bot_threads(&self) -> Result<Vec<ThreadSummary>> {
-        self.inner.store.bot_threads()
+        self.store.bot_threads()
     }
 
     pub fn thread_messages(&self, thread_id: &str) -> Result<Vec<Message>> {
-        self.inner.store.thread_messages(thread_id)
+        self.store.thread_messages(thread_id)
     }
 
     pub async fn on_runtime_event(&self, event: RuntimeEvent) {
+        let pane = match &event {
+            RuntimeEvent::State { pane_id, .. } | RuntimeEvent::Exited { pane_id } => pane_id,
+        };
+        let session = {
+            let live = self.inner.live.lock().await;
+            session_for_pane(&live, pane)
+        };
+        let Some(engine) = session.and_then(|id| self.for_session(&id).ok()) else { return };
         match event {
-            RuntimeEvent::State { pane_id, state } => self.on_state(&pane_id, state).await,
-            RuntimeEvent::Exited { pane_id } => self.on_exited(&pane_id).await,
+            RuntimeEvent::State { pane_id, state } => engine.on_state(&pane_id, state).await,
+            RuntimeEvent::Exited { pane_id } => engine.on_exited(&pane_id).await,
         }
     }
 
@@ -1283,7 +1292,7 @@ impl Engine {
             l.status = BotStatus::Offline;
             flight
                 .filter(|f| !f.follow_up)
-                .map(|_| self.inner.store.set_message_status(message_id, MessageStatus::Interrupted))
+                .map(|_| self.store.set_message_status(message_id, MessageStatus::Interrupted))
         };
         let who = self.who(session_id);
         match interrupted {
@@ -1386,11 +1395,11 @@ impl Engine {
             (l.rt.clone(), flight)
         };
         let who = self.who(session_id);
-        if let Err(e) = self.inner.store.mark_turn_ended(&flight.message_id) {
+        if let Err(e) = self.store.mark_turn_ended(&flight.message_id) {
             tracing::error!(bot = %who.bot, session = who.session, message_id = %flight.message_id, error = %e, "could not record the end of the turn");
         }
         if flight.scheduled && !flight.stopped && !flight.follow_up {
-            if let Err(e) = self.inner.store.mark_task_done(&flight.message_id) {
+            if let Err(e) = self.store.mark_task_done(&flight.message_id) {
                 tracing::error!(bot = %who.bot, session = who.session, message_id = %flight.message_id, error = %e, "could not record that the recurring task's run completed");
             }
         }
@@ -1409,7 +1418,7 @@ impl Engine {
     }
 
     fn post_fallback(&self, session_id: &str, text: &str, flight: &InFlight) {
-        let session = match self.inner.store.get_session(session_id) {
+        let session = match self.store.get_session(session_id) {
             Ok(Some(session)) if session.archived_at.is_some() => {
                 tracing::info!(bot = %self.handle_of(&session.bot_id), session = session.number, message_id = %flight.message_id, "the session was archived; no fallback");
                 return;
@@ -1427,7 +1436,7 @@ impl Engine {
             return;
         }
         if flight.sender != USER {
-            match self.inner.store.get_bot(&flight.sender) {
+            match self.store.get_bot(&flight.sender) {
                 Ok(Some(_)) => {}
                 Ok(None) => {
                     tracing::info!(bot = %who.bot, session = who.session, message_id = %flight.message_id, "the asking bot was deleted; no fallback");
@@ -1439,7 +1448,7 @@ impl Engine {
             }
         }
         if let Some(asker) = flight.sender_session.as_deref() {
-            match self.inner.store.get_session(asker) {
+            match self.store.get_session(asker) {
                 Ok(Some(asker)) if asker.archived_at.is_some() => {
                     tracing::info!(bot = %who.bot, session = who.session, message_id = %flight.message_id, "the asking session was archived; no fallback");
                     return;
@@ -1463,7 +1472,7 @@ impl Engine {
                 in_reply_to: Some(flight.message_id.clone()),
                 ..NewMessage::system(&session, "no_output_captured", json!({}))
             };
-            match self.inner.store.insert_message(&notice) {
+            match self.store.insert_message(&notice) {
                 Ok(message) => self.emit(UiEvent::MessageAdded { message }),
                 Err(e) => {
                     tracing::error!(bot = %who.bot, session = who.session, message_id = %flight.message_id, error = %e, "could not store the fallback notice")
@@ -1507,7 +1516,7 @@ impl Engine {
             hop,
             in_reply_to: Some(flight.message_id.clone()),
         };
-        match self.inner.store.insert_message(&new) {
+        match self.store.insert_message(&new) {
             Ok(message) => self.emit_message(message),
             Err(e) => {
                 tracing::error!(bot = %who.bot, session = who.session, message_id = %flight.message_id, error = %e, "could not store the fallback answer");
@@ -1533,7 +1542,7 @@ impl Engine {
         let Some((session, bot)) = self.cli_id_target(session_id, started, Some(message_id)).await else { return };
         if session.provider_session_id.as_deref() != Some(id.as_str()) {
             if let Err(e) =
-                self.inner.store.set_session_cli_id(&session.id, Some(&id), started.config_version, started.provider)
+                self.store.set_session_cli_id(&session.id, Some(&id), started.config_version, started.provider)
             {
                 tracing::error!(bot = %bot.handle, session = session.number, message_id, error = %e, "could not save the session id");
             }
@@ -1546,7 +1555,7 @@ impl Engine {
         started: Started,
         message_id: Option<&str>,
     ) -> Option<(Session, Bot)> {
-        let session = match self.inner.store.get_session(session_id) {
+        let session = match self.store.get_session(session_id) {
             Ok(Some(session)) => session,
             Ok(None) => return None,
             Err(e) => {
@@ -1555,7 +1564,7 @@ impl Engine {
                 return None;
             }
         };
-        let bot = match self.inner.store.get_bot(&session.bot_id) {
+        let bot = match self.store.get_bot(&session.bot_id) {
             Ok(Some(bot)) => bot,
             Ok(None) => return None,
             Err(e) => {
@@ -1584,7 +1593,7 @@ impl Engine {
         if session.provider_session_id.is_some() {
             return;
         }
-        match self.inner.store.fill_session_cli_id(&session.id, cli_id, started.config_version, started.provider) {
+        match self.store.fill_session_cli_id(&session.id, cli_id, started.config_version, started.provider) {
             Ok(true) => {
                 tracing::info!(bot = %bot.handle, session = session.number, "saved the session id sbot reported")
             }
@@ -1608,7 +1617,7 @@ impl Engine {
         let who = self.who(&session_id);
         tracing::info!(bot = %who.bot, session = who.session, "the session's terminal closed");
         if let Some(f) = flight.filter(|f| !f.follow_up && !self.closing()) {
-            match self.inner.store.set_message_status(&f.message_id, MessageStatus::Interrupted) {
+            match self.store.set_message_status(&f.message_id, MessageStatus::Interrupted) {
                 Ok(message) => self.report_interrupted(message),
                 Err(e) if removed_with_its_conversation(&e) => {
                     tracing::info!(bot = %who.bot, session = who.session, message_id = %f.message_id, "the message was removed with its conversation")
@@ -1631,11 +1640,11 @@ impl Engine {
     }
 
     fn handle_of(&self, bot_id: &str) -> String {
-        self.inner.store.get_bot(bot_id).ok().flatten().map(|b| b.handle).unwrap_or_else(|| bot_id.to_string())
+        self.store.get_bot(bot_id).ok().flatten().map(|b| b.handle).unwrap_or_else(|| bot_id.to_string())
     }
 
     fn who(&self, session_id: &str) -> Who {
-        match self.inner.store.get_session(session_id) {
+        match self.store.get_session(session_id) {
             Ok(Some(s)) => Who { bot: self.handle_of(&s.bot_id), session: s.number },
             _ => Who { bot: session_id.to_string(), session: 0 },
         }
@@ -1644,7 +1653,7 @@ impl Engine {
     fn skill_copies(&self, bot: &Bot, session: &Session) -> Result<Vec<SkillCopy>> {
         let library = self.inner.cfg.paths.skills_dir();
         let mut copies = Vec::new();
-        for s in self.inner.store.skills_of(&bot.id)? {
+        for s in self.store.skills_of(&bot.id)? {
             let source_dir = library.join(&s.slug);
             if !source_dir.is_dir() {
                 tracing::warn!(
@@ -1697,7 +1706,7 @@ impl Engine {
     }
 
     fn emit_session_updated(&self, session_id: &str) {
-        match self.inner.store.get_session(session_id) {
+        match self.store.get_session(session_id) {
             Ok(Some(session)) => self.emit(UiEvent::SessionUpdated { session: self.session_view(session) }),
             Ok(None) => {}
             Err(e) => tracing::error!(session_id, error = %e, "could not read a session to tell the UI"),
@@ -1776,7 +1785,7 @@ impl Engine {
         if self.closing() {
             return;
         }
-        let session = match self.inner.store.get_session(session_id) {
+        let session = match self.store.get_session(session_id) {
             Ok(Some(session)) if session.archived_at.is_some() => {
                 let bot = self.handle_of(&session.bot_id);
                 tracing::info!(bot = %bot, session = session.number, code, params = %params, "no notice for an archived session");
@@ -1794,7 +1803,7 @@ impl Engine {
         };
         let bot = self.handle_of(&session.bot_id);
         tracing::warn!(bot = %bot, session = session.number, code, params = %params, "notice for the user");
-        match self.inner.store.insert_message(&NewMessage::system(&session, code, params)) {
+        match self.store.insert_message(&NewMessage::system(&session, code, params)) {
             Ok(message) => self.emit(UiEvent::MessageAdded { message }),
             Err(e) => {
                 tracing::error!(bot = %bot, session = session.number, code, error = %e, "could not store a notice")

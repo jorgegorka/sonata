@@ -1,3 +1,4 @@
+import { useProjectApi } from "../projectContext";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -11,7 +12,6 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 import {
-  api,
   type BotView,
   type NewWorkflow,
   type Workflow,
@@ -117,6 +117,7 @@ function typing(target: EventTarget | null): boolean {
 }
 
 export default function WorkflowEditor({ workflow, bots, otherNames, onSaved, onCancel }: Props) {
+  const api = useProjectApi();
   const { t } = useTranslation();
   const [draft, setDraft] = useState<NewWorkflow>(() =>
     workflow

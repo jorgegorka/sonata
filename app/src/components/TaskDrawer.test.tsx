@@ -66,7 +66,7 @@ vi.mock("./WorkflowMap", () => ({
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const bot = (id: string, handle: string, display_name: string): BotView => ({
+const bot = (id: string, handle: string, display_name: string): BotView => ({ project_id: "default",
   id,
   handle,
   display_name,
@@ -82,7 +82,7 @@ const bot = (id: string, handle: string, display_name: string): BotView => ({
 });
 const bots = [bot("b1", "master", "Master"), bot("b2", "feature", "Feature"), bot("b3", "testing", "Testing")];
 
-const s = (id: string, bot_id: string, extra: Partial<SessionView> = {}): SessionView => ({
+const s = (id: string, bot_id: string, extra: Partial<SessionView> = {}): SessionView => ({ project_id: "default",
   id,
   bot_id,
   number: 1,
@@ -105,7 +105,7 @@ const s = (id: string, bot_id: string, extra: Partial<SessionView> = {}): Sessio
 const NOW = new Date("2026-11-04T12:00:00.000Z");
 const nothing = () => {};
 
-const workflow = (id: string, name: string): Workflow => ({
+const workflow = (id: string, name: string): Workflow => ({ project_id: "default",
   id,
   name,
   when_to_use: "",
@@ -381,7 +381,7 @@ describe("a workflow run in the drawer", () => {
   });
   const run: RunView = {
     run: {
-      id: "r1",
+      project_id: "default",      id: "r1",
       workflow_id: "w1",
       name: "Ticket to merge request",
       def: {

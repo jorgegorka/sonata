@@ -6,7 +6,7 @@ import i18n from "../i18n";
 import Chat from "./Chat";
 import ThreadView from "./ThreadView";
 
-const bot: BotView = {
+const bot: BotView = { project_id: "default",
   id: "b1",
   handle: "master",
   display_name: "Master",
@@ -20,7 +20,7 @@ const bot: BotView = {
   updated_at: "t",
   status: "idle",
 };
-const session: SessionView = {
+const session: SessionView = { project_id: "default",
   id: "m",
   bot_id: "b1",
   number: 1,

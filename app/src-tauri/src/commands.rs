@@ -14,7 +14,7 @@ use sonata_core::CoreError;
 pub struct CreateBotInput {
     pub display_name: String,
     pub color: String,
-    pub provider: Provider,
+    pub provider: Option<Provider>,
     pub model: Option<String>,
     pub instructions: String,
     #[serde(default)]
@@ -40,6 +40,7 @@ impl CommandError {
 impl From<CoreError> for CommandError {
     fn from(e: CoreError) -> Self {
         match e {
+            CoreError::Project(error) => Self::new(error.code(), json!({})),
             CoreError::Refused(refusal) => Self::new(refusal.code(), refusal.params()),
             other => Self::internal(other),
         }
@@ -50,23 +51,30 @@ pub async fn list_bots(engine: &Engine) -> Result<Vec<BotView>, CommandError> {
     Ok(engine.list_bots().await?)
 }
 
-fn new_bot(input: CreateBotInput) -> NewBot {
-    NewBot {
+fn new_bot(engine: &Engine, input: CreateBotInput, existing: Option<&str>) -> Result<NewBot, CommandError> {
+    Ok(NewBot {
         display_name: input.display_name,
         color: input.color,
-        provider: input.provider,
+        provider: engine.resolve_bot_provider(input.provider, existing)?,
         model: input.model.filter(|m| !m.trim().is_empty()),
         instructions: input.instructions,
         skill_ids: input.skill_ids,
-    }
+    })
 }
 
 pub fn create_bot(engine: &Engine, input: CreateBotInput) -> Result<Bot, CommandError> {
-    Ok(engine.create_bot(new_bot(input))?)
+    let mut new = new_bot(engine, input, None)?;
+    if sonata_core::bundled::find_checkout_paragraph(&new.instructions).is_none() {
+        new.instructions.push_str(&format!(
+            "\n\n{}",
+            sonata_core::bundled::checkout_paragraph(engine.project_folder()?.as_deref())
+        ));
+    }
+    Ok(engine.create_bot(new)?)
 }
 
 pub fn update_bot(engine: &Engine, bot_id: &str, input: CreateBotInput) -> Result<Bot, CommandError> {
-    Ok(engine.update_bot(bot_id, new_bot(input))?)
+    Ok(engine.update_bot(bot_id, new_bot(engine, input, Some(bot_id))?)?)
 }
 
 pub async fn delete_bot(
@@ -582,7 +590,7 @@ mod tests {
         CreateBotInput {
             display_name: name.into(),
             color: "#3b82f6".into(),
-            provider: Provider::Claude,
+            provider: Some(Provider::Claude),
             model: None,
             instructions: String::new(),
             skill_ids: vec![],

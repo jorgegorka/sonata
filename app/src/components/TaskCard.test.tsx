@@ -31,7 +31,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const bot = (id: string, handle: string, display_name: string, color: string): BotView => ({
+const bot = (id: string, handle: string, display_name: string, color: string): BotView => ({ project_id: "default",
   id,
   handle,
   display_name,
@@ -54,7 +54,7 @@ const bots = [
 const NOW = new Date("2026-11-04T12:00:00.000Z");
 const minutesAgo = (n: number) => new Date(NOW.getTime() - n * 60_000).toISOString();
 
-const s = (id: string, bot_id: string, extra: Partial<SessionView> = {}): SessionView => ({
+const s = (id: string, bot_id: string, extra: Partial<SessionView> = {}): SessionView => ({ project_id: "default",
   id,
   bot_id,
   number: 1,

@@ -88,7 +88,7 @@ vi.mock("@xyflow/react", () => {
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const bot = (id: string, handle: string): BotView => ({
+const bot = (id: string, handle: string): BotView => ({ project_id: "default",
   id,
   handle,
   display_name: handle,
@@ -105,7 +105,7 @@ const bot = (id: string, handle: string): BotView => ({
 const bots = [bot("b-plan", "plan"), bot("b-feature", "feature")];
 
 const arrow = (to: string) => ({ to, outcome: null });
-const shipIt: Workflow = {
+const shipIt: Workflow = { project_id: "default",
   id: "w1",
   name: "Ship it",
   when_to_use: "A change to ship.",

@@ -1,6 +1,7 @@
+import { useProjectApi } from "../projectContext";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, type SessionView } from "../api";
+import { type SessionView } from "../api";
 import TerminalView from "./TerminalView";
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export default function AttentionCard({ session, onError }: Props) {
+  const api = useProjectApi();
   const { t } = useTranslation();
   const [running, setRunning] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);

@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useReducer, useRef, useState, type ReactNode } from "react";
+import ProjectsView from "./components/ProjectsView";
+import { ProjectApiContext, ProjectContext } from "./projectContext";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  api,
+  api, projectApi, type Project,
   type BotView,
   type BrowserPick,
   type PageState,
@@ -66,6 +68,7 @@ import {
 
 type Page =
   | { kind: "board" }
+  | { kind: "projects"; adding: boolean }
   | Selection
   | { kind: "new" }
   | { kind: "settings"; tab: SettingsTab }
@@ -83,7 +86,21 @@ type Page =
 
 export default function App() {
   const { t } = useTranslation();
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const [allState, dispatch] = useReducer(reducer, initialState);
+  const [projects, setProjects] = useState<Project[] | null>(null);
+  const [projectId, setProjectId] = useState(() => { try { return localStorage.getItem("sonata.project") ?? "default"; } catch { return "default"; } });
+  const projectRef = useRef(projectId);
+  projectRef.current = projectId;
+  const project = projects?.find((p) => p.id === projectId && !p.archived_at) ?? null;
+  const scopedApi = useMemo(() => projectApi(projectId || undefined), [projectId]);
+  const state = useMemo(() => {
+    const belongs = (item: { project_id: string }) => item.project_id === projectId;
+    const bots = allState.bots.filter(belongs);
+    const sessions = allState.sessions.filter(belongs);
+    const ids = new Set(sessions.map((session) => session.id));
+    const threads = allState.threads.filter((thread) => (thread.session_a && ids.has(thread.session_a)) || (thread.session_b && ids.has(thread.session_b)));
+    return { ...allState, bots, sessions, threads };
+  }, [allState, projectId]);
   const [browser, dispatchBrowser] = useReducer(browserReducer, panelStorage(), initialBrowser);
   const [page, setPage] = useState<Page | null>(null);
   const [drawer, setDrawer] = useState<DrawerView | null>(null);
@@ -93,8 +110,10 @@ export default function App() {
   const drawerRef = useRef(drawer);
   drawerRef.current = drawer;
   const [error, setError] = useState<string | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [allTasks, setTasks] = useState<Task[]>([]);
+  const [allWorkflows, setWorkflows] = useState<Workflow[]>([]);
+  const tasks = allTasks.filter((task) => task.project_id === projectId);
+  const workflows = allWorkflows.filter((workflow) => workflow.project_id === projectId);
   const [setupDone, setSetupDone] = useState<boolean | null>(null);
   const [providers, setProviders] = useState<ProviderStatus[] | null>(null);
   const tRef = useRef(t);
@@ -154,10 +173,28 @@ export default function App() {
         }),
     [fail],
   );
+  const refreshProjects = useCallback((select?: string) => {
+    return api.listProjects().then((items) => {
+      setProjects(items);
+      setProjectId((current) => {
+        const wanted = select ?? current;
+        return items.some((p) => p.id === wanted && !p.archived_at) ? wanted : items.find((p) => !p.archived_at)?.id ?? "";
+      });
+    }).catch(fail);
+  }, [fail]);
+  useEffect(() => {
+    try { localStorage.setItem("sonata.project", projectId); } catch { /* storage can be unavailable */ }
+    setPage({ kind: "board" });
+    setDrawer(null);
+    setFollowed(null);
+    dispatchBrowser({ type: "close" });
+    void api.browserPickStop().catch(fail);
+  }, [projectId, fail]);
   const refreshTasks = useCallback(() => void api.listTasks().then(setTasks).catch(fail), [fail]);
   const refreshWorkflows = useCallback(() => void api.listWorkflows().then(setWorkflows).catch(fail), [fail]);
   const followFirstSend = useCallback((created: SessionView, focus = true) => {
     dispatch({ type: "ui_event", event: { type: "session_added", session: created } });
+    if (created.project_id !== projectRef.current) return;
     const inDrawer = followsInDrawer(pageRef.current?.kind === "board" ? drawerRef.current : null, created);
     if (!inDrawer && !followsFirstSend(pageRef.current, created)) return;
     setDrafts((all) => moveDraft(all, created.bot_id, created.id));
@@ -167,6 +204,7 @@ export default function App() {
   }, []);
   const followRunStart = useCallback((root: SessionView, workflowId: string) => {
     dispatch({ type: "ui_event", event: { type: "session_added", session: root } });
+    if (root.project_id !== projectRef.current) return;
     if (pageRef.current?.kind !== "board" || !followsRunStart(drawerRef.current, workflowId)) return;
     setFollowed(root.id);
     setDrawer({ root: root.id, show: { kind: "session", id: root.id } });
@@ -175,6 +213,7 @@ export default function App() {
   const followWorkflowRequest = useCallback((sent: SentMessage) => {
     dispatch({ type: "ui_event", event: { type: "session_added", session: sent.session } });
     dispatch({ type: "ui_event", event: { type: "message_added", message: sent.message } });
+    if (sent.session.project_id !== projectRef.current) return;
     setFollowed(sent.session.id);
     setPage({ kind: "board" });
     setDrawer({ root: sent.session.id, show: { kind: "session", id: sent.session.id } });
@@ -253,6 +292,7 @@ export default function App() {
     };
     api
       .onUiEvent((event) => {
+        if (event.type === "projects_changed") { void refreshProjects(); void loadBots(true); refreshTasks(); refreshWorkflows(); }
         if (reloadsSkills(event)) refreshSkills();
         if (reloadsTasks(event)) refreshTasks();
         if (event.type === "workflows_changed") refreshWorkflows();
@@ -275,6 +315,7 @@ export default function App() {
         setSetupDone(settings.setup_done);
       })
       .catch(fail);
+    void refreshProjects();
     loadBots(true);
     api.listBotThreads().then((threads) => dispatch({ type: "threads_loaded", threads })).catch(fail);
     api.getPaused().then((paused) => dispatch({ type: "paused_loaded", paused })).catch(fail);
@@ -287,7 +328,7 @@ export default function App() {
       cancelled = true;
       unlisteners.forEach((unlisten) => unlisten());
     };
-  }, [fail, checkProviders, loadBots, refreshSkills, refreshTasks, refreshWorkflows, togglePick]);
+  }, [fail, checkProviders, loadBots, refreshSkills, refreshTasks, refreshWorkflows, refreshProjects, togglePick]);
 
   useEffect(() => {
     if (page?.kind !== "board") setDrawer(null);
@@ -336,6 +377,7 @@ export default function App() {
           onError={fail}
           onDone={() => {
             setSetupDone(true);
+            void refreshProjects("default");
             refreshSkills();
             loadBots(false);
           }}
@@ -344,6 +386,7 @@ export default function App() {
     );
   }
 
+  const navigate: typeof setPage = (next) => { if (projectRef.current === projectId) setPage(next); };
   const session = page?.kind === "session" ? (state.sessions.find((s) => s.id === page.id) ?? null) : null;
   const chatBotId = session ? session.bot_id : page?.kind === "newSession" ? page.botId : null;
   const bot = chatBotId ? (state.bots.find((b) => b.id === chatBotId) ?? null) : null;
@@ -363,7 +406,7 @@ export default function App() {
   const openFull = (view: DrawerView): boolean => {
     const full = fullChatOf(view);
     if (full === null) return false;
-    setPage(full);
+    navigate(full);
     setDrawer(null);
     return true;
   };
@@ -386,7 +429,7 @@ export default function App() {
         onSent={(created) => followFirstSend(created)}
         onRemoved={(ids) => {
           for (const id of ids) updateDraft(id, () => EMPTY_DRAFT);
-          if (!inDrawer) setPage(home());
+          if (!inDrawer) navigate(home());
         }}
         onArchive={async () => {
           if (!chatSession) return;
@@ -397,7 +440,7 @@ export default function App() {
           setArchiving(chatSession.id);
           try {
             await api.archiveSession(chatSession.id);
-            setPage(home());
+            navigate(home());
           } finally {
             setArchiving(null);
           }
@@ -405,12 +448,12 @@ export default function App() {
         focusComposer={chatSession === null || chatSession.id === followed}
         messages={chatSession ? (state.messages[chatSession.id] ?? []) : []}
         onError={fail}
-        onEdit={() => setPage({ kind: "edit", id: chatBot.id })}
+        onEdit={() => navigate({ kind: "edit", id: chatBot.id })}
         draft={drafts[key] ?? EMPTY_DRAFT}
         onDraftChange={(update) => updateDraft(key, update)}
         browserOpen={inDrawer ? false : browser.open}
         onToggleBrowser={inDrawer ? drawerBrowser : toggleBrowser}
-        onBack={inDrawer ? undefined : () => setPage({ kind: "board" })}
+        onBack={inDrawer ? undefined : () => navigate({ kind: "board" })}
       />
     );
   };
@@ -511,6 +554,8 @@ export default function App() {
   };
 
   return (
+    <ProjectContext.Provider value={project}>
+    <ProjectApiContext.Provider value={scopedApi}>
     <OpenLinkContext.Provider value={openInline}>
       <div className="app" style={panelShown ? { gridTemplateColumns: gridColumns(browser.width) } : undefined}>
         <Rail
@@ -521,20 +566,41 @@ export default function App() {
           tasksOpen={page?.kind === "tasks" || page?.kind === "newTask" || page?.kind === "editTask"}
           archiveOpen={archiveOpen}
           settingsOpen={page?.kind === "settings" || page?.kind === "newSkill" || page?.kind === "editSkill"}
-          onBoard={() => setPage({ kind: "board" })}
+          onBoard={() => navigate({ kind: "board" })}
           onBot={(botId) => {
-            setPage({ kind: "board" });
+            navigate({ kind: "board" });
             setDrawer(blankChat(botId));
           }}
-          onNewBot={() => setPage({ kind: "new" })}
-          onWorkflows={() => setPage({ kind: "workflows" })}
-          onTasks={() => setPage({ kind: "tasks" })}
-          onArchive={() => setPage({ kind: "archive" })}
-          onSettings={() => setPage({ kind: "settings", tab: "settings" })}
+          onNewBot={() => navigate({ kind: "new" })}
+          onWorkflows={() => navigate({ kind: "workflows" })}
+          onTasks={() => navigate({ kind: "tasks" })}
+          onArchive={() => navigate({ kind: "archive" })}
+          onSettings={() => navigate({ kind: "settings", tab: "settings" })}
         />
-        <main className="main">
+        <main className="main" key={projectId}>
+          <header className="project-header">
+            <div className="project-switcher">
+              {(projects?.filter((p) => !p.archived_at).length ?? 0) > 1 ? <label>
+                <span className="sr-only">{t("projects.select")}</span>
+                <select aria-label={t("projects.select")} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+                  {projects?.filter((p) => !p.archived_at).map((p) => {
+                    const attention = allState.sessions.some((session) => session.project_id === p.id && !session.archived_at && (session.waiting_since || session.status === "needs_attention"));
+                    return <option key={p.id} value={p.id}>{p.name}{attention ? ` · ${t("sidebar.waitingForYou")}` : ""}</option>;
+                  })}
+                </select>
+              </label> : <strong>{project?.name ?? t("projects.none")}</strong>}
+            </div>
+            <div className="header-actions">
+              <button onClick={() => navigate({ kind: "projects", adding: true })}>{t("projects.add")}</button>
+              <button onClick={() => navigate({ kind: "projects", adding: false })}>{t("projects.manage")}</button>
+            </div>
+          </header>
           {banner}
-          {page?.kind === "board" ? (
+          {page?.kind === "projects" || (projects !== null && !project) ? (
+            <ProjectsView key={page?.kind === "projects" ? String(page.adding) : "empty"} projects={projects ?? []} adding={page?.kind === "projects" && page.adding}
+              onError={fail} onClose={() => navigate({ kind: "board" })}
+              onChanged={(selected) => { void refreshProjects(projectRef.current === projectId ? selected : undefined); void loadBots(true); refreshTasks(); refreshWorkflows(); refreshSkills(); }} />
+          ) : page?.kind === "board" ? (
             <Board
               bots={state.bots}
               sessions={state.sessions}
@@ -543,7 +609,7 @@ export default function App() {
               onTogglePause={() => void api.setPaused(!state.paused).catch(fail)}
               onOpen={(task) => setDrawer(openTask(task))}
               onNewTask={() =>
-                state.bots.length > 0 ? setDrawer(blankChat(state.bots[0].id)) : setPage({ kind: "new" })
+                state.bots.length > 0 ? setDrawer(blankChat(state.bots[0].id)) : navigate({ kind: "new" })
               }
               onError={fail}
               drawer={drawer ? drawerOver(drawer) : undefined}
@@ -553,11 +619,11 @@ export default function App() {
               onError={fail}
               providers={providers}
               skills={state.skills}
-              onCancel={state.bots.length > 0 ? () => setPage(home()) : undefined}
+              onCancel={state.bots.length > 0 ? () => navigate(home()) : undefined}
               onSaved={(created) => {
                 dispatch({ type: "bot_created", bot: created });
                 refreshSkills();
-                setPage({ kind: "newSession", botId: created.id });
+                navigate({ kind: "newSession", botId: created.id });
               }}
             />
           ) : editing ? (
@@ -568,11 +634,11 @@ export default function App() {
               providers={providers}
               skills={state.skills}
               taskCount={tasks.filter((task) => task.bot_id === editing.id).length}
-              onCancel={() => setPage(home())}
+              onCancel={() => navigate(home())}
               onSaved={(saved) => {
                 dispatch({ type: "bot_updated", bot: saved });
                 refreshSkills();
-                setPage(home());
+                navigate(home());
               }}
               onDeleted={(botId) => {
                 dispatch({ type: "bot_deleted", botId });
@@ -580,17 +646,17 @@ export default function App() {
                 refreshTasks();
                 updateDraft(newSessionKey(botId), () => EMPTY_DRAFT);
                 for (const s of state.sessions) if (s.bot_id === botId) updateDraft(s.id, () => EMPTY_DRAFT);
-                setPage(home(state.bots.filter((b) => b.id !== botId)));
+                navigate(home(state.bots.filter((b) => b.id !== botId)));
               }}
             />
           ) : page?.kind === "workflows" ? (
             <WorkflowsView
               workflows={workflows}
               bots={state.bots}
-              onNew={() => setPage({ kind: "newWorkflow" })}
-              onEdit={(id) => setPage({ kind: "editWorkflow", id })}
+              onNew={() => navigate({ kind: "newWorkflow" })}
+              onEdit={(id) => navigate({ kind: "editWorkflow", id })}
               onRun={(id) => {
-                setPage({ kind: "board" });
+                navigate({ kind: "board" });
                 setDrawer(blankDrawer({ kind: "workflow", id }));
               }}
               onRequested={followWorkflowRequest}
@@ -605,10 +671,10 @@ export default function App() {
               workflow={null}
               bots={state.bots}
               otherNames={workflows.map((workflow) => workflow.name)}
-              onCancel={() => setPage({ kind: "workflows" })}
+              onCancel={() => navigate({ kind: "workflows" })}
               onSaved={() => {
                 refreshWorkflows();
-                setPage({ kind: "workflows" });
+                navigate({ kind: "workflows" });
               }}
             />
           ) : editingWorkflow ? (
@@ -617,10 +683,10 @@ export default function App() {
               workflow={editingWorkflow}
               bots={state.bots}
               otherNames={workflows.filter((w) => w.id !== editingWorkflow.id).map((w) => w.name)}
-              onCancel={() => setPage({ kind: "workflows" })}
+              onCancel={() => navigate({ kind: "workflows" })}
               onSaved={() => {
                 refreshWorkflows();
-                setPage({ kind: "workflows" });
+                navigate({ kind: "workflows" });
               }}
             />
           ) : page?.kind === "tasks" ? (
@@ -628,18 +694,18 @@ export default function App() {
               tasks={tasks}
               bots={state.bots}
               sessions={state.sessions}
-              onNew={() => setPage({ kind: "newTask" })}
-              onEdit={(id) => setPage({ kind: "editTask", id })}
-              onOpenSession={(id) => setPage({ kind: "session", id })}
+              onNew={() => navigate({ kind: "newTask" })}
+              onEdit={(id) => navigate({ kind: "editTask", id })}
+              onOpenSession={(id) => navigate({ kind: "session", id })}
               onError={fail}
             />
           ) : page?.kind === "newTask" ? (
             <TaskForm
               bots={state.bots}
-              onCancel={() => setPage({ kind: "tasks" })}
+              onCancel={() => navigate({ kind: "tasks" })}
               onSaved={() => {
                 refreshTasks();
-                setPage({ kind: "tasks" });
+                navigate({ kind: "tasks" });
               }}
             />
           ) : editingTask ? (
@@ -647,19 +713,19 @@ export default function App() {
               key={editingTask.id}
               task={editingTask}
               bots={state.bots}
-              onCancel={() => setPage({ kind: "tasks" })}
+              onCancel={() => navigate({ kind: "tasks" })}
               onSaved={() => {
                 refreshTasks();
-                setPage({ kind: "tasks" });
+                navigate({ kind: "tasks" });
               }}
             />
           ) : page?.kind === "newSkill" ? (
             <SkillForm
               onError={fail}
-              onCancel={() => setPage(skillsTab)}
+              onCancel={() => navigate(skillsTab)}
               onSaved={() => {
                 refreshSkills();
-                setPage(skillsTab);
+                navigate(skillsTab);
               }}
             />
           ) : editingSkill ? (
@@ -667,14 +733,14 @@ export default function App() {
               key={editingSkill.id}
               skill={editingSkill}
               onError={fail}
-              onCancel={() => setPage(skillsTab)}
+              onCancel={() => navigate(skillsTab)}
               onSaved={() => {
                 refreshSkills();
-                setPage(skillsTab);
+                navigate(skillsTab);
               }}
               onDeleted={() => {
                 refreshSkills();
-                setPage(skillsTab);
+                navigate(skillsTab);
               }}
             />
           ) : page?.kind === "archive" ? (
@@ -682,15 +748,15 @@ export default function App() {
           ) : page?.kind === "about" ? (
             <AboutView onError={fail} />
           ) : page?.kind === "settings" ? (
-            <SettingsPage tab={page.tab} onTab={(tab) => setPage({ kind: "settings", tab })}>
+            <SettingsPage tab={page.tab} onTab={(tab) => navigate({ kind: "settings", tab })}>
               {page.tab === "skills" ? (
                 <SkillsView
                   skills={state.skills}
-                  onNew={() => setPage({ kind: "newSkill" })}
-                  onOpen={(id) => setPage({ kind: "editSkill", id })}
+                  onNew={() => navigate({ kind: "newSkill" })}
+                  onOpen={(id) => navigate({ kind: "editSkill", id })}
                   onImported={(skill) => {
                     void refreshSkills().then((loaded) =>
-                      setPage(loaded ? { kind: "editSkill", id: skill.id } : skillsTab),
+                      navigate(loaded ? { kind: "editSkill", id: skill.id } : skillsTab),
                     );
                   }}
                   onError={fail}
@@ -714,9 +780,9 @@ export default function App() {
               messages={state.messages[archivedSession.id] ?? []}
               onRemoved={(ids) => {
                 for (const id of ids) updateDraft(id, () => EMPTY_DRAFT);
-                setPage({ kind: "archive" });
+                navigate({ kind: "archive" });
               }}
-              onBack={() => setPage({ kind: "archive" })}
+              onBack={() => navigate({ kind: "archive" })}
               onError={fail}
               browserOpen={browser.open}
               onToggleBrowser={toggleBrowser}
@@ -733,8 +799,8 @@ export default function App() {
               onError={fail}
               browserOpen={browser.open}
               onToggleBrowser={toggleBrowser}
-              onBackToArchive={archivedThread ? () => setPage({ kind: "archive" }) : undefined}
-              onBack={archivedThread ? undefined : () => setPage({ kind: "board" })}
+              onBackToArchive={archivedThread ? () => navigate({ kind: "archive" }) : undefined}
+              onBack={archivedThread ? undefined : () => navigate({ kind: "board" })}
             />
           ) : null}
         </main>
@@ -754,5 +820,7 @@ export default function App() {
         )}
       </div>
     </OpenLinkContext.Provider>
+    </ProjectApiContext.Provider>
+    </ProjectContext.Provider>
   );
 }

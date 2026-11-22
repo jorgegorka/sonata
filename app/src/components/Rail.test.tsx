@@ -7,7 +7,7 @@ import type { BotView, SessionView } from "../api";
 import i18n from "../i18n";
 import Rail from "./Rail";
 
-const bot = (id: string, display_name: string, status: BotView["status"]): BotView => ({
+const bot = (id: string, display_name: string, status: BotView["status"]): BotView => ({ project_id: "default",
   id,
   handle: display_name.toLowerCase(),
   display_name,
@@ -24,7 +24,7 @@ const bot = (id: string, display_name: string, status: BotView["status"]): BotVi
 const planner = bot("b1", "Planner", "working");
 const writer = bot("b2", "Writer", "idle");
 
-const session = (id: string, botId: string, waiting_since: string | null = null): SessionView => ({
+const session = (id: string, botId: string, waiting_since: string | null = null): SessionView => ({ project_id: "default",
   id,
   bot_id: botId,
   number: 1,

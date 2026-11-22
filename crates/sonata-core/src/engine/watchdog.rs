@@ -28,12 +28,13 @@ impl Engine {
             live.iter().filter_map(|(id, l)| Some((id.clone(), l.rt.clone()?, l.in_flight.clone(), l.status))).collect()
         };
         for (session_id, rt, flight, status) in running {
+            let Ok(scoped) = self.for_session(&session_id) else { continue };
             match flight {
                 Some(InFlight { delivered_at: None, .. }) => {}
                 Some(f) if !f.seen_working && f.delivered_at.is_some_and(|at| at.elapsed() >= grace) => {
-                    self.check_stalled_turn(&session_id, &f.message_id).await
+                    scoped.check_stalled_turn(&session_id, &f.message_id).await
                 }
-                flight => self.check_alive(&session_id, &rt, flight, status == BotStatus::Limited).await,
+                flight => scoped.check_alive(&session_id, &rt, flight, status == BotStatus::Limited).await,
             }
         }
     }
@@ -64,7 +65,7 @@ impl Engine {
             }
             let rt = {
                 let mut live = self.inner.live.lock().await;
-                let queued = match self.inner.store.queued_for_session(&session_id) {
+                let queued = match self.store.queued_for_session(&session_id) {
                     Ok(queued) => !queued.is_empty(),
                     Err(e) => {
                         let who = self.who(&session_id);
@@ -121,7 +122,7 @@ impl Engine {
         };
         let who = self.who(session_id);
         if let Some(f) = limited {
-            match self.inner.store.set_message_status(&f.message_id, MessageStatus::Interrupted) {
+            match self.store.set_message_status(&f.message_id, MessageStatus::Interrupted) {
                 Ok(message) => self.report_interrupted(message),
                 Err(e) if removed_with_its_conversation(&e) => {
                     tracing::info!(bot = %who.bot, session = who.session, message_id = %f.message_id, "the message was removed with its conversation")

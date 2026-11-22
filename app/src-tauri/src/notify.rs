@@ -140,6 +140,7 @@ mod tests {
 
     fn session(number: i64, title: Option<&str>) -> Session {
         Session {
+            project_id: "default".into(),
             id: "s-b1".into(),
             bot_id: "b1".into(),
             number,
@@ -160,6 +161,7 @@ mod tests {
 
     fn bot(id: &str, name: &str) -> Bot {
         Bot {
+            project_id: "default".into(),
             id: id.into(),
             handle: name.to_lowercase(),
             display_name: name.into(),
@@ -176,11 +178,19 @@ mod tests {
 
     fn lookup(id: &str) -> Option<(Bot, Session)> {
         let researcher = |number: i64, title: Option<&str>, opened_by: Option<&str>| {
-            let session = Session { id: id.into(), opened_by: opened_by.map(String::from), ..session(number, title) };
+            let session = Session {
+                project_id: "default".into(),
+                id: id.into(),
+                opened_by: opened_by.map(String::from),
+                ..session(number, title)
+            };
             Some((bot("b1", "Researcher"), session))
         };
         let planner = |number: i64, title: Option<&str>| {
-            Some((bot("b2", "Planner"), Session { id: id.into(), bot_id: "b2".into(), ..session(number, title) }))
+            Some((
+                bot("b2", "Planner"),
+                Session { project_id: "default".into(), id: id.into(), bot_id: "b2".into(), ..session(number, title) },
+            ))
         };
         match id {
             "s-b1" => researcher(1, Some("Find the report"), None),

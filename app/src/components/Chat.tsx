@@ -1,7 +1,8 @@
+import { useProjectApi } from "../projectContext";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ask } from "@tauri-apps/plugin-dialog";
-import { api, USER, type BotView, type Message, type SessionView } from "../api";
+import { USER, type BotView, type Message, type SessionView } from "../api";
 import { avatarTextColor } from "../colors";
 import type { Draft } from "../drafts";
 import { confirmRemoval } from "../removal";
@@ -49,6 +50,7 @@ export default function Chat({
   onToggleBrowser,
   onBack,
 }: Props) {
+  const api = useProjectApi();
   const { t } = useTranslation();
   const browserLabel = browserOpen ? t("browser.hide") : t("browser.show");
   const endRef = useRef<HTMLDivElement>(null);

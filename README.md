@@ -38,16 +38,43 @@ your approval.
   workflows to a file and load them on another computer.
 - English, Spanish, German and French interface. Bots write to you in your language.
 
+## Projects
+
+Use **Add project** on the main page to create a team with a name, source directory,
+and default AI provider. Each project gets its own Master, bots, cards, schedules,
+and workflows. The selector appears when more than one project is active, and
+Sonata remembers your selection. Work continues in the other projects when you switch.
+**Pause all bots** applies to every project.
+
+New bots inherit the project's provider unless you choose another. Changing the
+default does not change existing bots. Source-directory changes update managed
+instructions on the next context start; custom instructions stay intact. Bot
+workspaces remain separate from source directories, with independent memory and
+inboxes for each project. The skill library is shared across projects.
+
+**Manage projects** lets you edit, archive, and restore projects. Finish or stop
+active, queued, and background work and unfinished workflows before archiving.
+Archiving preserves history and completion states and suspends schedules. Restoration
+resumes enabled schedules at their next future occurrence, without replaying missed runs.
+Project deletion and moving cards or bots between projects are not supported.
+
+Existing installations automatically become **Default**, using the existing directory
+and Master's provider (Claude if there is no Master). Existing bot providers, IDs,
+history, provider session IDs, and workspace paths are preserved. A database backup
+named `sonata.db.projects.bak` is kept beside the database before this migration.
+Legacy installations without a source directory can keep it unset; new projects
+require one. Quit Sonata before upgrading.
+
 ## Sharing workflows and configuration
 
 Share a useful workflow with a teammate, or take your complete bot setup to another computer.
 Sonata saves both as YAML files (`.yaml` or `.yml`) that another Sonata installation can import.
 
-| Contents | Complete export | Individual workflow export |
+| Contents | Project export | Individual workflow export |
 | --- | --- | --- |
-| Workflows | Every workflow | The selected workflow |
-| Bots | Every bot, including Master and bots unused by workflows | The bots used by the selected workflow's steps |
-| Skills | The entire skill library, including unassigned skills | The skills assigned to those bots |
+| Workflows | Every workflow in the selected project | The selected workflow |
+| Bots | Every bot in the selected project, including its Master | The bots used by the selected workflow's steps |
+| Skills | The shared skills assigned to the project’s bots | The skills assigned to those bots |
 | Bot settings | Names, handles, colors, providers, models, instructions and skill assignments | The same settings for the included bots |
 | Skill contents | `SKILL.md`, supporting files and executable permissions | The same contents for the included skills |
 
@@ -55,20 +82,21 @@ Workflow definitions include their instructions, steps, connections and canvas l
 exports follow the bot and skill assignments recorded in Sonata; mentioning another bot, skill or
 file in instructions or scripts does not add it to the export.
 
-### Export and import your complete setup
+### Export and import a project’s setup
 
-1. Open **Workflows** and choose **Export all…**. You can also use
-   **Settings → Configuration → Export…**; both save the same complete configuration.
+1. Select the project, then open **Workflows** and choose **Export project…**. You can also use
+   **Settings → Configuration → Export project**; both save the selected project’s configuration.
 2. Choose where to save the YAML file. Keep it as a configuration backup or share it with the
    person who will use the setup.
-3. On the receiving installation, open **Settings → Configuration → Import…** and select the file.
+3. On the receiving installation, select the destination project, then open **Settings → Configuration → Import into project** and select the file.
 4. Review the preview, which lists new entries, entries already present and anything that cannot
    be imported. Choose **Add new** to add missing entries while preserving existing versions, or
    **Add and replace** to also update matching entries that differ. Unchanged entries are reused.
 
-Importing merges the file into the receiving setup; it does not remove bots, skills or workflows
+Importing merges the file into the selected project; it does not remove bots, skills or workflows
 that are absent from the file. If the file or local setup changes after the preview, Sonata asks
-you to review the updated preview before applying it.
+you to review the updated preview before applying it. Skills remain shared: replacing a skill
+can also affect bots in other projects. Existing YAML files remain compatible.
 
 ### Share and import one workflow
 

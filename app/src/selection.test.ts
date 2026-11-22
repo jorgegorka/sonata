@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { SessionView } from "./api";
 import { followsFirstSend, isChat } from "./selection";
 
-const session = (id: string, botId: string): SessionView => ({
+const session = (id: string, botId: string): SessionView => ({ project_id: "default",
   id,
   bot_id: botId,
   number: 1,

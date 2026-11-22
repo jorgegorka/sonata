@@ -11,7 +11,7 @@ impl Engine {
                 return;
             }
         }
-        let last = match self.inner.store.last_delivered_to_session(session_id) {
+        let last = match self.store.last_delivered_to_session(session_id) {
             Ok(Some(message)) => message,
             Ok(None) => return,
             Err(e) => {

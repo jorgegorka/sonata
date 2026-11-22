@@ -12,21 +12,28 @@ impl Engine {
         if !self.setup_done()? {
             return Ok(Vec::new());
         }
-        self.seed_default_bots(self.project_folder()?.as_deref())
+        let mut bots = Vec::new();
+        for project in self.list_projects()?.into_iter().filter(|p| p.archived_at.is_none()) {
+            bots.extend(
+                self.for_project(&project.id)?
+                    .seed_default_bots(project.default_directory.as_deref().map(Path::new))?,
+            );
+        }
+        Ok(bots)
     }
 
     pub fn project_folder(&self) -> Result<Option<PathBuf>> {
-        Ok(self.inner.store.get_setting(CHECKOUT_SETTING)?.map(PathBuf::from))
+        Ok(self.store.get_setting(CHECKOUT_SETTING)?.map(PathBuf::from))
     }
 
     pub fn set_project_folder(&self, checkout: &Path) -> Result<Vec<String>> {
         if !checkout.is_absolute() || !checkout.is_dir() {
             return Err(Refusal::BadFolder(checkout.to_string_lossy().into_owned()).into());
         }
-        self.inner.store.set_setting(CHECKOUT_SETTING, &checkout.to_string_lossy())?;
+        self.store.set_setting(CHECKOUT_SETTING, &checkout.to_string_lossy())?;
         let paragraph = bundled::checkout_paragraph(Some(checkout));
         let mut kept = Vec::new();
-        for bot in self.inner.store.list_bots()? {
+        for bot in self.store.scoped(self.store.project_key()).list_bots()? {
             let Some((range, _)) = bundled::find_checkout_paragraph(&bot.instructions) else {
                 if self.is_master(&bot.id)? {
                     kept.push(bot.handle);
@@ -49,6 +56,7 @@ impl Engine {
             self.update_bot(&bot.id, edit)?;
         }
         tracing::info!(checkout = %checkout.display(), kept = ?kept, "project folder changed");
+        self.emit(UiEvent::ProjectsChanged);
         Ok(kept)
     }
 }

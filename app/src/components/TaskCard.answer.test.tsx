@@ -21,7 +21,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const bot: BotView = {
+const bot: BotView = { project_id: "default",
   id: "b3",
   handle: "testing",
   display_name: "Testing",
@@ -35,7 +35,7 @@ const bot: BotView = {
   updated_at: "t",
   status: "idle",
 };
-const session: SessionView = {
+const session: SessionView = { project_id: "default",
   id: "t",
   bot_id: "b3",
   number: 1,

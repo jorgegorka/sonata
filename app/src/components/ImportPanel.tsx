@@ -1,7 +1,8 @@
+import { useProjectApi } from "../projectContext";
 import ImportResult from "./ImportResult";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, type ImportMode, type ImportPreview, type ImportReport, type PlannedItem } from "../api";
+import { type ImportMode, type ImportPreview, type ImportReport, type PlannedItem } from "../api";
 import { groupPreview, itemName, writes, type ConfigKind } from "../configImport";
 import { errorMessage } from "../errors";
 
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function ImportPanel({ path, preview: first, busy, onBusy, onClose, onImported, onError }: Props) {
+  const api = useProjectApi();
   const { t } = useTranslation();
   const [preview, setPreview] = useState(first);
   const [changed, setChanged] = useState(false);
