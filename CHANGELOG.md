@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.0.2 — 2026-11-22
+
+Omarchy package for x86_64. The signed Apple Silicon download on the homepage
+remains 1.0.0. AppImage and DEB packages are still pending.
+
+### Features
+
+- Show completed tasks on the board. **Show done** reveals a Done column;
+  **Hide done** puts it away.
+- Restore a completed task from its card or drawer. Restoring brings back the
+  sessions archived with it.
+
+### Distribution
+
+- Arch package `sonata-x86_64.pkg.tar.zst` on the Omarchy GitHub release.
+  Install or upgrade it with `pacman -U`. Saved settings, bots, skills and history
+  stay in place. Quit Sonata before upgrading.
+
 ## 1.0.1 — 2026-11-20
 
 Omarchy package for x86_64. The signed Apple Silicon download on the homepage
