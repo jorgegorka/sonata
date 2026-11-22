@@ -3,6 +3,7 @@ import type { Glance, Message, RunGlance, SessionActivity, SessionView } from ".
 import {
   activityTargets,
   buildTasks,
+  buildDoneTasks,
   columnTasks,
   elapsed,
   glanceTargets,
@@ -89,6 +90,59 @@ describe("tasks", () => {
     expect(buildTasks(input(split)).map((t) => t.members.map((m) => m.id))).toEqual([["m"]]);
     const done = [s("m", { archived_at: "x" }), s("f", { opened_by: "m", archived_at: "x" })];
     expect(buildTasks(input(done))).toEqual([]);
+  });
+});
+
+describe("done tasks", () => {
+  it("groups sessions archived together, leaving independently archived descendants accessible", () => {
+    const sessions = [
+      s("m", { archived_at: T2 }),
+      s("f", { opened_by: "m", archived_at: T2 }),
+      s("t", { opened_by: "f", archived_at: T1 }),
+      s("active"),
+      s("orphan", { opened_by: "missing", archived_at: T3 }),
+    ];
+    const tasks = buildDoneTasks(input(sessions));
+    expect(tasks.map((t) => t.members.map((m) => m.id))).toEqual([["m", "f"], ["t"], ["orphan"]]);
+    expect(tasks.map((t) => [t.column, t.kind, t.since])).toEqual([
+      ["done", "done", T2], ["done", "done", T1], ["done", "done", T3],
+    ]);
+    const restored = sessions.map((s) => s.archived_at === T2 ? { ...s, archived_at: null } : s);
+    expect(buildTasks(input(restored)).map((t) => t.id)).toEqual(["m", "active"]);
+    expect(buildDoneTasks(input(restored)).map((t) => t.id)).toEqual(["t", "orphan"]);
+  });
+
+  it("matches restore across a separately archived or restored ancestor", () => {
+    const sessions = [
+      s("m", { archived_at: T2 }),
+      s("f", { opened_by: "m", archived_at: T1 }),
+      s("t", { opened_by: "f", archived_at: T2 }),
+    ];
+    expect(buildDoneTasks(input(sessions)).map((t) => t.members.map((m) => m.id))).toEqual([["m", "t"], ["f"]]);
+    sessions[1].archived_at = null;
+    expect(buildDoneTasks(input(sessions)).map((t) => t.members.map((m) => m.id))).toEqual([["m", "t"]]);
+    expect(buildTasks(input(sessions)).map((t) => t.id)).toEqual(["f"]);
+  });
+
+  it("sorts by completion, ignores unread and conversation activity, and never folds old done tasks", () => {
+    const sessions = [
+      s("b", { archived_at: T2, last_activity_at: T3 }),
+      s("old", { archived_at: T1, last_activity_at: T3 }),
+      s("new", { archived_at: T3, last_activity_at: T1 }),
+      s("a", { archived_at: T2 }),
+    ];
+    const tasks = buildDoneTasks(input(sessions, { activity: { old: activity("old", { last_for_user_at: T3 }) } }));
+    expect(tasks.find((t) => t.id === "old")?.unread).toBe(true);
+    const column = columnTasks(tasks, "done", new Date("2026-12-01T00:00:00Z"));
+    expect(column.shown.map((t) => t.id)).toEqual(["new", "a", "b", "old"]);
+    expect(column.older).toEqual([]);
+  });
+
+  it("stays done even while activity still reports interrupted or running work", () => {
+    const [task] = buildDoneTasks(input([s("m", { archived_at: T3, status: "working" })], {
+      activity: { m: activity("m", { cut_off: { message_id: "x", sender: "user", at: T2 }, queued: 2 }) },
+    }));
+    expect([task.column, task.kind, task.needing, task.owes]).toEqual(["done", "done", [], null]);
   });
 });
 

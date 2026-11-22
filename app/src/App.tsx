@@ -421,10 +421,10 @@ export default function App() {
     const show = view.show;
     let body: ReactNode = null;
     if (show.kind === "handoffs" && task) {
-      const live = state.threads.filter((th) => !hasArchivedEnd(th, state.sessions));
+      const available = task.column === "done" ? state.threads : state.threads.filter((th) => !hasArchivedEnd(th, state.sessions));
       body = (
         <HandoffList
-          threads={handoffsOf(task.members, live)}
+          threads={handoffsOf(task.members, available)}
           bots={state.bots}
           sessions={state.sessions}
           onOpen={(id) => setDrawer((current) => current && { ...current, show: { kind: "thread", id } })}
@@ -442,12 +442,31 @@ export default function App() {
           onError={fail}
           browserOpen={false}
           onToggleBrowser={drawerBrowser}
+          readOnly={task?.column === "done"}
         />
       );
     } else if (show.kind === "session") {
       const shown = state.sessions.find((s) => s.id === show.id);
       const shownBot = shown && state.bots.find((b) => b.id === shown.bot_id);
-      body = shown && shownBot && chatOf(shownBot, shown, true);
+      body = shown && shownBot && (isArchived(shown) ? (
+        <ArchivedSessionView
+          key={shown.id}
+          embedded
+          bot={shownBot}
+          session={shown}
+          label={sessionLabel(shown, state.sessions, state.bots, t)}
+          cascade={removalCount(state.sessions, shown.id)}
+          messages={state.messages[shown.id] ?? []}
+          onRemoved={(ids) => {
+            for (const id of ids) updateDraft(id, () => EMPTY_DRAFT);
+            setDrawer(null);
+          }}
+          onBack={() => setDrawer(null)}
+          onError={fail}
+          browserOpen={false}
+          onToggleBrowser={drawerBrowser}
+        />
+      ) : chatOf(shownBot, shown, true));
     } else if (show.kind === "newSession") {
       const shownBot = state.bots.find((b) => b.id === show.botId);
       body = shownBot && chatOf(shownBot, null, true);

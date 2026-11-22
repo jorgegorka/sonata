@@ -20,7 +20,7 @@ function sameGlances(a: Record<string, Glance>, b: Record<string, Glance>): bool
   );
 }
 
-export function useBoardData(sessions: SessionView[], onError: (e: unknown) => void): BoardData {
+export function useBoardData(sessions: SessionView[], onError: (e: unknown) => void, includeArchived = false): BoardData {
   const [activity, setActivity] = useState<Record<string, SessionActivity>>({});
   const [glances, setGlances] = useState<Record<string, Glance>>({});
   const [attentionSince, setAttentionSince] = useState<Record<string, string>>({});
@@ -52,10 +52,10 @@ export function useBoardData(sessions: SessionView[], onError: (e: unknown) => v
 
   const known = useRef(new Set<string>());
   useEffect(() => {
-    const fresh = sessions.filter((s) => !isArchived(s) && !known.current.has(s.id)).map((s) => s.id);
+    const fresh = sessions.filter((s) => (includeArchived || !isArchived(s)) && !known.current.has(s.id)).map((s) => s.id);
     for (const id of fresh) known.current.add(id);
     readActivity(fresh);
-  }, [sessions, readActivity]);
+  }, [sessions, readActivity, includeArchived]);
 
   useEffect(() => {
     let cancelled = false;

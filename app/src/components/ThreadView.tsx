@@ -15,6 +15,7 @@ interface Props {
   onToggleBrowser: () => void;
   onBackToArchive?: () => void;
   onBack?: () => void;
+  readOnly?: boolean;
 }
 
 export default function ThreadView({
@@ -27,6 +28,7 @@ export default function ThreadView({
   onToggleBrowser,
   onBackToArchive,
   onBack,
+  readOnly = onBackToArchive !== undefined,
 }: Props) {
   const { t } = useTranslation();
   const browserLabel = browserOpen ? t("browser.hide") : t("browser.show");
@@ -42,7 +44,7 @@ export default function ThreadView({
       <header className="chat-header">
         <div>
           <div className="chat-title">{threadName(thread, sessions, bots, t)}</div>
-          <div className="muted">{t(onBackToArchive ? "thread.archived" : "thread.readOnly")}</div>
+          <div className="muted">{t(readOnly ? "thread.archived" : "thread.readOnly")}</div>
         </div>
         <div className="header-actions">
           {onBack && (
@@ -74,7 +76,7 @@ export default function ThreadView({
             mine={false}
             senderName={nameOf(m.sender)}
             onError={onError}
-            readOnly={onBackToArchive !== undefined}
+            readOnly={readOnly}
           />
         ))}
         <div ref={endRef} />

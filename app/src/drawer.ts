@@ -7,6 +7,7 @@ export type DrawerShow = Selection | { kind: "handoffs" };
 export interface DrawerView {
   root: string | null;
   show: DrawerShow;
+  archivedAt?: string;
 }
 
 export interface Recipient {
@@ -22,21 +23,27 @@ export function blankDrawer(recipient: Recipient): DrawerView {
 
 export function openTask(task: BoardTask): DrawerView {
   const id = task.column === "needs_you" ? task.holder.id : task.id;
-  return { root: task.id, show: { kind: "session", id } };
+  return {
+    root: task.id,
+    show: { kind: "session", id },
+    ...(task.column === "done" ? { archivedAt: task.root.archived_at! } : {}),
+  };
 }
 
 export function drawerAfter(drawer: DrawerView, sessions: SessionView[], threads: ThreadSummary[]): DrawerView | null {
   const { root, show } = drawer;
   if (root === null) return drawer;
-  const live = (id: string) => sessions.some((s) => s.id === id && !isArchived(s));
+  const archived = drawer.archivedAt !== undefined;
+  const live = (id: string) => sessions.some((s) => s.id === id &&
+    (archived ? s.archived_at === drawer.archivedAt : !isArchived(s)));
   if (!live(root)) return null;
   let gone = false;
   if (show.kind === "session") gone = !live(show.id);
   if (show.kind === "thread") {
     const thread = threads.find((th) => th.id === show.id);
-    gone = thread === undefined || hasArchivedEnd(thread, sessions);
+    gone = thread === undefined || (!archived && hasArchivedEnd(thread, sessions));
   }
-  return gone ? { root, show: { kind: "session", id: root } } : drawer;
+  return gone ? { ...drawer, show: { kind: "session", id: root } } : drawer;
 }
 
 export function followsInDrawer(drawer: DrawerView | null, created: SessionView): boolean {

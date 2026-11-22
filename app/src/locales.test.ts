@@ -109,6 +109,7 @@ describe("en.json", () => {
       "owes", "moreNeeding", "memberNeedsYou", "answerPlaceholder", "send", "open", "markDone", "markDoneConfirm", "older",
       "markAllDone", "markAllDoneConfirm_one", "markAllDoneConfirm_other", "recurring", "unread", "more", "now",
       "minutes", "hours", "days", "back", "openFull", "close", "handoffs", "noHandoffs", "pickBot",
+      "doneColumn", "showDone", "hideDone",
     ]) {
       expect(en).toHaveProperty(["board", key]);
     }

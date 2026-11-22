@@ -1,7 +1,7 @@
 import type { Glance, Provider, RunGlance, SessionActivity, SessionView, UiEvent, UsageLimit } from "./api";
 import { isArchived, isWaiting } from "./state";
 
-export type Column = "needs_you" | "running" | "finished";
+export type Column = "needs_you" | "running" | "finished" | "done";
 export type CardKind =
   | "question"
   | "dialog"
@@ -14,7 +14,8 @@ export type CardKind =
   | "limited"
   | "background"
   | "run_waits"
-  | "finished";
+  | "finished"
+  | "done";
 
 export interface BoardInput {
   sessions: SessionView[];
@@ -204,6 +205,45 @@ export function buildTasks(input: BoardInput): BoardTask[] {
   });
 }
 
+export function buildDoneTasks({ sessions, activity }: Pick<BoardInput, "sessions" | "activity">): BoardTask[] {
+  const byId = new Map(sessions.map((s) => [s.id, s]));
+  const groups = new Map<string, { root: SessionView; members: SessionView[] }>();
+  for (const session of sessions.filter(isArchived)) {
+    let root = session;
+    let parent = session.opened_by;
+    const seen = new Set([session.id]);
+    // Restore follows the whole tree, but only restores sessions with the same archive mark.
+    while (parent !== null && !seen.has(parent)) {
+      seen.add(parent);
+      const ancestor = byId.get(parent);
+      if (!ancestor) break;
+      if (ancestor.archived_at === session.archived_at) root = ancestor;
+      parent = ancestor.opened_by;
+    }
+    const group = groups.get(root.id) ?? { root, members: [] };
+    group.members.push(session);
+    groups.set(root.id, group);
+  }
+  return [...groups.values()].map(({ root, members }) => ({
+    id: root.id,
+    root,
+    members: [root, ...members.filter((m) => m.id !== root.id).sort((a, b) =>
+      a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id),
+    )],
+    holder: root,
+    column: "done",
+    kind: "done",
+    since: root.archived_at!,
+    quietSince: root.archived_at!,
+    unread: isUnread(members, activity),
+    needing: [],
+    owes: null,
+    recurring: activity[root.id]?.run_of ?? null,
+    limit: null,
+    workflow: runOf(members, activity),
+  }));
+}
+
 export const FOLD_DAYS = 7,
   TRAIL_MAX = 4,
   GLANCE_MS = 3000,
@@ -213,8 +253,8 @@ const byId = (a: BoardTask, b: BoardTask) => (a.id < b.id ? -1 : a.id > b.id ? 1
 
 function ordered(tasks: BoardTask[], column: Column): BoardTask[] {
   const cmp = (a: BoardTask, b: BoardTask): number => {
-    if (column === "finished") {
-      if (a.unread !== b.unread) return a.unread ? -1 : 1;
+    if (column === "finished" || column === "done") {
+      if (column === "finished" && a.unread !== b.unread) return a.unread ? -1 : 1;
       if (a.quietSince !== b.quietSince) return a.quietSince > b.quietSince ? -1 : 1;
     } else if (a.since !== b.since) {
       if (a.since === null) return 1;

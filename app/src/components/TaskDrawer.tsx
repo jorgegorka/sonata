@@ -20,6 +20,7 @@ import SessionName from "./SessionName";
 import { stateText, toneOf } from "./TaskCard";
 import WorkflowMap from "./WorkflowMap";
 import WorkflowPause, { StopRun } from "./WorkflowPause";
+import RestoreTaskButton from "./RestoreTaskButton";
 
 interface Props {
   task: BoardTask | null;
@@ -60,7 +61,11 @@ export default function TaskDrawer(props: Props) {
               <path d="M10 2.5h3.5V6M13.5 2.5L9 7M6 13.5H2.5V10M2.5 13.5L7 9" />
             </svg>
           </button>
-          {task && <button onClick={onMarkDone}>{t("board.markDone")}</button>}
+          {task && (task.column === "done" ? (
+            <RestoreTaskButton taskId={task.id} onError={onError} />
+          ) : (
+            <button onClick={onMarkDone}>{t("board.markDone")}</button>
+          ))}
           <button
             className="icon-button drawer-icon"
             aria-label={t("board.close")}
@@ -81,6 +86,7 @@ export default function TaskDrawer(props: Props) {
           bots={bots}
           onShow={props.onShow}
           onError={onError}
+          archivedMembers={task.column === "done" ? task.members.map((m) => m.id) : undefined}
         />
       )}
       <div className="drawer-body">{children}</div>
@@ -209,11 +215,13 @@ function RunPanel({
   bots,
   onShow,
   onError,
+  archivedMembers,
 }: {
   glance: RunGlance;
   bots: BotView[];
   onShow: (show: DrawerShow) => void;
   onError: (e: unknown) => void;
+  archivedMembers?: string[];
 }) {
   const [view, setView] = useState<RunView | null>(null);
   const errorRef = useRef(onError);
@@ -252,14 +260,16 @@ function RunPanel({
     for (const v of view?.visits ?? []) {
       if (v.step_id === stepId && v.session_id !== null && (latest === null || v.ord > latest.ord)) latest = v;
     }
-    if (latest?.session_id) onShow({ kind: "session", id: latest.session_id });
+    if (latest?.session_id && (archivedMembers === undefined || archivedMembers.includes(latest.session_id))) {
+      onShow({ kind: "session", id: latest.session_id });
+    }
   };
   const going = glance.status === "paused" || glance.status === "running";
   if (!going && state === null) return null;
   return (
     <section className="drawer-run">
-      {glance.status === "paused" && <WorkflowPause glance={glance} onError={onError} />}
-      {glance.status === "running" && <StopRun glance={glance} onError={onError} />}
+      {archivedMembers === undefined && glance.status === "paused" && <WorkflowPause glance={glance} onError={onError} />}
+      {archivedMembers === undefined && glance.status === "running" && <StopRun glance={glance} onError={onError} />}
       {view && state && (
         <div className="drawer-run-map">
           <WorkflowMap def={view.run.def} bots={bots} state={state} onOpenStep={openStep} />

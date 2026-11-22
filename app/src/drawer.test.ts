@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SessionView, ThreadSummary } from "./api";
-import { buildTasks } from "./board";
+import { buildDoneTasks, buildTasks } from "./board";
 import {
   blankDrawer,
   chatShown,
@@ -78,6 +78,22 @@ describe("openTask", () => {
 });
 
 describe("drawerAfter", () => {
+  it("keeps deliberately opened done history and closes it on restore or removal", () => {
+    const sessions = chain().map((s) => ({ ...s, archived_at: "2026-11-04T12:00:00.000Z" }));
+    const [task] = buildDoneTasks({ sessions, activity: {} });
+    const opened = openTask(task);
+    expect(opened.archivedAt).toBe(sessions[0].archived_at);
+    expect(drawerAfter(opened, sessions, [])).toBe(opened);
+    const onThread: DrawerView = { ...opened, show: { kind: "thread", id: "th" } };
+    expect(drawerAfter(onThread, sessions, [thread("th", "m", "f")])).toBe(onThread);
+    expect(drawerAfter(onThread, sessions, [])).toEqual(opened);
+    const onMember: DrawerView = { ...opened, show: { kind: "session", id: "f" } };
+    expect(drawerAfter(onMember, sessions, [])).toBe(onMember);
+    expect(drawerAfter(onMember, [sessions[0]], [])).toEqual(opened);
+    expect(drawerAfter(opened, [], [])).toBeNull();
+    expect(drawerAfter(opened, chain(), [])).toBeNull();
+  });
+
   it("the drawer closes when its task is marked done", () => {
     expect(drawerAfter(view("m", "f"), [s("m", { archived_at: "x" })], [])).toBeNull();
   });

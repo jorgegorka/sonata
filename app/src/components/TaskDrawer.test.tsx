@@ -14,7 +14,7 @@ import type {
   Workflow,
   WorkflowStep,
 } from "../api";
-import { buildTasks } from "../board";
+import { buildDoneTasks, buildTasks } from "../board";
 import { blankDrawer, type DrawerView, type Recipient } from "../drawer";
 import i18n from "../i18n";
 import TaskDrawer, { HandoffList } from "./TaskDrawer";
@@ -411,6 +411,37 @@ describe("a workflow run in the drawer", () => {
     pause: null,
     step: "Review",
     session_ids: ["t"],
+  });
+
+  it("shows archived workflow history without execution controls or links to live sessions", async () => {
+    tauri.run = run;
+    const archived = sessions.map((s) => ({ ...s, archived_at: NOW.toISOString() }));
+    archived[1].archived_at = "2026-11-01T00:00:00.000Z";
+    const [done] = buildDoneTasks({ sessions: archived, activity: { t: runActivity("t", glance({ status: "paused" })) } });
+    const onShow = vi.fn();
+    const host = document.createElement("div");
+    const root = createRoot(host);
+    await act(async () => root.render(
+      <TaskDrawer
+        task={done}
+        drawer={{ root: done.id, show: { kind: "session", id: done.id }, archivedAt: done.root.archived_at! }}
+        bots={bots} workflows={workflows} sessions={archived} activity={{}} now={NOW}
+        onShow={onShow} onPick={nothing} onOpenFull={nothing} onMarkDone={nothing}
+        onClose={nothing} onError={nothing}
+      >
+        <p>archived chat</p>
+      </TaskDrawer>,
+    ));
+    expect(host.querySelectorAll(".map button")).toHaveLength(2);
+    expect(host.querySelector(".workflow-pause")).toBeNull();
+    expect(host.textContent).toContain("Restore");
+    expect(host.textContent).not.toContain("Mark done");
+    expect(host.textContent).not.toContain("Stop the run");
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-step="s1"]')!.click());
+    expect(onShow).not.toHaveBeenCalled();
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-step="s2"]')!.click());
+    expect(onShow).toHaveBeenCalledWith({ kind: "session", id: "t" });
+    await act(async () => root.unmount());
   });
 
   it("maps the run, reads it again when it changes, and a step opens its latest visit's session", async () => {

@@ -65,12 +65,12 @@ let root: Root;
 let data: BoardData;
 let visibility: DocumentVisibilityState;
 
-function Probe({ sessions, onError }: { sessions: SessionView[]; onError: (e: unknown) => void }) {
-  data = useBoardData(sessions, onError);
+function Probe({ sessions, onError, includeArchived }: { sessions: SessionView[]; onError: (e: unknown) => void; includeArchived: boolean }) {
+  data = useBoardData(sessions, onError, includeArchived);
   return null;
 }
-async function mount(sessions: SessionView[], onError: (e: unknown) => void = () => {}) {
-  await act(async () => root.render(<Probe sessions={sessions} onError={onError} />));
+async function mount(sessions: SessionView[], onError: (e: unknown) => void = () => {}, includeArchived = false) {
+  await act(async () => root.render(<Probe sessions={sessions} onError={onError} includeArchived={includeArchived} />));
 }
 async function wait(ms: number) {
   await act(async () => {
@@ -109,6 +109,22 @@ describe("the board's data", () => {
     await wait(1);
     expect(called("session_activity")).toEqual([{ sessionIds: ["a"] }, { sessionIds: ["a", "c"] }]);
     expect(Object.keys(data.activity).sort()).toEqual(["a", "c"]);
+  });
+
+  it("loads done summaries when revealed, reuses them, and never polls their terminals", async () => {
+    tauri.answers.session_activity = (args) =>
+      Promise.resolve((args as { sessionIds: string[] }).sessionIds.map((id) => activity(id)));
+    const sessions = [s("active"), s("done", { archived_at: "x", status: "working" })];
+    await mount(sessions);
+    expect(called("session_activity")).toEqual([{ sessionIds: ["active"] }]);
+    await mount(sessions, undefined, true);
+    expect(called("session_activity")).toEqual([{ sessionIds: ["active"] }, { sessionIds: ["done"] }]);
+    expect(data.activity.done).toBeDefined();
+    await mount(sessions);
+    await mount(sessions, undefined, true);
+    expect(called("session_activity")).toHaveLength(2);
+    await wait(3000);
+    expect(called("session_glances").every((args) => !(args as { sessionIds: string[] }).sessionIds.includes("done"))).toBe(true);
   });
 
   it("keeps the newest answer when an older one comes back last", async () => {

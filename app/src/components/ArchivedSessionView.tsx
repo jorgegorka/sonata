@@ -19,6 +19,7 @@ interface Props {
   onError: (error: unknown) => void;
   browserOpen: boolean;
   onToggleBrowser: () => void;
+  embedded?: boolean;
 }
 
 export default function ArchivedSessionView({
@@ -32,6 +33,7 @@ export default function ArchivedSessionView({
   onError,
   browserOpen,
   onToggleBrowser,
+  embedded = false,
 }: Props) {
   const { t, i18n } = useTranslation();
   const browserLabel = browserOpen ? t("browser.hide") : t("browser.show");
@@ -63,7 +65,7 @@ export default function ArchivedSessionView({
 
   return (
     <section className="chat">
-      <header className="chat-header">
+      {!embedded && <header className="chat-header">
         <span className="avatar" style={{ background: bot.color, color: avatarTextColor(bot.color) }}>
           {bot.display_name.slice(0, 1).toUpperCase()}
         </span>
@@ -102,8 +104,9 @@ export default function ArchivedSessionView({
             <PanelGlyph side="right" />
           </button>
         </div>
-      </header>
+      </header>}
       <div className="messages">
+        {embedded && <p className="muted">{t("archive.readOnly")}</p>}
         {messages.length === 0 && <p className="muted empty">{t("thread.empty")}</p>}
         {messages.map((m) => (
           <MessageItem

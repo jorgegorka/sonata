@@ -2,7 +2,7 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { api, type BotView, type Glance, type SessionActivity, type SessionView, type UsageLimit } from "../api";
-import { buildTasks, columnTasks, hasWorkGoingOn, type BoardTask, type Column } from "../board";
+import { buildDoneTasks, buildTasks, columnTasks, hasWorkGoingOn, type BoardTask, type Column } from "../board";
 import { sessionLabel, type Translate } from "../state";
 import TaskCard, { type Tone } from "./TaskCard";
 import { useBoardData, type BoardData } from "./useBoardData";
@@ -25,6 +25,7 @@ const COLUMNS: { column: Column; label: string; tone: Tone }[] = [
   { column: "running", label: "board.running", tone: "running" },
   { column: "needs_you", label: "board.needsYou", tone: "waits" },
   { column: "finished", label: "board.finished", tone: "done" },
+  { column: "done", label: "board.doneColumn", tone: "done" },
 ];
 
 const CLOCK_MS = 30_000;
@@ -72,17 +73,22 @@ export default function Board({
   now,
 }: Props) {
   const { t } = useTranslation();
-  const live = useBoardData(sessions, onError);
+  const [showDone, setShowDone] = useState(false);
+  const live = useBoardData(sessions, onError, showDone);
   const shown = data ?? live;
   const { activity, glances, attentionSince } = shown;
   const clock = useClock(now);
   const [clearing, setClearing] = useState(false);
   const providers = useMemo(() => Object.fromEntries(bots.map((b) => [b.id, b.provider])), [bots]);
   const tasks = useMemo(
-    () => buildTasks({ sessions, activity, glances, attentionSince, paused, limits, providers }),
+    () => [
+      ...buildTasks({ sessions, activity, glances, attentionSince, paused, limits, providers }),
+      ...buildDoneTasks({ sessions, activity }),
+    ],
     [sessions, activity, glances, attentionSince, paused, limits, providers],
   );
-  const columns = COLUMNS.map((c) => ({ ...c, ...columnTasks(tasks, c.column, clock) }));
+  const columns = COLUMNS.filter((c) => showDone || c.column !== "done")
+    .map((c) => ({ ...c, ...columnTasks(tasks, c.column, clock) }));
 
   async function markAllDone(older: BoardTask[]) {
     const confirmed = await ask(t("board.markAllDoneConfirm", { count: older.length }), {
@@ -134,6 +140,9 @@ export default function Board({
           </ul>
         </div>
         <div className="header-actions">
+          <button aria-expanded={showDone} aria-controls="board-done-column" onClick={() => setShowDone((shown) => !shown)}>
+            {t(showDone ? "board.hideDone" : "board.showDone")}
+          </button>
           <button onClick={onTogglePause}>{paused ? t("board.resume") : t("board.pause")}</button>
           <button className="primary" onClick={onNewTask}>
             {t("board.newTask")}
@@ -141,10 +150,11 @@ export default function Board({
         </div>
       </header>
       {paused && <p className="board-note muted">{t("board.pausedNote")}</p>}
-      <div className="board-columns">
+      <div className={showDone ? "board-columns with-done" : "board-columns"}>
         {columns.map((c) => (
           <section
             key={c.column}
+            id={`board-${c.column}-column`}
             className={`board-column ${c.column}`}
             data-column={c.column}
             aria-labelledby={`board-${c.column}`}

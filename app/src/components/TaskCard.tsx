@@ -11,6 +11,7 @@ import { handleOf, sessionLabel, type Translate } from "../state";
 import { glanceLine } from "../workflows";
 import { useAct } from "./useAct";
 import WorkflowPause from "./WorkflowPause";
+import RestoreTaskButton from "./RestoreTaskButton";
 
 interface Props {
   task: BoardTask;
@@ -29,7 +30,7 @@ export type Tone = "running" | "waits" | "blocked" | "done";
 export function toneOf(kind: CardKind): Tone {
   if (kind === "question" || kind === "workflow") return "waits";
   if (kind === "dialog" || kind === "cut_off") return "blocked";
-  return kind === "finished" ? "done" : "running";
+  return kind === "finished" || kind === "done" ? "done" : "running";
 }
 
 export function answerTarget(task: BoardTask): { botId: string; sessionId: string } {
@@ -60,6 +61,7 @@ export function stateText(task: BoardTask, now: Date, t: Translate): string {
     case "working":
       return timed("board.working", "status.working");
     case "finished":
+    case "done":
       return timed("board.done", "status.idle");
     case "run_waits":
       if (run?.handle) return t("board.workflowWaits", { handle: run.handle });
@@ -105,11 +107,11 @@ export default function TaskCard(props: Props) {
       {task.kind === "question" && <QuestionBody {...props} />}
       {task.kind === "dialog" && <DialogBody {...props} />}
       {task.kind === "cut_off" && <CutOffBody {...props} />}
-      {task.workflow?.status === "paused" && <WorkflowPause glance={task.workflow} onError={props.onError} />}
+      {task.column !== "done" && task.workflow?.status === "paused" && <WorkflowPause glance={task.workflow} onError={props.onError} />}
       {task.needing.length > 1 && (
         <p className="task-more muted">{t("board.moreNeeding", { n: task.needing.length - 1 })}</p>
       )}
-      {task.column === "finished" && <FinishedBody {...props} />}
+      {(task.column === "finished" || task.column === "done") && <FinishedBody {...props} />}
     </article>
   );
 }
@@ -314,7 +316,11 @@ function FinishedBody({ task, bots, activity, onOpen, onMarkDone, onError }: Pro
         <button className="push" onClick={onOpen}>
           {t("board.open")}
         </button>
-        <button onClick={onMarkDone}>{t("board.markDone")}</button>
+        {task.column === "done" ? (
+          <RestoreTaskButton taskId={task.id} onError={onError} />
+        ) : (
+          <button onClick={onMarkDone}>{t("board.markDone")}</button>
+        )}
       </div>
     </>
   );

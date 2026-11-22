@@ -209,7 +209,8 @@ body.resizing { cursor: col-resize; user-select: none; }
 .board-counts li { display: inline-flex; align-items: center; gap: 6px; }
 .board-note { margin: 0; padding: 8px 20px; font-size: 13px; border-bottom: 1px solid var(--border); }
 .board-columns { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 16px; padding: 16px 20px 20px; }
-@media (max-width: 900px) { .board-columns { grid-template-columns: minmax(0, 1fr); } }
+.board-columns.with-done { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) { .board-columns, .board-columns.with-done { grid-template-columns: minmax(0, 1fr); } }
 .board-column { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
 .board-column.needs_you { background: var(--needs-bg); border-color: var(--needs-border); }
 .board-column-head { display: flex; align-items: center; gap: 8px; }
