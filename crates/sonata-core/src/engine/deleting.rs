@@ -73,7 +73,13 @@ impl Engine {
                     continue;
                 }
             };
-            let dir = self.bot_directory(&bot);
+            let dir = match self.bot_directory(&bot) {
+                Ok(dir) => dir,
+                Err(e) => {
+                    tracing::warn!(bot = %bot.handle, session = r.session.number, error = %e, "could not resolve the removed session's folder");
+                    continue;
+                }
+            };
             let relative = drafts_relative(&r.session);
             let folder = dir.join(&relative);
             let Ok(meta) = std::fs::symlink_metadata(&folder) else { continue };
@@ -118,7 +124,13 @@ impl Engine {
                     continue;
                 }
             };
-            let dir = self.bot_directory(&bot);
+            let dir = match self.bot_directory(&bot) {
+                Ok(dir) => dir,
+                Err(e) => {
+                    tracing::error!(bot = %bot.handle, error = %e, "could not resolve the bot's folder to delete its inbox files");
+                    continue;
+                }
+            };
             let inbox = dir.join("inbox");
             match std::fs::symlink_metadata(&inbox) {
                 Ok(meta) if meta.is_dir() && folder_inside(&dir, &self.bots_root()) => {}

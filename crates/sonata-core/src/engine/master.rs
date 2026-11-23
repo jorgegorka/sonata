@@ -119,8 +119,8 @@ impl Engine {
         }
     }
 
-    pub fn drafts_dir(&self, bot: &Bot, session: &Session) -> PathBuf {
-        self.bot_directory(&bot).join(drafts_relative(session))
+    pub fn drafts_dir(&self, bot: &Bot, session: &Session) -> Result<PathBuf> {
+        Ok(self.bot_directory(bot)?.join(drafts_relative(session)))
     }
 
     pub(super) async fn bridge_bot_show(&self, pane_id: &str, handle: &str) -> BridgeResponse {
@@ -180,7 +180,10 @@ impl Engine {
             },
             Err(refusal) => return refusal,
         };
-        let drafts = self.drafts_dir(&bot, &session).to_string_lossy().into_owned();
+        let drafts = match self.drafts_dir(&bot, &session) {
+            Ok(dir) => dir.to_string_lossy().into_owned(),
+            Err(e) => return failed("find this conversation's drafts", e),
+        };
         match self.list_skills() {
             Ok(skills) => BridgeResponse::skills(
                 skills
@@ -217,7 +220,10 @@ impl Engine {
             }
             Err(e) => return internal(e),
         };
-        let draft = self.drafts_dir(&bot, &session).join(&skill.slug);
+        let draft = match self.drafts_dir(&bot, &session) {
+            Ok(dir) => dir.join(&skill.slug),
+            Err(e) => return failed("find this conversation's drafts", e),
+        };
         let path = draft.to_string_lossy().into_owned();
         if std::fs::symlink_metadata(&draft).is_ok() {
             tracing::info!(bot = %bot.handle, session = session.number, skill = %skill.slug, "the skill's draft is resumed, not copied again");
@@ -258,7 +264,7 @@ impl Engine {
     }
 
     pub(super) fn own_draft(&self, bot: &Bot, session: &Session, folder: &Path) -> Option<(PathBuf, String)> {
-        let dir = std::fs::canonicalize(self.bot_directory(&bot)).ok()?;
+        let dir = std::fs::canonicalize(self.bot_directory(bot).ok()?).ok()?;
         let drafts = dir.join(drafts_relative(session));
         let draft = std::fs::canonicalize(folder).ok()?;
         if draft == drafts || !draft.starts_with(&drafts) || !draft.is_dir() {
@@ -284,7 +290,10 @@ impl Engine {
             Err(refusal) => return refusal,
         };
         let Some((draft, key)) = self.own_draft(&bot, &session, Path::new(folder)) else {
-            let drafts = self.drafts_dir(&bot, &session);
+            let drafts = match self.drafts_dir(&bot, &session) {
+                Ok(dir) => dir,
+                Err(e) => return failed("find this conversation's drafts", e),
+            };
             return refuse(
                 ErrorCode::BadRequest,
                 format!("Add only folders from this conversation's drafts: {}/<name>.", drafts.display()),

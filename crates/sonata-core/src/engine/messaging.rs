@@ -296,7 +296,11 @@ impl Engine {
                 Err(e) => return internal(e),
             }
         }
-        let checked = match attachments::check(&files, &self.bot_directory(&sender)) {
+        let sender_dir = match self.bot_directory(&sender) {
+            Ok(dir) => dir,
+            Err(e) => return internal(e),
+        };
+        let checked = match attachments::check(&files, &sender_dir) {
             Ok(checked) => checked,
             Err(e) => return refuse(file_error_code(&e), format!("{e}.")),
         };

@@ -332,7 +332,11 @@ impl Engine {
             Ok(None) => return not_a_bot(),
             Err(e) => return internal(e),
         };
-        let checked = match attachments::check(&files, &self.bot_directory(&sender)) {
+        let sender_dir = match self.bot_directory(&sender) {
+            Ok(dir) => dir,
+            Err(e) => return internal(e),
+        };
+        let checked = match attachments::check(&files, &sender_dir) {
             Ok(checked) => checked,
             Err(e) => return refuse(file_error_code(&e), format!("{e}.")),
         };
@@ -1054,7 +1058,11 @@ impl Engine {
             Ok(parts) => parts,
             Err(refusal) => return refusal,
         };
-        let files: Vec<String> = match attachments::check(&files, &self.bot_directory(&master)) {
+        let master_dir = match self.bot_directory(&master) {
+            Ok(dir) => dir,
+            Err(e) => return internal(e),
+        };
+        let files: Vec<String> = match attachments::check(&files, &master_dir) {
             Ok(checked) => checked.iter().map(|f| f.to_string_lossy().into_owned()).collect(),
             Err(e) => return refuse(file_error_code(&e), format!("{e}.")),
         };

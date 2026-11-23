@@ -86,6 +86,6 @@ impl Engine {
             }
         }
         tracing::info!(bot = %bot.handle, "bot deleted");
-        Ok(self.bot_directory(&bot))
+        self.bot_directory(&bot)
     }
 }

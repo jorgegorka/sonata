@@ -365,7 +365,7 @@ impl Engine {
 
     fn taken_handles(&self) -> Result<Vec<String>> {
         let mut taken = self.store.scoped(self.store.project_key()).bot_handles()?;
-        if let Ok(entries) = std::fs::read_dir(self.project_workspace()) {
+        if let Ok(entries) = std::fs::read_dir(self.project_workspace()?) {
             taken.extend(entries.filter_map(|e| Some(e.ok()?.file_name().into_string().ok()?.to_lowercase())));
         }
         Ok(taken)
@@ -383,7 +383,7 @@ impl Engine {
         let new = NewBot { skill_ids: self.checked_skill_ids(&new.skill_ids)?, ..new };
         let mut taken = self.taken_handles()?;
         if let Some(reuse) = reuse_empty {
-            let dir = self.bot_dir(reuse);
+            let dir = self.bot_dir(reuse)?;
             let real_dir = std::fs::symlink_metadata(&dir).is_ok_and(|m| m.is_dir());
             let empty = real_dir && std::fs::read_dir(&dir).is_ok_and(|mut entries| entries.next().is_none());
             if empty && self.store.get_bot_by_handle(reuse)?.is_none() {
@@ -395,7 +395,7 @@ impl Engine {
             Some(wanted) => derive_handle(wanted, &taken),
             None => derive_handle(&new.display_name, &taken),
         };
-        let dir = self.bot_dir(&handle);
+        let dir = self.bot_dir(&handle)?;
         let existed = dir.exists();
         std::fs::create_dir_all(&dir)?;
         match insert(&new, &handle) {
@@ -1037,7 +1037,7 @@ impl Engine {
             None => None,
         };
         let dir = match bot {
-            Some(bot) => self.bot_directory(&bot),
+            Some(bot) => self.bot_directory(&bot)?,
             None => PathBuf::new(),
         };
         let files: Vec<String> = msg

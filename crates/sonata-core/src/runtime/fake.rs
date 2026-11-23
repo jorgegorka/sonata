@@ -31,6 +31,7 @@ pub struct FakeState {
     pub start_delay: Option<Duration>,
     pub prompt_delay: Option<Duration>,
     pub snapshot_delay: Option<Duration>,
+    pub snapshots: u32,
     pub shutdown_called: bool,
     next_pane: u32,
 }
@@ -78,6 +79,7 @@ impl FakeRuntime {
                 start_delay: None,
                 prompt_delay: None,
                 snapshot_delay: None,
+                snapshots: 0,
                 shutdown_called: false,
                 next_pane: 0,
             }),
@@ -157,7 +159,11 @@ impl BotRuntime for FakeRuntime {
     }
 
     async fn snapshot(&self, _bot: &RuntimeBot, _lines: u32) -> Result<String, RuntimeError> {
-        let delay = self.state().snapshot_delay;
+        let delay = {
+            let mut state = self.state();
+            state.snapshots += 1;
+            state.snapshot_delay
+        };
         if let Some(delay) = delay {
             tokio::time::sleep(delay).await;
         }

@@ -40,7 +40,11 @@ async fn teams_have_local_handles_workspaces_and_persistent_card_ownership() {
     assert_eq!(master.handle, first_master.handle);
     assert_eq!(master.provider, Provider::Codex);
     assert_eq!(second.list_bots().await.unwrap().len(), 1);
-    assert_ne!(second.bot_folder(&master.id).unwrap(), h.engine.bot_folder(&first_master.id).unwrap());
+    assert_eq!(h.engine.bot_folder(&first_master.id).unwrap(), h.paths.bots_root.join(&first_master.handle));
+    assert_eq!(
+        second.bot_folder(&master.id).unwrap(),
+        h.paths.bots_root.join(".projects").join(&project.id).join(&master.handle)
+    );
     let msg = second.queue_user_message(&master.id, "Use this project").unwrap();
     let session = second.sessions_of(&master.id).unwrap().remove(0);
     assert_eq!(session.project_id, project.id);
@@ -305,4 +309,61 @@ async fn archive_does_not_interrupt_background_work_in_an_idle_session() {
     h.rt.state().screen = CLAUDE_NOTHING_RUNNING.into();
     h.engine.archive_project(&project.id).await.unwrap();
     assert_eq!(h.rt.state().stopped.len(), 1);
+}
+
+#[tokio::test]
+async fn archive_reports_an_unreadable_screen_and_leaves_the_session_running() {
+    let h = harness();
+    let dir = tempfile::tempdir().unwrap();
+    let project = h.engine.create_project(input("Unreadable", dir.path(), Provider::Claude)).unwrap();
+    let engine = h.engine.for_project(&project.id).unwrap();
+    let master = engine.master_bot().unwrap().unwrap();
+    engine.queue_user_message(&master.id, "Run checks").unwrap();
+    engine.pump(&master.id).await;
+    let session = engine.sessions_of(&master.id).unwrap().remove(0);
+    let pane = pane(&h, &session);
+    assert!(h.engine.handle_bridge(reply(&pane, "Checks are running.")).await.ok);
+    h.rt.state().screen = CLAUDE_NOTHING_RUNNING.into();
+    finish_turn(&h, &pane).await;
+    h.rt.state().snapshot_failures.push_back(sonata_core::runtime::RuntimeError::Other("unreadable".into()));
+    let error = h.engine.archive_project(&project.id).await.unwrap_err();
+    assert!(matches!(error, sonata_core::CoreError::Refused(sonata_core::Refusal::SnapshotFailed(_))));
+    assert!(engine.current_project().unwrap().archived_at.is_none());
+    assert!(h.rt.state().stopped.is_empty());
+}
+
+#[tokio::test(start_paused = true)]
+async fn archive_reads_the_screen_without_holding_the_live_lock() {
+    let h = harness();
+    let dir = tempfile::tempdir().unwrap();
+    let project = h.engine.create_project(input("Screen", dir.path(), Provider::Claude)).unwrap();
+    let engine = h.engine.for_project(&project.id).unwrap();
+    let master = engine.master_bot().unwrap().unwrap();
+    engine.queue_user_message(&master.id, "Run checks").unwrap();
+    engine.pump(&master.id).await;
+    let session = engine.sessions_of(&master.id).unwrap().remove(0);
+    let pane = pane(&h, &session);
+    assert!(h.engine.handle_bridge(reply(&pane, "Checks are running.")).await.ok);
+    h.rt.state().screen = CLAUDE_NOTHING_RUNNING.into();
+    finish_turn(&h, &pane).await;
+    h.rt.state().snapshot_delay = Some(std::time::Duration::from_secs(60));
+
+    let archiving = h.engine.clone();
+    let project_id = project.id.clone();
+    let archive = tokio::spawn(async move { archiving.archive_project(&project_id).await });
+    while h.rt.state().snapshots == 0 {
+        if archive.is_finished() {
+            panic!("archive finished before reading the screen: {:?}", archive.await.unwrap());
+        }
+        tokio::task::yield_now().await;
+    }
+    let listing = h.engine.clone();
+    let listed = tokio::spawn(async move { listing.list_bots().await });
+    for _ in 0..50 {
+        tokio::task::yield_now().await;
+    }
+    assert!(listed.is_finished(), "archive held the live lock while reading the screen");
+    tokio::time::advance(std::time::Duration::from_secs(60)).await;
+    assert!(archive.await.unwrap().is_ok());
+    assert!(listed.await.unwrap().is_ok());
 }

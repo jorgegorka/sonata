@@ -127,7 +127,10 @@ impl Engine {
             Err(e) => return internal(e),
         };
         let Some((draft, _)) = self.own_draft(&master, &session, Path::new(folder)) else {
-            let drafts = self.drafts_dir(&master, &session);
+            let drafts = match self.drafts_dir(&master, &session) {
+                Ok(dir) => dir,
+                Err(e) => return failed("find this conversation's drafts", e),
+            };
             return refuse(
                 ErrorCode::BadRequest,
                 format!("Update skills only from folders in this conversation's drafts: {}/<name>.", drafts.display()),

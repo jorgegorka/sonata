@@ -1,6 +1,22 @@
 use super::*;
 use crate::model::{Project, ProjectInput};
 
+fn session_blocks_archive(state: &Live) -> bool {
+    state.in_flight.is_some()
+        || state.limited_turn.is_some()
+        || matches!(state.status, BotStatus::Starting | BotStatus::Working | BotStatus::Limited)
+}
+
+fn project_runtimes(live: &HashMap<String, Live>, bots: &HashSet<String>) -> Vec<(String, RuntimeBot)> {
+    let mut running: Vec<_> = live
+        .iter()
+        .filter(|(_, state)| bots.contains(&state.bot_id))
+        .filter_map(|(id, state)| Some((id.clone(), state.rt.clone()?)))
+        .collect();
+    running.sort_by(|left, right| left.0.cmp(&right.0));
+    running
+}
+
 impl Engine {
     pub fn for_project(&self, project_id: &str) -> Result<Self> {
         self.store.get_project(project_id)?;
@@ -120,38 +136,52 @@ impl Engine {
 
     pub async fn archive_project(&self, id: &str) -> Result<Project> {
         let scoped = self.for_project(id)?;
-        let mut stops = Vec::new();
-        let project = {
-            let mut live = self.inner.live.lock().await;
-            let bots: HashSet<String> = scoped.store.list_bots()?.into_iter().map(|b| b.id).collect();
-            if live.values().any(|l| {
-                bots.contains(&l.bot_id)
-                    && (l.in_flight.is_some()
-                        || l.limited_turn.is_some()
-                        || matches!(l.status, BotStatus::Starting | BotStatus::Working | BotStatus::Limited))
-            }) {
-                return Err(CoreError::from(crate::ProjectError::ActiveWork));
-            }
-            for (session, state) in live.iter().filter(|(_, l)| bots.contains(&l.bot_id)) {
-                if let Some(rt) = &state.rt {
-                    if scoped.background_work(session, rt).await != Some(false) {
-                        return Err(CoreError::from(crate::ProjectError::BackgroundWork));
-                    }
+        // Screen reads wait on the terminal. `live` is process-wide, so copy the sessions and drop it first.
+        for _ in 0..8 {
+            let bots: HashSet<String> = scoped.store.list_bots()?.into_iter().map(|bot| bot.id).collect();
+            let running = {
+                let live = self.inner.live.lock().await;
+                if live.values().any(|state| bots.contains(&state.bot_id) && session_blocks_archive(state)) {
+                    return Err(CoreError::from(crate::ProjectError::ActiveWork));
+                }
+                project_runtimes(&live, &bots)
+            };
+            for (session, rt) in &running {
+                match scoped.background_work(session, rt).await {
+                    Ok(false) => {}
+                    Ok(true) => return Err(CoreError::from(crate::ProjectError::BackgroundWork)),
+                    Err(error) => return Err(Refusal::SnapshotFailed(error.to_string()).into()),
                 }
             }
-            let project = self.store.archive_project(id)?;
-            let sessions: Vec<String> =
-                live.iter().filter(|(_, l)| bots.contains(&l.bot_id)).map(|(id, _)| id.clone()).collect();
-            for session in sessions {
-                stops.push(scoped.stop_locked(&mut live, &session)?);
+            let mut stops = Vec::new();
+            let archived = {
+                let mut live = self.inner.live.lock().await;
+                if live.values().any(|state| bots.contains(&state.bot_id) && session_blocks_archive(state)) {
+                    return Err(CoreError::from(crate::ProjectError::ActiveWork));
+                }
+                if project_runtimes(&live, &bots) != running {
+                    None
+                } else {
+                    let project = self.store.archive_project(id)?;
+                    let sessions: Vec<String> = live
+                        .iter()
+                        .filter(|(_, state)| bots.contains(&state.bot_id))
+                        .map(|(session, _)| session.clone())
+                        .collect();
+                    for session in sessions {
+                        stops.push(scoped.stop_locked(&mut live, &session)?);
+                    }
+                    Some(project)
+                }
+            };
+            let Some(project) = archived else { continue };
+            for stop in stops {
+                scoped.stopped(stop).await;
             }
-            project
-        };
-        for stop in stops {
-            scoped.stopped(stop).await;
+            self.emit(UiEvent::ProjectsChanged);
+            return Ok(project);
         }
-        self.emit(UiEvent::ProjectsChanged);
-        Ok(project)
+        Err(CoreError::from(crate::ProjectError::ActiveWork))
     }
 
     pub fn restore_project(&self, id: &str) -> Result<Project> {
@@ -171,20 +201,20 @@ impl Engine {
         Ok(project)
     }
 
-    pub(super) fn bot_directory(&self, bot: &Bot) -> PathBuf {
-        if bot.project_id == crate::store::DEFAULT_PROJECT {
-            self.bots_root().join(&bot.handle)
+    fn workspace_for(&self, project_id: &str) -> Result<PathBuf> {
+        if self.store.legacy_workspace_of(project_id)? {
+            Ok(self.bots_root())
         } else {
-            self.bots_root().join(".projects").join(&bot.project_id).join(&bot.handle)
+            Ok(self.bots_root().join(".projects").join(project_id))
         }
     }
 
-    pub(super) fn project_workspace(&self) -> PathBuf {
-        if self.store.legacy_workspace().unwrap_or(false) {
-            self.bots_root()
-        } else {
-            self.bots_root().join(".projects").join(self.store.project_key())
-        }
+    pub(super) fn bot_directory(&self, bot: &Bot) -> Result<PathBuf> {
+        Ok(self.workspace_for(&bot.project_id)?.join(&bot.handle))
+    }
+
+    pub(super) fn project_workspace(&self) -> Result<PathBuf> {
+        self.workspace_for(self.store.project_key())
     }
 }
 

@@ -52,16 +52,20 @@ impl Engine {
         self.emit_status(session_id).await;
     }
 
-    pub(super) async fn background_work(&self, session_id: &str, rt: &RuntimeBot) -> Option<bool> {
+    pub(super) async fn background_work(
+        &self,
+        session_id: &str,
+        rt: &RuntimeBot,
+    ) -> std::result::Result<bool, RuntimeError> {
         let Some(adapter) = self.session_with_bot(session_id).and_then(|(bot, _)| adapter_for(bot.provider)) else {
-            return Some(false);
+            return Ok(false);
         };
         match self.inner.runtime.snapshot(rt, super::controls::SNAPSHOT_LINES).await {
-            Ok(screen) => Some(adapter.background_work(&screen)),
+            Ok(screen) => Ok(adapter.background_work(&screen)),
             Err(e) => {
                 let who = self.who(session_id);
                 tracing::warn!(bot = %who.bot, session = who.session, error = %e, "could not read the session's screen for background work");
-                None
+                Err(e)
             }
         }
     }

@@ -110,7 +110,7 @@ impl Engine {
 
     pub fn bot_folder(&self, bot_id: &str) -> Result<PathBuf> {
         let bot = self.store.get_bot(bot_id)?.ok_or_else(|| Refusal::BotNotFound(bot_id.into()))?;
-        Ok(self.bot_directory(&bot))
+        self.bot_directory(&bot)
     }
 
     pub async fn runtime_health(&self) -> std::result::Result<RuntimeHealth, RuntimeError> {
@@ -122,7 +122,7 @@ impl Engine {
     }
 
     pub(crate) fn checked_bot_dir(&self, handle: &str) -> std::result::Result<PathBuf, FolderError> {
-        let dir = self.bot_dir(handle);
+        let dir = self.bot_dir(handle).map_err(|error| FolderError::Io(std::io::Error::other(error.to_string())))?;
         std::fs::create_dir_all(&dir).map_err(FolderError::Io)?;
         if folder_inside(&dir, &self.bots_root()) {
             Ok(dir)
@@ -131,7 +131,7 @@ impl Engine {
         }
     }
 
-    pub(crate) fn bot_dir(&self, handle: &str) -> PathBuf {
-        self.project_workspace().join(handle)
+    pub(crate) fn bot_dir(&self, handle: &str) -> Result<PathBuf> {
+        Ok(self.project_workspace()?.join(handle))
     }
 }

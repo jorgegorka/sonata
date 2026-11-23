@@ -141,11 +141,15 @@ impl Store {
         self.get_project(id)
     }
     pub fn legacy_workspace(&self) -> Result<bool> {
-        Ok(self.conn.lock().unwrap().query_row(
-            "SELECT legacy_workspace FROM projects WHERE id = ?1",
-            [self.project_key()],
-            |r| r.get(0),
-        )?)
+        self.legacy_workspace_of(self.project_key())
+    }
+    pub fn legacy_workspace_of(&self, project_id: &str) -> Result<bool> {
+        self.conn
+            .lock()
+            .unwrap()
+            .query_row("SELECT legacy_workspace FROM projects WHERE id = ?1", [project_id], |r| r.get(0))
+            .optional()?
+            .ok_or_else(|| CoreError::from(crate::ProjectError::NotFound))
     }
     pub fn check_owner(&self, table: &str, id: &str) -> Result<()> {
         if let Some(project) = &self.project_id {
@@ -301,6 +305,8 @@ INSERT INTO settings VALUES ('setup_done','true'),('project_folder','/unavailabl
         assert_eq!(project.default_provider, Provider::Claude);
         assert_eq!(project.default_directory, None);
         assert_eq!(project.master_id, None);
+        assert!(store.legacy_workspace().unwrap());
+        assert!(matches!(store.legacy_workspace_of("missing"), Err(CoreError::Project(crate::ProjectError::NotFound))));
     }
 
     #[test]

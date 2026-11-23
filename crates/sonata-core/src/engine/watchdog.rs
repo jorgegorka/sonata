@@ -53,15 +53,15 @@ impl Engine {
                 _ => continue,
             }
             match self.background_work(&session_id, &cli).await {
-                Some(false) => {}
-                Some(true) => {
+                Ok(false) => {}
+                Ok(true) => {
                     let mut live = self.inner.live.lock().await;
                     if let Some(l) = live.get_mut(&session_id).filter(|l| idle_long_enough(l)) {
                         l.idle_since = Some(tokio::time::Instant::now());
                     }
                     continue;
                 }
-                None => continue,
+                Err(_) => continue,
             }
             let rt = {
                 let mut live = self.inner.live.lock().await;
