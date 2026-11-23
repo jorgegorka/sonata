@@ -2,11 +2,29 @@
 
 ## Unreleased
 
+## 1.0.3 — 2026-11-23
+
+Omarchy package for x86_64. The signed Apple Silicon download on the homepage
+remains 1.0.0. AppImage and DEB packages are still pending.
+
+### Features
+
 - Add projects with independent teams, boards, source directories, schedules, and workflows.
 - Inherit the project’s default AI provider when creating bots through the UI or `sbot`.
 - Add project selection, editing, archiving, and restoration while other projects continue working.
 - Migrate existing installations to **Default**, preserving history and workspace paths, with a database backup.
 - Scope configuration sharing to the selected project; keep skills shared and existing YAML files compatible.
+
+### Fixes
+
+- Archiving one project no longer pauses bots in the others while Sonata reads their terminals.
+- Creating a bot no longer uses a different folder when the project's workspace cannot be read.
+
+### Distribution
+
+- Arch package `sonata-x86_64.pkg.tar.zst` on the Omarchy GitHub release.
+  Install or upgrade it with `pacman -U`. Saved settings, bots, skills and history
+  stay in place. Quit Sonata before upgrading.
 
 ## 1.0.2 — 2026-11-22
 

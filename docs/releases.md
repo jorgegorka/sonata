@@ -132,7 +132,7 @@ previous site.
 Omarchy installs an Arch package named `sonata-$(uname -m).pkg.tar.zst`. Publish
 that file on a GitHub release whose tag does not match `v<version>`. A `v*` tag
 starts the desktop workflow above, which expects the Mac DMG and the Linux
-AppImage and DEB packages. The 1.0.2 Omarchy release uses the tag `omarchy-1.0.2`
+AppImage and DEB packages. The 1.0.3 Omarchy release uses the tag `omarchy-1.0.3`
 and ships `sonata-x86_64.pkg.tar.zst`.
 
 The homepage reads the latest GitHub release when Pages deploys. A release with
@@ -143,9 +143,9 @@ Build the package from a checkout with `pkg/PKGBUILD` (`SONATA_SRC` must point
 at the source tree), then upload the archive under the stable asset name:
 
 ```sh
-cp sonata-1.0.2-1-x86_64.pkg.tar.zst sonata-x86_64.pkg.tar.zst
-gh release create omarchy-1.0.2 sonata-x86_64.pkg.tar.zst \
-  --target master --title "Sonata 1.0.2" --notes-file /tmp/omarchy-notes.md
+cp sonata-1.0.3-1-x86_64.pkg.tar.zst sonata-x86_64.pkg.tar.zst
+gh release create omarchy-1.0.3 sonata-x86_64.pkg.tar.zst \
+  --target master --title "Sonata 1.0.3" --notes-file /tmp/omarchy-notes.md
 ```
 
 Quit Sonata before upgrading an existing install with `sudo pacman -U`.
