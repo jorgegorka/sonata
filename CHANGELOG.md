@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Update the About page attribution to Jorge Alvarez and https://alvareznavarro.es.
+
 ## 1.0.3 — 2026-11-23
 
 Signed and notarized Apple Silicon macOS DMG on the homepage, plus the Omarchy

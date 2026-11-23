@@ -391,7 +391,7 @@
   "about": {
     "logoAlt": "El logotipo de Sonata",
     "version": "Versión {{version}}",
-    "contributors": "Colaboradores de Sonata"
+    "contributors": "Jorge Alvarez - https://alvareznavarro.es"
   },
   "setup": {
     "title": "Bienvenido a Sonata",
