@@ -17,9 +17,10 @@ names = subprocess.check_output(["git", "ls-files", "-z"] if args.staged else
     ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"]).decode().split("\0")
 denied = re.compile(r"(?i)(^|/)(?:\.env(?:\..*)?|id_(?:rsa|ed25519|ecdsa).*|credentials(?:\..*)?|secrets?(?:\..*)?|\.npmrc|\.netrc|\.pypirc|\.mcp\.json|.*\.(?:pem|key|p8|p12|pfx|mobileprovision|provisionprofile|db(?:-[^/]*)?|sqlite3?(?:-[^/]*)?|log|har|dmg))$")
 failures = []
-# The user-approved public installer is pinned to the notarized artifact's digest.
+# User-approved public installers are pinned to the notarized artifacts' digests.
 public_artifacts = {
     "site/downloads/Sonata_1.0.0.dmg": "3eb221da36373f4adcec5b603285a2970c6c658b0421ae6bb8ba687fceb38044",
+    "site/downloads/Sonata_1.0.3.dmg": "36c9fa179563da256ea9513e73fba3e105013c9546c1a6017f0fcd0c45798866",
 }
 with tempfile.TemporaryDirectory(prefix="sonata-scan-") as temp:
     destination = Path(temp)

@@ -4,8 +4,8 @@
 
 ## 1.0.3 — 2026-11-23
 
-Omarchy package for x86_64. The signed Apple Silicon download on the homepage
-remains 1.0.0. AppImage and DEB packages are still pending.
+Signed and notarized Apple Silicon macOS DMG on the homepage, plus the Omarchy
+package for x86_64. AppImage and DEB packages are still pending.
 
 ### Features
 
@@ -22,6 +22,9 @@ remains 1.0.0. AppImage and DEB packages are still pending.
 
 ### Distribution
 
+- Signed and notarized Apple Silicon macOS DMG for 1.0.3, including configuration
+  sharing, completed-task restoration, and project support. Download it from the
+  homepage; quit Sonata before replacing the app. Saved data and settings stay in place.
 - Arch package `sonata-x86_64.pkg.tar.zst` on the Omarchy GitHub release.
   Install or upgrade it with `pacman -U`. Saved settings, bots, skills and history
   stay in place. Quit Sonata before upgrading.

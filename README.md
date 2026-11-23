@@ -6,7 +6,7 @@ name, instructions, model and skills. A built-in coordinator, **Master**, takes 
 delegates them to the right bots, checks their results and asks you before anything that needs
 your approval.
 
-> **Version:** 1.0.3. On Omarchy, install the x86_64 Arch package from the [1.0.3 release](https://github.com/jorgegorka/sonata/releases/latest). macOS uses the signed and notarized [Apple Silicon DMG](https://jorgegorka.github.io/sonata/downloads/Sonata_1.0.0.dmg) ([SHA-256 checksum](https://jorgegorka.github.io/sonata/downloads/SHA256SUMS)), version 1.0.0. AppImage and DEB packages are coming soon. See the [changelog](CHANGELOG.md) for release notes.
+> **Version:** 1.0.3. Download the signed and notarized [Apple Silicon DMG](https://jorgegorka.github.io/sonata/downloads/Sonata_1.0.3.dmg) ([SHA-256 checksum](https://jorgegorka.github.io/sonata/downloads/SHA256SUMS)). On Omarchy, install the x86_64 Arch package from the [1.0.3 release](https://github.com/jorgegorka/sonata/releases/tag/omarchy-1.0.3). AppImage and DEB packages are coming soon. See the [changelog](CHANGELOG.md) for release notes.
 
 > [!WARNING]
 > Bots work on their own. Each CLI runs in its autonomous mode (for example Claude Code with
@@ -185,7 +185,7 @@ provider with the account you signed in with.
 ## Installation
 
 Download the signed, notarized macOS DMG from
-[Sonata’s homepage](https://jorgegorka.github.io/sonata/). The 1.0.0 installer is stored in
+[Sonata’s homepage](https://jorgegorka.github.io/sonata/). The 1.0.3 installer is stored in
 `site/downloads/` and served by GitHub Pages. AppImage and DEB packages are pending. On
 Omarchy, install the 1.0.3 Arch package with the steps in [Omarchy](#omarchy). Elsewhere, use the
 source instructions below. Future automated desktop releases are published to
@@ -201,7 +201,7 @@ source instructions below. Future automated desktop releases are published to
   **herdr and sbot are included.**
 
 Once packages are published to GitHub Releases, the terminal installer below can install and
-update them. For the current Pages-hosted 1.0.0 release, use the DMG download above.
+update them. For the current Pages-hosted 1.0.3 release, use the DMG download above.
 
 ```sh
 curl -fsSL https://jorgegorka.github.io/sonata/install.sh | bash
@@ -224,7 +224,7 @@ DEB installations stay managed by the package manager.
 
 ```sh
 # Choose a stable release or a user-writable Mac destination.
-curl -fsSL https://jorgegorka.github.io/sonata/install.sh | bash -s -- --version 1.0.0
+curl -fsSL https://jorgegorka.github.io/sonata/install.sh | bash -s -- --version 1.0.3
 curl -fsSL https://jorgegorka.github.io/sonata/install.sh | bash -s -- --dest "$HOME/Applications/Sonata.app"
 ```
 
@@ -377,8 +377,8 @@ npm --prefix app run bundle
 npm --prefix app run dmg
 ```
 
-For 1.0.0, these create `target/release/bundle/macos/Sonata.app` and
-`target/release/bundle/dmg/Sonata_1.0.0.dmg`. Both commands sign, submit to Apple and staple the
+For 1.0.3, these create `target/release/bundle/macos/Sonata.app` and
+`target/release/bundle/dmg/Sonata_1.0.3.dmg`. Both commands sign, submit to Apple and staple the
 accepted notarization ticket when the required credentials are present.
 
 See [Releasing Sonata](docs/releases.md) for the exact credential variables, verification
@@ -427,9 +427,9 @@ and `app/app-icon.png`; refresh both copies when the app icon changes.
 
 To enable publishing, open the repository's **Settings → Pages** and select **GitHub Actions**
 as the source. The `Deploy homepage to GitHub Pages` workflow generates links for available platform packages in published releases and publishes `site/` whenever
-that folder or its workflow changes on `master`. It also runs after publishing releases and can be run manually from **Actions**. Without a release, the page links to source instructions and the releases list.
-Until a GitHub Release exists, deployment verifies the DMG in `site/downloads/` against its
-SHA-256 manifest and generates its download link instead.
+that folder or its workflow changes on `master`. It also runs after publishing releases and can be run manually from **Actions**.
+When the latest GitHub Release has no desktop packages, deployment verifies the DMG in
+`site/downloads/` against its SHA-256 manifest and generates its download link instead.
 Each deployment records the checked-out `master` commit and generated file checksums in
 `deployment.json`. After publishing, the workflow checks the public manifest, homepage,
 and every published file (including downloads). It retries for up to 12 minutes to allow
