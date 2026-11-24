@@ -1,12 +1,23 @@
 # Changelog
 
-## Unreleased
+## 1.0.6 — 2026-11-24
+
+Omarchy package for x86_64. The signed Apple Silicon download on the homepage
+remains 1.0.5. AppImage and DEB packages are still pending.
+
+### Features
 
 - Add optional first-run onboarding with job and frequent-task questions, AI-generated
   workflow cards, and review of each workflow's bots and skills before creation.
 - Save onboarding progress and support retrying interrupted creation without duplicates.
   Existing installations can open the same assistant from Settings → Personalize workflows.
 - Translate onboarding into English, Spanish, French, and German.
+
+### Distribution
+
+- Arch package `sonata-x86_64.pkg.tar.zst` on the Omarchy GitHub release.
+  Install or upgrade it with `pacman -U`. Saved settings, bots, skills and history
+  stay in place. Quit Sonata before upgrading.
 
 ## 1.0.5 — 2026-11-24
 
