@@ -1,0 +1,13 @@
+  /tmp/project                                           23K / 256K │ [Dashboard]
+
+     ◆ Task completed in 46s: Start 45s sleep then write completion marker
+
+     The background command finished successfully (exit code 0).
+
+     Worked for 5.3s
+
+  ╭────────────────────────────────────────────────────────────────────────────╮
+  │ ❯                                                                        │
+  ╰──────────────────────────────── Grok 4.7 (xhigh) · always-approve ─────────╯
+
+  Shift+Tab:mode │ Ctrl+x:shortcuts

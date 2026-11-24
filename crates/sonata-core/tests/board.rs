@@ -268,12 +268,17 @@ async fn a_glance_reads_a_codex_screen_only_for_its_dialog() {
 }
 
 #[tokio::test]
-async fn a_glance_reads_a_grok_screen_only_while_it_works() {
+async fn a_glance_reads_grok_background_work_while_idle() {
     let h = harness();
     let session = delivered_on(&h, Provider::Grok).await;
     assert!(reads_screen(&h, &session).await, "grok names its step");
     finish_turn(&h, "w1:p1").await;
-    assert!(!reads_screen(&h, &session).await, "grok's screen shows no background work");
+    h.rt.state().screen = include_str!("fixtures/screens/grok-background.txt").into();
+    let glance = only(glances(&h, &session).await);
+    assert!(glance.background_work);
+    assert_eq!(glance.step, None);
+    h.rt.state().screen.clear();
+    assert!(!only(glances(&h, &session).await).background_work);
 }
 
 #[tokio::test]

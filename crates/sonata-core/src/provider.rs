@@ -355,6 +355,14 @@ impl ProviderAdapter for GrokAdapter {
         Some(TrustPrompt::Key { question: GROK_TRUST_QUESTION, key: "y" })
     }
 
+    fn background_work(&self, screen: &str) -> bool {
+        grok_background_work(screen)
+    }
+
+    fn reads_background_work(&self) -> bool {
+        true
+    }
+
     fn current_step(&self, screen: &str) -> Option<String> {
         grok_step(screen)
     }
@@ -362,6 +370,70 @@ impl ProviderAdapter for GrokAdapter {
     fn reads_step(&self) -> bool {
         true
     }
+}
+
+fn grok_background_work(screen: &str) -> bool {
+    let lines: Vec<&str> = screen.lines().map(str::trim).filter(|line| !line.is_empty()).collect();
+    // Grok's older UI pins an animated background count in its first header row.
+    let header: Vec<&str> = lines.first().map(|line| line.split_whitespace().collect()).unwrap_or_default();
+    if header.windows(3).any(|parts| {
+        matches!(parts[0], "⋅" | ":" | "⸬" | "⁙" | "." | "·") && positive_count(parts[1]) && parts[2] == "│"
+    }) {
+        return true;
+    }
+    // Since Grok 1.0.34, the status sits immediately above the composer. Do not
+    // treat mentions in the conversation (or old status lines) as current work.
+    let Some(top) = lines.iter().rposition(|line| line.starts_with("╭─")) else {
+        return false;
+    };
+    // Newer Grok versions put active rows in a Tasks/Subagents dock here.
+    // Completed rows can remain visible, so the group count alone is not enough
+    // unless the group is collapsed and its individual states are hidden.
+    let mut running_row = false;
+    for line in lines[..top].iter().rev() {
+        if let Some(group) = line.strip_prefix("▾ ").or_else(|| line.strip_prefix("▸ ")) {
+            let mut words = group.split_whitespace();
+            if words.next().is_some_and(|name| matches!(name, "Tasks" | "Subagents" | "Monitors" | "Loops"))
+                && words.next().is_some_and(positive_count)
+                && words.next().is_none()
+            {
+                if running_row || line.starts_with('▸') {
+                    return true;
+                }
+                continue;
+            }
+        }
+        if line.strip_prefix(['⋅', ':', '⸬', '⁙', '.', '·']).is_some_and(|rest| rest.starts_with(' ')) {
+            running_row = true;
+        } else if !line.strip_prefix(['✓', '✗']).is_some_and(|rest| rest.starts_with(' ')) {
+            break;
+        }
+    }
+    let Some(line) = top.checked_sub(1).map(|at| lines[at]) else {
+        return false;
+    };
+    let Some(status) = line.strip_prefix(['○', '◎', '◉']).and_then(|rest| rest.strip_prefix(' ')) else {
+        return false;
+    };
+    let status = status.strip_suffix(" · send a message to interrupt").unwrap_or(status);
+    let Some(counts) = status.strip_suffix(" still running") else {
+        return false;
+    };
+    counts.split('·').all(|part| {
+        let mut words = part.split_whitespace();
+        words.next().is_some_and(positive_count)
+            && words.next().is_some_and(|kind| {
+                matches!(
+                    kind,
+                    "command" | "commands" | "monitor" | "monitors" | "loop" | "loops" | "subagent" | "subagents"
+                )
+            })
+            && words.next().is_none()
+    })
+}
+
+fn positive_count(text: &str) -> bool {
+    text.starts_with(|c: char| ('1'..='9').contains(&c)) && text.bytes().all(|byte| byte.is_ascii_digit())
 }
 
 fn grok_step(screen: &str) -> Option<String> {
@@ -648,7 +720,7 @@ mod tests {
         let reads = |a: &dyn ProviderAdapter| (a.reads_step(), a.reads_background_work());
         assert_eq!(reads(&ClaudeAdapter), (true, true));
         assert_eq!(reads(&CodexAdapter), (false, true));
-        assert_eq!(reads(&GrokAdapter), (true, false));
+        assert_eq!(reads(&GrokAdapter), (true, true));
         assert_eq!(reads(&OpencodeAdapter), (false, true));
     }
 
@@ -716,9 +788,91 @@ mod tests {
     }
 
     #[test]
-    fn grok_never_reports_background_work() {
-        let screen = claude_screen("", "  ⏵⏵ bypass permissions on · 1 shell");
-        assert!(!GrokAdapter.background_work(&screen));
+    fn grok_reads_active_background_counts_above_its_composer() {
+        for marker in ['○', '◎', '◉'] {
+            for counts in [
+                "1 command",
+                "2 commands",
+                "1 monitor",
+                "3 monitors",
+                "1 loop",
+                "2 loops",
+                "1 subagent",
+                "12 subagents",
+                "2 commands · 1 monitor · 3 loops · 4 subagents",
+            ] {
+                for suffix in ["", " · send a message to interrupt"] {
+                    let screen = grok_screen(&format!("{marker} {counts} still running{suffix}"));
+                    assert!(GrokAdapter.background_work(&screen), "{screen}");
+                }
+            }
+        }
+    }
+
+    fn grok_screen(status: &str) -> String {
+        format!("  /tmp/project                  23K / 256K │ [Dashboard]\n\n{status}\n\n  ╭─────────╮\n  │ ❯       │\n  ╰─────────╯\n  Shift+Tab:mode │ Ctrl+x:shortcuts\n")
+    }
+
+    #[test]
+    fn grok_reads_the_older_header_count() {
+        for marker in ['⋅', ':', '⸬', '⁙', '.', '·'] {
+            let screen = grok_screen("").replacen("23K / 256K │", &format!("23K / 256K {marker} 12 │"), 1);
+            assert!(GrokAdapter.background_work(&screen), "{screen}");
+        }
+    }
+
+    #[test]
+    fn grok_reads_active_dock_rows_without_counting_completed_rows() {
+        assert!(GrokAdapter.background_work(include_str!("../tests/fixtures/screens/grok-background.txt")));
+        assert!(!GrokAdapter.background_work(include_str!("../tests/fixtures/screens/grok-background-done.txt")));
+        for marker in ['⋅', ':', '⸬', '⁙', '.', '·'] {
+            for group in ["Tasks", "Subagents", "Monitors", "Loops"] {
+                assert!(GrokAdapter.background_work(&grok_screen(&format!(
+                    "▾ {group} 2\n{marker} Run check 10s\n✓ Finished check 2s"
+                ))));
+                assert!(
+                    GrokAdapter.background_work(&grok_screen(&format!("▸ {group} 1"))),
+                    "hidden rows must not be stopped"
+                );
+            }
+        }
+        for dock in [
+            "▾ Tasks 2\n✓ Finished check 2s\n✗ Failed check 3s",
+            "▸ Tasks 0",
+            "⋅ Run check 10s",
+            "▾ Tasks 1\nConversation text\n⋅ Run check 10s",
+            "❯ ▸ Tasks 1",
+            "▾ Tasks 1\n✓ Finished check 2s\nAll done.",
+        ] {
+            assert!(!GrokAdapter.background_work(&grok_screen(dock)), "{dock}");
+        }
+    }
+
+    #[test]
+    fn grok_ignores_finished_jobs_and_conversation_text() {
+        for status in [
+            "",
+            "○ 0 commands still running",
+            "○ 1 command finished",
+            "○ 2 commands completed",
+            "○ 1 command still running yesterday",
+            "I started 2 commands still running",
+            "❯ ○ 2 commands still running",
+            "○ 1 command · 0 subagents still running",
+            "○ -1 commands still running",
+            "○ 1 commands · still running",
+            "○ 1 unknown still running",
+        ] {
+            let screen = grok_screen(status);
+            assert!(!GrokAdapter.background_work(&screen), "{screen}");
+        }
+        let old_status = grok_screen("○ 2 commands still running\nAll done.");
+        assert!(!GrokAdapter.background_work(&old_status));
+        assert!(!GrokAdapter.background_work("○ 2 commands still running"));
+        assert!(!GrokAdapter.background_work(&grok_screen("").replace("23K / 256K │", "23K / 256K · 0 │")));
+        assert!(!GrokAdapter.background_work(&grok_screen("The old header was · 2 │ [Dashboard]")));
+        assert!(!GrokAdapter.background_work(&claude_screen("", "  ⏵⏵ bypass permissions on · 1 shell")));
+        assert!(!GrokAdapter.background_work(include_str!("../tests/fixtures/screens/grok-working.txt")));
     }
 
     const CODEX: [&str; 4] =

@@ -292,23 +292,28 @@ async fn workflows_and_shared_skill_import_previews_respect_project_ownership() 
 
 #[tokio::test]
 async fn archive_does_not_interrupt_background_work_in_an_idle_session() {
-    let h = harness();
-    let dir = tempfile::tempdir().unwrap();
-    let project = h.engine.create_project(input("Background", dir.path(), Provider::Claude)).unwrap();
-    let engine = h.engine.for_project(&project.id).unwrap();
-    let master = engine.master_bot().unwrap().unwrap();
-    engine.queue_user_message(&master.id, "Run checks").unwrap();
-    engine.pump(&master.id).await;
-    let session = engine.sessions_of(&master.id).unwrap().remove(0);
-    let pane = pane(&h, &session);
-    assert!(h.engine.handle_bridge(reply(&pane, "Checks are running.")).await.ok);
-    h.rt.state().screen = CLAUDE_SHELL_RUNNING.into();
-    finish_turn(&h, &pane).await;
-    assert!(h.engine.archive_project(&project.id).await.is_err());
-    assert!(h.rt.state().stopped.is_empty());
-    h.rt.state().screen = CLAUDE_NOTHING_RUNNING.into();
-    h.engine.archive_project(&project.id).await.unwrap();
-    assert_eq!(h.rt.state().stopped.len(), 1);
+    for (provider, screen) in [
+        (Provider::Claude, CLAUDE_SHELL_RUNNING),
+        (Provider::Grok, include_str!("fixtures/screens/grok-background.txt")),
+    ] {
+        let h = harness();
+        let dir = tempfile::tempdir().unwrap();
+        let project = h.engine.create_project(input("Background", dir.path(), provider)).unwrap();
+        let engine = h.engine.for_project(&project.id).unwrap();
+        let master = engine.master_bot().unwrap().unwrap();
+        engine.queue_user_message(&master.id, "Run checks").unwrap();
+        engine.pump(&master.id).await;
+        let session = engine.sessions_of(&master.id).unwrap().remove(0);
+        let pane = pane(&h, &session);
+        assert!(h.engine.handle_bridge(reply(&pane, "Checks are running.")).await.ok);
+        h.rt.state().screen = screen.into();
+        finish_turn(&h, &pane).await;
+        assert!(h.engine.archive_project(&project.id).await.is_err());
+        assert!(h.rt.state().stopped.is_empty());
+        h.rt.state().screen.clear();
+        h.engine.archive_project(&project.id).await.unwrap();
+        assert_eq!(h.rt.state().stopped.len(), 1);
+    }
 }
 
 #[tokio::test]

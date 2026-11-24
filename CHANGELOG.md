@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.5 — 2026-11-24
+
+Signed and notarized Apple Silicon macOS DMG on the homepage. The Omarchy
+package remains 1.0.3; AppImage and DEB packages are still pending.
+
+- Keep Grok sessions open while background commands, monitors, loops or subagents
+  are running, even when herdr reports the prompt as idle. Restore normal
+  30-minute idle cleanup after the background work finishes.
+- Show Grok background work on its card and prevent project archiving from
+  interrupting it.
+
 ## 1.0.4 — 2026-11-24
 
 Signed and notarized Apple Silicon macOS DMG on the homepage. The Omarchy

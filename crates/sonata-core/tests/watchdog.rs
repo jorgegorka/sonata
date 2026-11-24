@@ -236,15 +236,26 @@ async fn an_idle_session_whose_screen_cannot_be_read_is_not_stopped() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_grok_session_keeps_the_plain_idle_stop() {
+async fn grok_background_work_keeps_an_idle_session_and_restarts_its_clock() {
     let h = harness();
     let bot = h.engine.create_bot(NewBot { provider: Provider::Grok, ..claude_bot("Scout") }).unwrap();
     h.engine.queue_user_message(&bot.id, "hello").unwrap();
     h.engine.pump(&bot.id).await;
     assert!(h.engine.handle_bridge(reply("w1:p1", "hi")).await.ok);
     finish_turn(&h, "w1:p1").await;
-    h.rt.state().screen = CLAUDE_SHELL_RUNNING.into();
-    tokio::time::sleep(Duration::from_secs(31 * 60)).await;
+    h.rt.state().screen = include_str!("fixtures/screens/grok-background.txt").into();
+    for _ in 0..2 {
+        tokio::time::sleep(Duration::from_secs(31 * 60)).await;
+        h.engine.watchdog_tick().await;
+        assert!(h.rt.state().stopped.is_empty());
+        assert_eq!(status_of(&h, &bot.id).await, BotStatus::Idle);
+    }
+    h.rt.state().screen = include_str!("fixtures/screens/grok-background-done.txt").into();
+    tokio::time::sleep(Duration::from_secs(29 * 60)).await;
+    h.engine.watchdog_tick().await;
+    assert!(h.rt.state().stopped.is_empty());
+    tokio::time::sleep(Duration::from_secs(2 * 60)).await;
     h.engine.watchdog_tick().await;
     assert_eq!(h.rt.state().stopped, vec!["w1:p1".to_string()]);
+    assert_eq!(status_of(&h, &bot.id).await, BotStatus::Offline);
 }

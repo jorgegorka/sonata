@@ -5,7 +5,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use sonata_core::engine::{Engine, EngineConfig};
 use sonata_core::model::*;
 use sonata_core::paths::AppPaths;
-use sonata_core::provider::{ClaudeAdapter, CodexAdapter, ProviderAdapter};
+use sonata_core::provider::{ClaudeAdapter, CodexAdapter, GrokAdapter, ProviderAdapter};
 use sonata_core::runtime::herdr::HerdrRuntime;
 use sonata_core::runtime::{BotRuntime, Inspection, LaunchSpec, RuntimeBot, RuntimeError, RuntimeEvent, RuntimeHealth};
 use sonata_core::store::Store;
@@ -622,6 +622,61 @@ async fn answers_and_resumes_with(provider: Provider, check_resume: bool, wrap: 
 #[ignore = "needs herdr and a logged-in grok; run with --ignored"]
 async fn grok_bot_answers_and_resumes_after_restart() {
     answers_and_resumes(Provider::Grok, true).await;
+}
+
+#[tokio::test]
+#[ignore = "needs herdr and a logged-in grok; run with --ignored"]
+async fn grok_idle_background_work_is_detected_until_the_command_finishes() {
+    assert!(std::env::var_os("SONATA_HERDR_BIN").is_some(), "set SONATA_HERDR_BIN to the pinned herdr");
+    let bin = herdr_client::find_herdr_bin().expect("herdr installed");
+    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().subsec_nanos();
+    let session = format!("sonata-bg-{}-{nanos}", std::process::id());
+    let _cleanup = Cleanup { bin: bin.clone(), session: session.clone() };
+    let tmp = tempfile::tempdir().unwrap();
+    let runtime = HerdrRuntime::new(bin, &session);
+    let bot = runtime
+        .start_bot(&LaunchSpec {
+            handle: "background-check".into(),
+            agent: "grok".into(),
+            label: "Grok background check".into(),
+            kind: "grok".into(),
+            cwd: tmp.path().to_path_buf(),
+            args: vec!["--always-approve".into()],
+            env: Default::default(),
+            path_prefix: sbot_dir(),
+            trust: GrokAdapter.trust_prompt(),
+            sign_in: None,
+        })
+        .await
+        .unwrap();
+    runtime.prompt(&bot, "Start `sleep 45; printf done > background-complete` as a Grok-managed background shell command, using your background execution option, not shell '&' or nohup. Return immediately once started. Do not wait for it, poll it, or cancel it. No other commands.").await.unwrap();
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(180);
+    let mut saw_idle_background = false;
+    let mut finished = false;
+    let mut last_screen = String::new();
+    let mut checks = 0;
+    while tokio::time::Instant::now() < deadline {
+        last_screen = runtime.snapshot(&bot, 80).await.unwrap();
+        let idle = runtime.inspect(&bot).await.unwrap().state == sonata_core::runtime::AgentState::Idle;
+        let background = GrokAdapter.background_work(&last_screen);
+        if checks % 10 == 0 {
+            println!("Grok background check (idle={idle}, background={background}):\n{last_screen}");
+        }
+        checks += 1;
+        if idle && background && !saw_idle_background {
+            println!("Grok idle with background work:\n{last_screen}");
+            saw_idle_background = true;
+        }
+        if saw_idle_background && idle && !background && tmp.path().join("background-complete").exists() {
+            println!("Grok idle after background work:\n{last_screen}");
+            finished = true;
+            break;
+        }
+        tokio::time::sleep(Duration::from_secs(1)).await;
+    }
+    runtime.shutdown().await;
+    assert!(saw_idle_background, "never detected Grok's idle background work:\n{last_screen}");
+    assert!(finished, "background command did not finish and clear its indicator:\n{last_screen}");
 }
 
 #[tokio::test]
