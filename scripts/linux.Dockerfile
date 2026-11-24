@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=node /usr/local/ /usr/local/
 ENV CARGO_HOME=/opt/cargo RUSTUP_HOME=/opt/rustup
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain "$RUST_VERSION"
-RUN useradd --create-home --uid 1000 sonata && mkdir -p /work && chown -R sonata:sonata /work /opt/cargo /opt/rustup
+RUN useradd --create-home --uid 1000 --shell /bin/bash sonata && mkdir -p /work && chown -R sonata:sonata /work /opt/cargo /opt/rustup
 COPY linux-container.sh /usr/local/bin/sonata-validate
 ENV PATH="/opt/cargo/bin:${PATH}"
 ENV CARGO_BUILD_JOBS=2

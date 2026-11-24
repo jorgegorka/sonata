@@ -4,7 +4,7 @@ root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 . "$root/scripts/herdr-runtime.sh"
 triple="${1:-$(rustc -vV | sed -n 's/^host: //p')}"
 herdr_target "$triple"
-runtime="${SONATA_HERDR_BIN:-$root/.tools/herdr/$triple/herdr}"
+runtime="${SONATA_HERDR_BIN:-$root/.tools/herdr/$HERDR_VERSION/$triple/herdr}"
 if [ ! -f "$runtime" ]; then
   [ -z "${SONATA_HERDR_BIN:-}" ] || { echo "SONATA_HERDR_BIN does not exist: $runtime" >&2; exit 1; }
   mkdir -p "$(dirname "$runtime")"

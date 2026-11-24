@@ -76,7 +76,7 @@ async fn a_bot_folder_that_links_elsewhere_is_refused() {
 #[tokio::test]
 async fn the_runtime_health_comes_from_the_runtime() {
     let h = harness();
-    assert_eq!(h.engine.runtime_health().await.unwrap().version, "0.9.3");
+    assert_eq!(h.engine.runtime_health().await.unwrap().version, "0.9.5");
     h.rt.state().health = Err(RuntimeError::Other("herdr 0.8.0 speaks protocol 19".into()));
     assert!(h.engine.runtime_health().await.is_err());
 }

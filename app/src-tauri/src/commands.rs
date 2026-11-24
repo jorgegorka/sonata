@@ -1159,7 +1159,7 @@ with tickets",
     async fn the_herdr_status_carries_the_runtimes_answer() {
         let (engine, rt, _tmp) = setup();
         let ok = herdr_status(&engine, Path::new("/app/herdr")).await;
-        assert_eq!((ok.version.as_deref(), ok.error), (Some("0.9.3"), None));
+        assert_eq!((ok.version.as_deref(), ok.error), (Some("0.9.5"), None));
         rt.state().health = Err(sonata_core::runtime::RuntimeError::Other("herdr 0.8.0 speaks protocol 19".into()));
         let failed = herdr_status(&engine, Path::new("/app/herdr")).await;
         assert_eq!((failed.path.as_str(), failed.version), ("/app/herdr", None));

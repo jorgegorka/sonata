@@ -56,7 +56,7 @@ impl FakeRuntime {
         let (tx, _) = broadcast::channel(256);
         Arc::new(Self {
             state: Mutex::new(FakeState {
-                health: Ok(RuntimeHealth { version: "0.9.3".into(), protocol: herdr_client::PINNED_PROTOCOL }),
+                health: Ok(RuntimeHealth { version: "0.9.5".into(), protocol: herdr_client::PINNED_PROTOCOL }),
                 starts: vec![],
                 prompts: vec![],
                 keys: vec![],

@@ -21,6 +21,7 @@ failures = []
 public_artifacts = {
     "site/downloads/Sonata_1.0.0.dmg": "3eb221da36373f4adcec5b603285a2970c6c658b0421ae6bb8ba687fceb38044",
     "site/downloads/Sonata_1.0.3.dmg": "36c9fa179563da256ea9513e73fba3e105013c9546c1a6017f0fcd0c45798866",
+    "site/downloads/Sonata_1.0.4.dmg": "1e80b869e9003f825cf268b7b1b42b919cae25b609133f40f72cb764687d53a9",
 }
 with tempfile.TemporaryDirectory(prefix="sonata-scan-") as temp:
     destination = Path(temp)

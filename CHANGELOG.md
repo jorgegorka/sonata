@@ -1,7 +1,14 @@
 # Changelog
 
-## Unreleased
+## 1.0.4 — 2026-11-24
 
+Signed and notarized Apple Silicon macOS DMG on the homepage. The Omarchy
+package remains 1.0.3; AppImage and DEB packages are still pending.
+
+- Upgrade bundled herdr to 0.9.5 for lower headless-pane memory use, more efficient
+  terminal reads, improved agent-state detection, and server reliability fixes.
+- Cache development runtimes by version so upgrades download the new pinned binary
+  without conflicting with an older cached copy.
 - Update the About page attribution to Jorge Alvarez and https://alvareznavarro.es.
 
 ## 1.0.3 — 2026-11-23

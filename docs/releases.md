@@ -6,15 +6,15 @@ Debian 12, or a compatible system with WebKitGTK 4.1. There is no headless editi
 
 ## Release hosting
 
-### Repository-hosted 1.0.3 download
+### Repository-hosted 1.0.4 download
 
-The notarized Apple Silicon DMG is tracked as `site/downloads/Sonata_1.0.3.dmg`
+The notarized Apple Silicon DMG is tracked as `site/downloads/Sonata_1.0.4.dmg`
 and served by GitHub Pages. Its `SHA256SUMS` and `version.txt` are stored beside it.
 When the latest GitHub Release has no desktop packages, Pages verifies that checksum and renders the local
 download link. The terminal installer targets GitHub Releases and is not advertised
 for this repository-hosted download.
 
-The previous 1.0.0 DMG remains available at its original URL. The secret scanner
+The previous 1.0.0 and 1.0.3 DMGs remain available at their original URLs. The secret scanner
 allows only these exact DMG paths and digests; other archives and private files
 remain excluded. A new repository-hosted installer requires updating
 that pin after signing, notarization and verification. Prefer GitHub Release assets
@@ -71,7 +71,7 @@ codesign --verify --deep --strict target/release/bundle/macos/Sonata.app
 xcrun stapler validate target/release/bundle/macos/Sonata.app
 spctl --assess --type execute target/release/bundle/macos/Sonata.app
 npm --prefix app run dmg
-xcrun stapler validate target/release/bundle/dmg/Sonata_1.0.3.dmg
+xcrun stapler validate target/release/bundle/dmg/Sonata_1.0.4.dmg
 ```
 
 Replace the DMG version for later releases. A signed artifact is ready to distribute
@@ -137,7 +137,7 @@ AppImage and DEB packages. The 1.0.3 Omarchy release uses the tag `omarchy-1.0.3
 and ships `sonata-x86_64.pkg.tar.zst`.
 
 The homepage reads the latest GitHub release when Pages deploys. A release with
-no desktop packages leaves the repository-hosted 1.0.3 DMG in place. A desktop
+no desktop packages leaves the repository-hosted 1.0.4 DMG in place. A desktop
 release that is missing part of a platform still fails that deploy.
 
 Build the package from a checkout with `pkg/PKGBUILD` (`SONATA_SRC` must point
@@ -206,3 +206,10 @@ per-target checksums. Update every supported target together and run the real
 herdr-client tests on each platform. Sidecar preparation respects the build target;
 Linux runtime helpers are resources, while Mac helpers are signed app sidecars.
 Changing installation code does not migrate application databases.
+
+Downloaded runtimes are cached in `.tools/herdr/<version>/<target>/herdr`.
+Setup keeps `.tools/herdr/herdr` pointing to the selected runtime; old caches can
+coexist with a new version. An explicit `SONATA_HERDR_BIN` must match the selected
+target's pinned checksum and is never overwritten by the downloader.
+Mac and Linux checks run the Rust workspace with the verified runtime so live
+socket and runtime lifecycle tests execute. Paid provider tests remain opt-in.

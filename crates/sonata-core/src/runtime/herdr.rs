@@ -602,7 +602,7 @@ mod tests {
         let _cleanup = Cleanup { bin: bin.clone(), session: session.clone() };
         let rt = HerdrRuntime::new(bin, session);
         let health = rt.health().await.unwrap();
-        assert!(health.version.contains("0.9.3"), "{health:?}");
+        assert_eq!(health.version, "0.9.5", "{health:?}");
         assert_eq!(health.protocol, PINNED_PROTOCOL);
         rt.shutdown().await;
     }

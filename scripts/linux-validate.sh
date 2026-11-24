@@ -6,9 +6,8 @@ python3 scripts/release.py check-version
 python3 -m unittest discover -s scripts/tests -v
 npm --prefix app ci --engine-strict
 npm --prefix app test
-cargo test --locked --workspace
 runtime="$(sh scripts/fetch-herdr.sh)"
-SONATA_HERDR_BIN="$runtime" cargo test --locked -p herdr-client --test live
+SONATA_HERDR_BIN="$runtime" cargo test --locked --workspace
 if [ "${1:-}" = --package ]; then
   npm --prefix app run bundle:unsigned
   arch="$(uname -m)"
