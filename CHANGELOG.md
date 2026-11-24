@@ -2,14 +2,23 @@
 
 ## 1.0.5 — 2026-11-24
 
-Signed and notarized Apple Silicon macOS DMG on the homepage. The Omarchy
-package remains 1.0.3; AppImage and DEB packages are still pending.
+Signed and notarized Apple Silicon macOS DMG on the homepage, plus the Omarchy
+package for x86_64. AppImage and DEB packages are still pending.
 
 - Keep Grok sessions open while background commands, monitors, loops or subagents
   are running, even when herdr reports the prompt as idle. Restore normal
   30-minute idle cleanup after the background work finishes.
 - Show Grok background work on its card and prevent project archiving from
   interrupting it.
+
+### Distribution
+
+- Signed and notarized Apple Silicon macOS DMG for 1.0.5. Download it from the
+  homepage; quit Sonata before replacing the app. Saved data and settings stay in place.
+- Arch package `sonata-x86_64.pkg.tar.zst` on the Omarchy GitHub release.
+  Install or upgrade it with `pacman -U`. Saved settings, bots, skills and history
+  stay in place. Quit Sonata before upgrading. This package also includes the
+  herdr 0.9.5 runtime from 1.0.4.
 
 ## 1.0.4 — 2026-11-24
 
