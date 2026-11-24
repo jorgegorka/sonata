@@ -378,6 +378,7 @@ export interface AppSettings {
   logs_dir: string;
   bots_exist: boolean;
   setup_done: boolean;
+  onboarding_pending: boolean;
   language: string;
   language_resolved: string;
   language_system: string;
@@ -491,10 +492,59 @@ export interface WorkflowImportPreview {
 export type WorkflowImportOutcome =
   { outcome: "changed" | "blocked"; preview: WorkflowImportPreview } | { outcome: "done"; report: ImportReport };
 
+export interface OnboardingProfile { job: string; tasks: string }
+export interface OnboardingProgress {
+  profile: OnboardingProfile;
+  stage: "profile" | "workspace" | "suggestions" | "ready";
+  project: ProjectInput | null;
+  selected: string[];
+  skip: boolean;
+}
+export interface OnboardingBot {
+  handle: string; name: string; color: string; provider: Provider;
+  model: string | null; checkout: boolean; master: boolean; skills: string[]; instructions: string;
+}
+export interface OnboardingSkill {
+  slug: string; name: string; description: string;
+  files: { path: string; text?: string; executable?: boolean; base64?: string }[];
+}
+export interface OnboardingWorkflow {
+  name: string; when_to_use: string;
+  definition: { version: number; start: string | null; steps: {
+    id: string; name: string; bot: string | null; instructions: string;
+    arrows: { to: string; outcome: string | null }[];
+  }[] };
+}
+export interface OnboardingConfig {
+  bots: OnboardingBot[]; skills: OnboardingSkill[]; workflows: OnboardingWorkflow[];
+}
+export interface OnboardingProposal extends Omit<OnboardingConfig, "workflows"> {
+  workflows: (OnboardingWorkflow & { expected_output: string; requirements: string[] })[];
+}
+export interface OnboardingState {
+  progress: OnboardingProgress;
+  status: "idle" | "generating" | "ready" | "applying" | "partial" | "complete" | "failed" | "cancelled";
+  generation: string | null; session_id: string | null; message_id: string | null;
+  proposal: OnboardingProposal | null; bundle: OnboardingConfig | null;
+  error: { code: string; params?: Record<string, string> } | null;
+}
+export interface OnboardingCreated { kind: "skill" | "bot" | "workflow"; id: string; name: string }
+export interface OnboardingPreview {
+  token: string; selected: string[]; config: OnboardingConfig; created: OnboardingCreated[];
+}
+export interface OnboardingApplyResult { state: OnboardingState; created: OnboardingCreated[]; changed: boolean }
+
 export function projectApi(projectId?: string) {
   const invoke = <T>(command: string, args?: Record<string, unknown>): Promise<T> =>
     tauriInvoke<T>(command, { ...(projectId ? { projectId } : {}), ...args });
   return {
+  getOnboarding: () => invoke<OnboardingState>("get_onboarding"),
+  saveOnboarding: (progress: OnboardingProgress) => invoke<OnboardingState>("save_onboarding", { progress }),
+  generateOnboarding: () => invoke<OnboardingState>("generate_onboarding"),
+  cancelOnboarding: () => invoke<OnboardingState>("cancel_onboarding"),
+  previewOnboarding: (selected: string[]) => invoke<OnboardingPreview>("preview_onboarding", { selected }),
+  applyOnboarding: (selected: string[], token: string) => invoke<OnboardingApplyResult>("apply_onboarding", { selected, token }),
+  finishOnboarding: () => invoke<void>("finish_onboarding"),
   listProjects: () => invoke<Project[]>("list_projects"),
   createProject: (input: ProjectInput) => invoke<Project>("create_project", { input }),
   updateProject: (projectId: string, input: ProjectInput) => invoke<Project>("update_project", { projectId, input }),

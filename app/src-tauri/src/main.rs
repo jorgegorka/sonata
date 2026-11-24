@@ -22,6 +22,7 @@ use std::time::Duration;
 use commands::{AppSettings, CommandError, CreateBotInput, HerdrStatus};
 use sonata_core::detect::{self, ProviderStatus};
 use sonata_core::engine::{Engine, EngineConfig, ExportSummary, ImportMode, ImportOutcome, ImportPreview, UiEvent};
+use sonata_core::engine::{OnboardingApplyResult, OnboardingPreview, OnboardingProgress, OnboardingState};
 use sonata_core::engine::{WorkflowFileEntry, WorkflowImportOutcome, WorkflowImportPreview, WorkflowImportRequest};
 use sonata_core::model::{
     Bot, BotView, Glance, Message, NewSkill, NewTask, NewWorkflow, Project, ProjectInput, Provider, RunView,
@@ -109,6 +110,59 @@ fn restore_project(engine: State<'_, Engine>, project_id: String) -> Result<Proj
 #[tauri::command]
 fn finish_project_setup(engine: State<'_, Engine>, input: ProjectInput) -> Result<Project, CommandError> {
     Ok(engine.finish_project_setup(input)?)
+}
+
+#[tauri::command]
+fn get_onboarding(engine: State<'_, Engine>, project_id: Option<String>) -> Result<OnboardingState, CommandError> {
+    Ok(engine.request_project(project_id.as_deref(), &[])?.onboarding_state()?)
+}
+#[tauri::command]
+fn save_onboarding(
+    engine: State<'_, Engine>,
+    project_id: Option<String>,
+    progress: OnboardingProgress,
+) -> Result<OnboardingState, CommandError> {
+    Ok(engine.request_project(project_id.as_deref(), &[])?.save_onboarding(progress)?)
+}
+#[tauri::command]
+async fn generate_onboarding(
+    engine: State<'_, Engine>,
+    project_id: Option<String>,
+) -> Result<OnboardingState, CommandError> {
+    let engine = engine.request_project(project_id.as_deref(), &[])?;
+    let state = engine.start_onboarding()?;
+    if let Some(session) = &state.session_id {
+        tokio::spawn(engine.pump_session(session));
+    }
+    Ok(state)
+}
+#[tauri::command]
+async fn cancel_onboarding(
+    engine: State<'_, Engine>,
+    project_id: Option<String>,
+) -> Result<OnboardingState, CommandError> {
+    Ok(engine.request_project(project_id.as_deref(), &[])?.cancel_onboarding().await?)
+}
+#[tauri::command]
+fn preview_onboarding(
+    engine: State<'_, Engine>,
+    project_id: Option<String>,
+    selected: Vec<String>,
+) -> Result<OnboardingPreview, CommandError> {
+    Ok(engine.request_project(project_id.as_deref(), &[])?.preview_onboarding(selected)?)
+}
+#[tauri::command]
+fn apply_onboarding(
+    engine: State<'_, Engine>,
+    project_id: Option<String>,
+    selected: Vec<String>,
+    token: String,
+) -> Result<OnboardingApplyResult, CommandError> {
+    Ok(engine.request_project(project_id.as_deref(), &[])?.apply_onboarding(selected, &token)?)
+}
+#[tauri::command]
+async fn finish_onboarding(engine: State<'_, Engine>, project_id: Option<String>) -> Result<(), CommandError> {
+    Ok(engine.request_project(project_id.as_deref(), &[])?.finish_onboarding().await?)
 }
 
 #[tauri::command]
@@ -977,6 +1031,13 @@ fn main() {
             archive_project,
             restore_project,
             finish_project_setup,
+            get_onboarding,
+            save_onboarding,
+            generate_onboarding,
+            cancel_onboarding,
+            preview_onboarding,
+            apply_onboarding,
+            finish_onboarding,
             list_bots,
             create_bot,
             list_tasks,

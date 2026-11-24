@@ -21,6 +21,11 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    #[command(about = "Submit a structured onboarding proposal for review")]
+    Onboarding {
+        #[command(subcommand)]
+        command: OnboardingCommand,
+    },
     #[command(about = "Reply to whoever sent the message you are working on. The text comes from stdin")]
     Reply {
         #[arg(help = "Attach a file; repeat for several")]
@@ -98,6 +103,15 @@ enum Command {
     Skill {
         #[command(subcommand)]
         command: SkillCommand,
+    },
+}
+
+#[derive(Subcommand)]
+enum OnboardingCommand {
+    #[command(about = "Submit proposal JSON from stdin; creates no workflows, bots or skills")]
+    Propose {
+        #[arg(long)]
+        generation: String,
     },
 }
 
@@ -317,6 +331,9 @@ fn run(cli: Cli) -> Result<String, String> {
     let socket =
         std::env::var("SBOT_SOCKET").map_err(|_| "Sonata is not running (SBOT_SOCKET is not set)".to_string())?;
     let command = match cli.command {
+        Command::Onboarding { command: OnboardingCommand::Propose { generation } } => {
+            BridgeCommand::OnboardingPropose { generation, body: read_body()? }
+        }
         Command::Reply { files } => BridgeCommand::Reply { files: absolute(files)?, body: read_body()? },
         Command::Send { to, files } => BridgeCommand::Send { to, files: absolute(files)?, body: read_body()? },
         Command::Bots => BridgeCommand::Bots,
@@ -568,6 +585,15 @@ mod tests {
     use super::{bot_command, cli_session_id_from, format_bot_detail, format_skills, Cli, Command};
     use bridge_proto::{BotDetail, BridgeCommand, SkillSummary};
     use clap::Parser;
+
+    #[test]
+    fn onboarding_proposals_require_an_explicit_generation_id() {
+        let cli = Cli::try_parse_from(["sbot", "onboarding", "propose", "--generation", "generation-1"]).unwrap();
+        assert!(matches!(cli.command, Command::Onboarding {
+            command: super::OnboardingCommand::Propose { generation }
+        } if generation == "generation-1"));
+        assert!(Cli::try_parse_from(["sbot", "onboarding", "propose"]).is_err());
+    }
 
     fn bot_request(args: &[&str]) -> BridgeCommand {
         let cli = Cli::try_parse_from(std::iter::once("sbot").chain(args.iter().copied())).unwrap();

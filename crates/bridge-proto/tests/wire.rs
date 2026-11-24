@@ -2,6 +2,21 @@ use bridge_proto::*;
 use serde_json::json;
 
 #[test]
+fn onboarding_proposal_keeps_generation_and_json_body_separate() {
+    let body = json!({"workflows": [{"name": "Research\nreport"}]}).to_string();
+    let request = BridgeRequest {
+        v: PROTOCOL_VERSION,
+        pane_id: "w1:p2".into(),
+        cli_session_id: None,
+        command: BridgeCommand::OnboardingPropose { generation: "g1".into(), body: body.clone() },
+    };
+    let value = serde_json::to_value(&request).unwrap();
+    assert_eq!(value["cmd"], "onboarding_propose");
+    assert_eq!(value["body"], body);
+    assert_eq!(serde_json::from_value::<BridgeRequest>(value).unwrap(), request);
+}
+
+#[test]
 fn reply_request_matches_spec_json() {
     let req = BridgeRequest {
         v: PROTOCOL_VERSION,

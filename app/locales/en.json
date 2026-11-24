@@ -386,7 +386,8 @@
     "master_changed_bot": "Changed @{{handle}}'s instructions or skills.",
     "usage_limit_wait": "@{{handle}} hit the {{provider}} usage limit. It continues after {{time}}.",
     "usage_limit_retry": "@{{handle}} hit the {{provider}} usage limit. It will try again in {{minutes}} minutes.",
-    "workflow_finished": "{{name}} finished at step {{step}}"
+    "workflow_finished": "{{name}} finished at step {{step}}",
+    "onboarding_ready": "Your workflow suggestions are ready to review in onboarding."
   },
   "about": {
     "logoAlt": "The Sonata logo",
@@ -721,7 +722,11 @@
     "projectMismatch": "This item belongs to another project.",
     "projectActiveWork": "Finish or stop active bot work before archiving this project.",
     "projectQueuedWork": "Finish or stop queued work and unfinished workflows before archiving this project.",
-    "projectBackgroundWork": "Finish background work before archiving. If its status is unavailable, stop the bot first."
+    "projectBackgroundWork": "Finish background work before archiving. If its status is unavailable, stop the bot first.",
+    "onboardingGenerationFailed": "Generation ended without a valid proposal. Check your AI tool and try again. Your answers are saved.",
+    "onboardingInterrupted": "Creation was interrupted. Review the saved selection and retry to finish it.",
+    "onboardingChanged": "The proposal or its dependencies changed. Review the refreshed selection before creating it.",
+    "onboardingRuntime": "The bot engine is unavailable: {{error}}"
   },
   "linux": {
     "skills": {
@@ -771,5 +776,55 @@
     "sharedSkills": "Skills are shared across projects. Replacing a skill also affects bots using it in other projects.",
     "export": "Export project",
     "import": "Import into project"
+  },
+  "onboarding": {
+    "steps": "Getting started",
+    "step": {
+      "profile": "Your work",
+      "workspace": "Workspace",
+      "suggestions": "Workflows",
+      "ready": "Ready"
+    },
+    "title": {
+      "profile": "Make Sonata work for you",
+      "workspace": "Choose where you work",
+      "suggestions": "Build your starting team",
+      "ready": "Your workflows are ready"
+    },
+    "intro": "Tell us a little about your work. Master will suggest workflows, bots, and skills to help with your regular tasks.",
+    "job": "What do you do?",
+    "jobExample": "For example: software developer, marketing manager, administrator, researcher",
+    "tasks": "Which tasks do you perform most often?",
+    "tasksExample": "For example: review code, prepare weekly reports, draft campaigns, or compare research. Mention any tools or inputs you use.",
+    "privacy": "Your answers are saved on this computer and sent to your configured AI provider when you generate suggestions.",
+    "next": "Continue",
+    "back": "Back",
+    "skip": "Skip personalization",
+    "advanced": "Advanced workspace settings",
+    "folderHint": "Name this project and choose the folder where you keep its work, such as documents or source code. Master and your new bots use the selected AI provider.",
+    "suggestionsIntro": "Choose the workflows you want to create. Review their steps, bots, and skills before adding them to this project.",
+    "generating": "Master is preparing suggestions for your work…",
+    "cancel": "Cancel generation",
+    "generate": "Suggest workflows",
+    "retry": "Try again",
+    "provider": "Master uses {{provider}}.",
+    "providerNeeded": "Install and sign in to the selected AI tool, then check again. You can also skip and return from Settings.",
+    "output": "Expected output:",
+    "requirements": "You will need:",
+    "resources": "{{bots}} bots · {{skills}} skills",
+    "details": "Review instructions and skills",
+    "binaryFile": "Binary file in an existing skill",
+    "selection": "Selected: {{workflows}} workflows, using {{bots}} bots and {{skills}} skills. Existing resources are reused.",
+    "create": "Create selected workflows",
+    "creating": "Creating your workflows…",
+    "retryCreation": "Retry remaining creation",
+    "partial": "{{count}} resources were created before creation stopped. Retry to finish the remaining work, or skip to continue with what was created.",
+    "edit": "Edit answers and regenerate",
+    "ready": "Your selected workflows and their bots and skills are available in this project.",
+    "manualRun": "Nothing has been run or scheduled. Open a workflow when you are ready to give it a task.",
+    "openWorkflows": "Open workflows",
+    "personalize": "Personalize workflows",
+    "returnHint": "Describe your work to get tailored workflow suggestions for this project. You can resume an unfinished setup here.",
+    "loading": "Loading your setup…"
   }
 }

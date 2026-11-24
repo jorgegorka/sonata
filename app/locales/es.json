@@ -386,7 +386,8 @@
     "master_changed_bot": "Cambiadas las instrucciones o habilidades de @{{handle}}.",
     "usage_limit_wait": "@{{handle}} alcanzó el límite de uso de {{provider}}. Seguirá después de las {{time}}.",
     "usage_limit_retry": "@{{handle}} alcanzó el límite de uso de {{provider}}. Lo intentará de nuevo en {{minutes}} minutos.",
-    "workflow_finished": "{{name}} terminó en el paso {{step}}"
+    "workflow_finished": "{{name}} terminó en el paso {{step}}",
+    "onboarding_ready": "Las sugerencias de flujos están listas para revisar en la configuración inicial."
   },
   "about": {
     "logoAlt": "El logotipo de Sonata",
@@ -721,7 +722,11 @@
     "projectMismatch": "Este elemento pertenece a otro proyecto.",
     "projectActiveWork": "Finaliza o detén el trabajo activo de los bots antes de archivar.",
     "projectQueuedWork": "Finaliza o detén el trabajo en cola y los flujos pendientes antes de archivar.",
-    "projectBackgroundWork": "Finaliza el trabajo en segundo plano antes de archivar. Si no se conoce su estado, detén primero el bot."
+    "projectBackgroundWork": "Finaliza el trabajo en segundo plano antes de archivar. Si no se conoce su estado, detén primero el bot.",
+    "onboardingGenerationFailed": "La generación terminó sin una propuesta válida. Comprueba la herramienta de IA y reintenta. Tus respuestas están guardadas.",
+    "onboardingInterrupted": "La creación se interrumpió. Revisa la selección guardada y reintenta para terminar.",
+    "onboardingChanged": "La propuesta o sus dependencias han cambiado. Revisa la selección actualizada antes de crearla.",
+    "onboardingRuntime": "El motor de bots no está disponible: {{error}}"
   },
   "linux": {
     "skills": {
@@ -771,5 +776,55 @@
     "sharedSkills": "Las habilidades se comparten entre proyectos. Reemplazar una habilidad también afecta a los bots que la usan en otros proyectos.",
     "export": "Exportar proyecto",
     "import": "Importar en el proyecto"
+  },
+  "onboarding": {
+    "steps": "Primeros pasos",
+    "step": {
+      "profile": "Tu trabajo",
+      "workspace": "Espacio de trabajo",
+      "suggestions": "Flujos",
+      "ready": "Listo"
+    },
+    "title": {
+      "profile": "Adapta Sonata a tu trabajo",
+      "workspace": "Elige dónde trabajas",
+      "suggestions": "Crea tu equipo inicial",
+      "ready": "Tus flujos están listos"
+    },
+    "intro": "Cuéntanos un poco sobre tu trabajo. Master sugerirá flujos, bots y habilidades para ayudarte con tus tareas habituales.",
+    "job": "¿A qué te dedicas?",
+    "jobExample": "Por ejemplo: desarrollo de software, marketing, administración, investigación",
+    "tasks": "¿Qué tareas realizas con más frecuencia?",
+    "tasksExample": "Por ejemplo: revisar código, preparar informes semanales, redactar campañas o comparar investigaciones. Menciona las herramientas o los documentos que utilizas.",
+    "privacy": "Tus respuestas se guardan en este ordenador y se envían al proveedor de IA configurado cuando generas sugerencias.",
+    "next": "Continuar",
+    "back": "Atrás",
+    "skip": "Omitir personalización",
+    "advanced": "Ajustes avanzados del espacio de trabajo",
+    "folderHint": "Pon nombre al proyecto y elige la carpeta donde guardas su trabajo, como documentos o código fuente. Master y los nuevos bots usarán el proveedor de IA seleccionado.",
+    "suggestionsIntro": "Elige los flujos que quieres crear. Revisa sus pasos, bots y habilidades antes de añadirlos al proyecto.",
+    "generating": "Master está preparando sugerencias para tu trabajo…",
+    "cancel": "Cancelar generación",
+    "generate": "Sugerir flujos",
+    "retry": "Reintentar",
+    "provider": "Master usa {{provider}}.",
+    "providerNeeded": "Instala la herramienta de IA seleccionada e inicia sesión; después vuelve a comprobar. También puedes omitir este paso y volver desde Ajustes.",
+    "output": "Resultado esperado:",
+    "requirements": "Necesitarás:",
+    "resources": "{{bots}} bots · {{skills}} habilidades",
+    "details": "Revisar instrucciones y habilidades",
+    "binaryFile": "Archivo binario de una habilidad existente",
+    "selection": "Seleccionados: {{workflows}} flujos, con {{bots}} bots y {{skills}} habilidades. Se reutilizan los recursos existentes.",
+    "create": "Crear flujos seleccionados",
+    "creating": "Creando tus flujos…",
+    "retryCreation": "Reintentar la creación pendiente",
+    "partial": "Se crearon {{count}} recursos antes de que se detuviera la creación. Reintenta para terminar o continúa con lo que ya se ha creado.",
+    "edit": "Editar respuestas y regenerar",
+    "ready": "Los flujos seleccionados y sus bots y habilidades están disponibles en este proyecto.",
+    "manualRun": "No se ha ejecutado ni programado nada. Abre un flujo cuando quieras asignarle una tarea.",
+    "openWorkflows": "Abrir flujos",
+    "personalize": "Personalizar flujos",
+    "returnHint": "Describe tu trabajo para recibir sugerencias de flujos para este proyecto. Aquí puedes retomar una configuración incompleta.",
+    "loading": "Cargando tu configuración…"
   }
 }

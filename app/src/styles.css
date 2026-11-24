@@ -391,3 +391,32 @@ body.resizing { cursor: col-resize; user-select: none; }
 }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+/* First-run and optional project personalization share the same guided page. */
+.onboarding { width: min(100%, 900px); margin: 0 auto; padding: 32px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
+.onboarding h1, .onboarding h3, .onboarding p { margin: 0; }
+.onboarding h1:focus { outline: none; }
+.onboarding-eyebrow { color: var(--muted); font-size: 13px; }
+.onboarding-steps { list-style: none; padding: 0; margin: 0 0 8px; display: flex; gap: 16px; flex-wrap: wrap; }
+.onboarding-steps li { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+.onboarding-steps li[aria-current] { color: var(--text); font-weight: 600; }
+.onboarding-steps span { width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 50%; }
+.onboarding-steps li[aria-current] span { border-color: var(--accent); }
+.onboarding form, .onboarding .embedded { display: flex; flex-direction: column; gap: 14px; }
+.onboarding .embedded { padding: 0; max-width: none; overflow: visible; }
+.onboarding label:not(.check) { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
+.onboarding textarea { min-height: 110px; resize: vertical; }
+.onboarding .actions { flex-wrap: wrap; }
+.onboarding-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; }
+.onboarding-card { border: 1px solid var(--border); border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.onboarding-card:has(input:checked) { border-color: var(--accent); }
+.onboarding-card ol { padding-left: 20px; margin: 0; }
+.onboarding summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+.onboarding details section { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.onboarding pre, .onboarding-instructions { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; }
+.onboarding-progress { padding: 20px; border: 1px solid var(--border); border-radius: 8px; }
+@media (max-width: 600px) { .onboarding { padding: 20px 16px; } .onboarding-steps { gap: 8px; } }
+.onboarding-overview { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.onboarding-requirements { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.onboarding-card details { margin-top: auto; }
+.onboarding-card details[open] { margin-top: 0; }

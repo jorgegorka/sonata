@@ -3,7 +3,7 @@ import { useProjectApi } from "../projectContext";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
-import { type AppSettings, type Provider, type ProviderStatus } from "../api";
+import { type AppSettings, type Provider, type ProviderStatus, type ProjectInput } from "../api";
 import HerdrCheck from "./HerdrCheck";
 import ProviderChecks from "./ProviderChecks";
 
@@ -12,16 +12,20 @@ interface Props {
   onCheckProviders: () => void;
   onError: (error: unknown) => void;
   onDone: () => void;
+  initialProject?: ProjectInput | null;
+  onProjectChange?: (project: ProjectInput) => void;
+  embedded?: boolean;
 }
 
-export default function SetupView({ providers, onCheckProviders, onError, onDone }: Props) {
+export default function SetupView({ providers, onCheckProviders, onError, onDone, initialProject, onProjectChange, embedded }: Props) {
   const api = useProjectApi();
   const { t } = useTranslation();
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [checkout, setCheckout] = useState<string | null>(null);
-  const [name, setName] = useState("Default");
-  const [provider, setProvider] = useState<Provider>("claude");
+  const [checkout, setCheckout] = useState<string | null>(initialProject?.default_directory ?? null);
+  const [name, setName] = useState(initialProject?.name ?? "Default");
+  const [provider, setProvider] = useState<Provider>(initialProject?.default_provider ?? providers?.find(p => p.path && p.logged_in !== false)?.provider ?? "claude");
   const [busy, setBusy] = useState(false);
+  useEffect(() => { onProjectChange?.({ name, default_directory: checkout, default_provider: provider }); }, [name, checkout, provider, onProjectChange]);
 
   useEffect(() => {
     api.getSettings().then(setSettings).catch(onError);
@@ -60,14 +64,14 @@ export default function SetupView({ providers, onCheckProviders, onError, onDone
   }
 
   return (
-    <div className="setup">
-      <h1>{t("setup.title")}</h1>
-      <p>{t("setup.intro")}</p>
+    <div className={embedded ? "setup embedded" : "setup"}>
+      {!embedded && <><h1>{t("setup.title")}</h1><p>{t("setup.intro")}</p></>}
       <section>
         <h2>{t("setup.safetyTitle")}</h2>
         <p>{t("setup.safety")}</p>
       </section>
-      <section>
+      <details>
+        <summary>{t("onboarding.advanced")}</summary>
         <h2>{t("setup.folderTitle")}</h2>
         <p className="muted">{t("setup.folderHint")}</p>
         <p className="path">{settings?.bots_root}</p>
@@ -76,20 +80,20 @@ export default function SetupView({ providers, onCheckProviders, onError, onDone
             <p className="muted">{t("setup.folderLocked")}</p>
           ) : (
             <div>
-              <button onClick={() => void chooseFolder()}>{t("setup.changeFolder")}</button>
+              <button disabled={busy} onClick={() => void chooseFolder()}>{t("setup.changeFolder")}</button>
             </div>
           ))}
-      </section>
+      </details>
       <section>
         <h2>{t("setup.projectTitle")}</h2>
-        <label>{t("projects.name")}<input value={name} onChange={(e) => setName(e.target.value)} required /></label>
-        <label>{t("projects.provider")}<select value={provider} onChange={(e) => setProvider(e.target.value as Provider)}>
+        <label>{t("projects.name")}<input disabled={busy} value={name} onChange={(e) => setName(e.target.value)} required /></label>
+        <label>{t("projects.provider")}<select disabled={busy} value={provider} onChange={(e) => setProvider(e.target.value as Provider)}>
           {PROVIDERS.map((p) => <option key={p} value={p}>{t(`providers.${p}`)}</option>)}
         </select></label>
-        <p className="muted">{t("setup.projectHint")}</p>
+        <p className="muted">{t(embedded ? "onboarding.folderHint" : "setup.projectHint")}</p>
         <p className="path">{checkout ?? t("setup.projectNone")}</p>
         <div>
-          <button onClick={() => void chooseCheckout()}>{t("setup.chooseCheckout")}</button>
+          <button disabled={busy} onClick={() => void chooseCheckout()}>{t("setup.chooseCheckout")}</button>
         </div>
       </section>
       <section>
@@ -100,7 +104,7 @@ export default function SetupView({ providers, onCheckProviders, onError, onDone
       </section>
       <div className="actions">
         <button className="primary" disabled={busy || !name.trim() || !checkout} onClick={() => void finish()}>
-          {t("setup.finish")}
+          {t(embedded ? "onboarding.next" : "setup.finish")}
         </button>
       </div>
     </div>

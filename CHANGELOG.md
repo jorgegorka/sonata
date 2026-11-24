@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Add optional first-run onboarding with job and frequent-task questions, AI-generated
+  workflow cards, and review of each workflow's bots and skills before creation.
+- Save onboarding progress and support retrying interrupted creation without duplicates.
+  Existing installations can open the same assistant from Settings → Personalize workflows.
+- Translate onboarding into English, Spanish, French, and German.
+
 ## 1.0.5 — 2026-11-24
 
 Signed and notarized Apple Silicon macOS DMG on the homepage, plus the Omarchy

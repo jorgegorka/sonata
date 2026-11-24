@@ -126,7 +126,26 @@ impl Engine {
         if let Some(cli_id) = &req.cli_session_id {
             self.fill_session_id_from_sbot(&req.pane_id, cli_id).await;
         }
+        if let Some((caller, _)) = self.caller(&req.pane_id).await {
+            if self.is_onboarding_session(&caller.session_id).unwrap_or(true)
+                && !matches!(
+                    &req.command,
+                    BridgeCommand::Bots
+                        | BridgeCommand::Skills
+                        | BridgeCommand::BotShow { .. }
+                        | BridgeCommand::Workflows
+                        | BridgeCommand::WorkflowShow { .. }
+                        | BridgeCommand::Reply { .. }
+                        | BridgeCommand::OnboardingPropose { .. }
+                )
+            {
+                return refuse(ErrorCode::NotAllowed, "Onboarding only discovers resources and submits proposals. The user creates their selections in the app.");
+            }
+        }
         let response = match req.command {
+            BridgeCommand::OnboardingPropose { generation, body } => {
+                self.bridge_onboarding_propose(&req.pane_id, &generation, &body).await
+            }
             BridgeCommand::Reply { body, files } => self.bridge_reply(&req.pane_id, body, files).await,
             BridgeCommand::Send { to, body, files } => self.bridge_send(&req.pane_id, &to, body, files).await,
             BridgeCommand::Bots => self.bridge_bots(&req.pane_id).await,

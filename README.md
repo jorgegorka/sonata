@@ -17,6 +17,8 @@ your approval.
 
 ## Features
 
+- **Guided setup** — describe your job and regular tasks, then choose tailored workflows with
+  the bots and skills they need. Skip and return from Settings at any time.
 - **Master** — a coordinator bot that discovers your bots, skills and workflows, routes requests,
   verifies results and proposes new bots and skills for you to approve.
 - **Bots** — each with a handle, color, provider, model, instructions and skills, working in its
@@ -37,6 +39,36 @@ your approval.
 - **Archive, import and export** — archive and restore sessions; save your bots, skills and
   workflows to a file and load them on another computer.
 - English, Spanish, German and French interface. Bots write to you in your language.
+
+## Getting started
+
+On a new installation, Sonata guides you through setting up your first project:
+
+1. Answer **What do you do?** and **Which tasks do you perform most often?** Any profession
+   is welcome; describe the work you want help with and the tools or inputs you use.
+2. Name your project, choose its work folder, and select an AI provider. The folder can
+   contain documents, source code, or other project materials. Install and sign in to the
+   selected provider's CLI before requesting suggestions; use **Check again** after signing in.
+3. Click **Suggest workflows**. Master prepares up to three workflow cards. Review their
+   steps, expected outputs, and required inputs or tools. Expand **Review instructions and
+   skills** to inspect the instructions for each step, bot, and skill. Use **Edit answers and
+   regenerate** if you want different suggestions.
+4. Select the cards you want and click **Create selected workflows**. Sonata adds the selected
+   workflows and the bots and skills they need, reusing suitable existing resources. Click
+   **Open workflows** to give one a task when you are ready. Creation does not run workflows
+   or enable schedules.
+
+Your answers and unfinished proposals are saved locally for each project. Your answers are
+sent to your configured AI provider when you request suggestions. New bots use the project's
+default provider, and skills join the library shared across projects. Existing bots, workflows,
+and skills are preserved.
+
+Choose **Skip personalization** to continue with basic workspace setup and return later through
+**Settings → Personalize workflows**. Existing installations keep their normal startup and can
+open personalization from Settings for any active project. If generation fails, choose **Try
+again**. If creation stops partway through, Sonata lists what was created; **Retry remaining
+creation** finishes the remaining work without duplicates. If you have edited or removed a
+resource from that proposal, generate a fresh proposal so your changes are preserved.
 
 ## Projects
 

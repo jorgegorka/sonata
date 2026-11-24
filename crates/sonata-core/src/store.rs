@@ -169,6 +169,7 @@ ALTER TABLE messages ADD COLUMN workflow_mark TEXT;
     ),
     Migration::Sql("ALTER TABLE messages ADD COLUMN workflow_request INTEGER NOT NULL DEFAULT 0;"),
     Migration::Code(projects::migrate),
+    Migration::Sql("INSERT INTO settings (key, value) VALUES ('onboarding_pending', CASE WHEN EXISTS (SELECT 1 FROM settings WHERE key = 'setup_done' AND value = 'true') THEN 'false' ELSE 'true' END);"),
 ];
 
 fn sessions_from_bots(conn: &Connection) -> rusqlite::Result<()> {
@@ -2145,6 +2146,28 @@ impl Store {
         Ok(Routed { message, session, created: true })
     }
 
+    /// Queue the generation and persist its authority and recovery state together.
+    pub fn insert_onboarding_request(
+        &self,
+        id: &str,
+        m: &NewMessage,
+        key: &str,
+        mut state: serde_json::Value,
+    ) -> Result<Routed> {
+        self.check_owner("bots", &m.recipient)?;
+        let mut conn = self.conn.lock().unwrap();
+        let tx = conn.transaction()?;
+        let session = create_session_conn(&tx, &m.recipient, Some("Personalize workflows"), None)?;
+        let message =
+            insert_message_conn(&tx, id, &NewMessage { recipient_session: Some(session.id.clone()), ..m.clone() })?;
+        state["session_id"] = serde_json::json!(session.id);
+        state["message_id"] = serde_json::json!(message.id);
+        set_setting_conn(&tx, key, &serde_json::to_string(&state)?)?;
+        set_setting_conn(&tx, &format!("onboarding.session.{}", session.id), "true")?;
+        tx.commit()?;
+        Ok(Routed { message, session, created: true })
+    }
+
     pub fn retry_interrupted(&self, id: &str, copy: &NewMessage) -> Result<Option<(Message, Message)>> {
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
@@ -2316,6 +2339,15 @@ impl Store {
         Ok(())
     }
 
+    pub fn turn_has_ended(&self, id: &str) -> Result<bool> {
+        self.check_owner("messages", id)?;
+        Ok(self.conn.lock().unwrap().query_row(
+            "SELECT turn_ended_at IS NOT NULL FROM messages WHERE id = ?1",
+            [id],
+            |r| r.get(0),
+        )?)
+    }
+
     pub fn mark_delivered(&self, id: &str) -> Result<Option<Message>> {
         let conn = self.conn.lock().unwrap();
         let changed = conn.execute(
@@ -2477,6 +2509,22 @@ mod tests {
             migration.apply(conn).unwrap();
         }
         conn.pragma_update(None, "user_version", n as i64).unwrap();
+    }
+
+    #[test]
+    fn onboarding_is_automatic_only_for_installations_without_completed_setup() {
+        for (setup, expected) in [(true, "false"), (false, "true")] {
+            let tmp = tempfile::tempdir().unwrap();
+            let path = tmp.path().join("previous.sqlite");
+            let conn = Connection::open(&path).unwrap();
+            apply_first(&conn, MIGRATIONS.len() - 1);
+            if setup {
+                set_setting_conn(&conn, "setup_done", "true").unwrap();
+            }
+            drop(conn);
+            let store = Store::open(&path).unwrap();
+            assert_eq!(store.get_setting("onboarding_pending").unwrap().as_deref(), Some(expected));
+        }
     }
 
     fn session(s: &Store, bot: &Bot) -> Session {

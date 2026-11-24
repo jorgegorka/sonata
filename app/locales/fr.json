@@ -386,7 +386,8 @@
     "master_changed_bot": "Instructions ou compétences de @{{handle}} modifiées.",
     "usage_limit_wait": "@{{handle}} a atteint la limite d'utilisation de {{provider}}. Il reprendra après {{time}}.",
     "usage_limit_retry": "@{{handle}} a atteint la limite d'utilisation de {{provider}}. Il réessaiera dans {{minutes}} minutes.",
-    "workflow_finished": "{{name}} s'est terminé à l'étape {{step}}"
+    "workflow_finished": "{{name}} s'est terminé à l'étape {{step}}",
+    "onboarding_ready": "Vos suggestions de workflows sont prêtes à être consultées dans l’assistant."
   },
   "about": {
     "logoAlt": "Le logo de Sonata",
@@ -721,7 +722,11 @@
     "projectMismatch": "Cet élément appartient à un autre projet.",
     "projectActiveWork": "Terminez ou arrêtez le travail actif des bots avant d’archiver.",
     "projectQueuedWork": "Terminez ou arrêtez le travail en attente et les workflows inachevés avant d’archiver.",
-    "projectBackgroundWork": "Terminez le travail en arrière-plan avant d’archiver. Si son état est indisponible, arrêtez d’abord le bot."
+    "projectBackgroundWork": "Terminez le travail en arrière-plan avant d’archiver. Si son état est indisponible, arrêtez d’abord le bot.",
+    "onboardingGenerationFailed": "La génération s’est terminée sans proposition valide. Vérifiez votre outil d’IA et réessayez. Vos réponses sont enregistrées.",
+    "onboardingInterrupted": "La création a été interrompue. Vérifiez la sélection enregistrée et réessayez pour terminer.",
+    "onboardingChanged": "La proposition ou ses dépendances ont changé. Vérifiez la sélection actualisée avant de la créer.",
+    "onboardingRuntime": "Le moteur de bots est indisponible : {{error}}"
   },
   "linux": {
     "skills": {
@@ -771,5 +776,55 @@
     "sharedSkills": "Les compétences sont partagées entre projets. Remplacer une compétence affecte aussi les bots qui l’utilisent dans d’autres projets.",
     "export": "Exporter le projet",
     "import": "Importer dans le projet"
+  },
+  "onboarding": {
+    "steps": "Premiers pas",
+    "step": {
+      "profile": "Votre travail",
+      "workspace": "Espace de travail",
+      "suggestions": "Workflows",
+      "ready": "Prêt"
+    },
+    "title": {
+      "profile": "Adaptez Sonata à votre travail",
+      "workspace": "Choisissez où travailler",
+      "suggestions": "Créez votre première équipe",
+      "ready": "Vos workflows sont prêts"
+    },
+    "intro": "Décrivez brièvement votre travail. Master vous proposera des workflows, des bots et des compétences pour vos tâches habituelles.",
+    "job": "Quel est votre métier ?",
+    "jobExample": "Par exemple : développement logiciel, marketing, administration, recherche",
+    "tasks": "Quelles tâches effectuez-vous le plus souvent ?",
+    "tasksExample": "Par exemple : relire du code, préparer des rapports hebdomadaires, rédiger des campagnes ou comparer des recherches. Mentionnez les outils et documents utilisés.",
+    "privacy": "Vos réponses sont enregistrées sur cet ordinateur et envoyées au fournisseur d’IA configuré lorsque vous générez des suggestions.",
+    "next": "Continuer",
+    "back": "Retour",
+    "skip": "Passer la personnalisation",
+    "advanced": "Réglages avancés de l’espace de travail",
+    "folderHint": "Nommez ce projet et choisissez le dossier contenant ses documents ou son code source. Master et les nouveaux bots utiliseront le fournisseur d’IA sélectionné.",
+    "suggestionsIntro": "Choisissez les workflows à créer. Consultez leurs étapes, bots et compétences avant de les ajouter au projet.",
+    "generating": "Master prépare des suggestions pour votre travail…",
+    "cancel": "Annuler la génération",
+    "generate": "Suggérer des workflows",
+    "retry": "Réessayer",
+    "provider": "Master utilise {{provider}}.",
+    "providerNeeded": "Installez l’outil d’IA sélectionné et connectez-vous, puis vérifiez à nouveau. Vous pouvez aussi passer cette étape et revenir depuis les réglages.",
+    "output": "Résultat attendu :",
+    "requirements": "Il vous faudra :",
+    "resources": "{{bots}} bots · {{skills}} compétences",
+    "details": "Consulter les instructions et compétences",
+    "binaryFile": "Fichier binaire d’une compétence existante",
+    "selection": "Sélection : {{workflows}} workflows, utilisant {{bots}} bots et {{skills}} compétences. Les ressources existantes sont réutilisées.",
+    "create": "Créer les workflows sélectionnés",
+    "creating": "Création de vos workflows…",
+    "retryCreation": "Reprendre la création",
+    "partial": "{{count}} ressources ont été créées avant l’arrêt. Réessayez pour terminer ou continuez avec les ressources déjà créées.",
+    "edit": "Modifier les réponses et régénérer",
+    "ready": "Les workflows sélectionnés, leurs bots et leurs compétences sont disponibles dans ce projet.",
+    "manualRun": "Rien n’a été exécuté ni planifié. Ouvrez un workflow quand vous souhaitez lui confier une tâche.",
+    "openWorkflows": "Ouvrir les workflows",
+    "personalize": "Personnaliser les workflows",
+    "returnHint": "Décrivez votre travail pour obtenir des suggestions adaptées à ce projet. Vous pouvez reprendre ici une configuration inachevée.",
+    "loading": "Chargement de votre configuration…"
   }
 }

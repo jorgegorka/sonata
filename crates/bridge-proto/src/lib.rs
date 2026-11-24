@@ -15,6 +15,10 @@ pub struct BridgeRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "cmd", rename_all = "snake_case")]
 pub enum BridgeCommand {
+    OnboardingPropose {
+        generation: String,
+        body: String,
+    },
     Reply {
         body: String,
         #[serde(default)]

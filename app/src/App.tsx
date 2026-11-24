@@ -24,7 +24,7 @@ import BotForm from "./components/BotForm";
 import Rail from "./components/Rail";
 import SettingsPage, { type SettingsTab } from "./components/SettingsPage";
 import SettingsView from "./components/SettingsView";
-import SetupView from "./components/SetupView";
+import OnboardingView from "./components/OnboardingView";
 import SkillForm from "./components/SkillForm";
 import SkillsView from "./components/SkillsView";
 import TaskDrawer, { HandoffList } from "./components/TaskDrawer";
@@ -73,6 +73,7 @@ type Page =
   | { kind: "new" }
   | { kind: "settings"; tab: SettingsTab }
   | { kind: "about" }
+  | { kind: "onboarding" }
   | { kind: "edit"; id: string }
   | { kind: "archive" }
   | { kind: "workflows" }
@@ -114,6 +115,8 @@ export default function App() {
   const [allWorkflows, setWorkflows] = useState<Workflow[]>([]);
   const tasks = allTasks.filter((task) => task.project_id === projectId);
   const workflows = allWorkflows.filter((workflow) => workflow.project_id === projectId);
+  const initialProjectApi = useMemo(() => projectApi("default"), []);
+  const [onboardingPending, setOnboardingPending] = useState(false);
   const [setupDone, setSetupDone] = useState<boolean | null>(null);
   const [providers, setProviders] = useState<ProviderStatus[] | null>(null);
   const tRef = useRef(t);
@@ -313,6 +316,7 @@ export default function App() {
       .then(async (settings) => {
         await i18n.changeLanguage(settings.language_resolved);
         setSetupDone(settings.setup_done);
+        setOnboardingPending(settings.onboarding_pending === true);
       })
       .catch(fail);
     void refreshProjects();
@@ -367,22 +371,18 @@ export default function App() {
     </div>
   );
   if (setupDone === null) return <main className="main">{banner}</main>;
-  if (!setupDone) {
+  if (!setupDone || onboardingPending) {
     return (
-      <main className="main setup-page">
-        {banner}
-        <SetupView
-          providers={providers}
-          onCheckProviders={checkProviders}
-          onError={fail}
-          onDone={() => {
-            setSetupDone(true);
-            void refreshProjects("default");
-            refreshSkills();
-            loadBots(false);
-          }}
-        />
-      </main>
+      <ProjectApiContext.Provider value={initialProjectApi}>
+        <main className="main setup-page">{banner}
+          <OnboardingView firstRun providers={providers} onCheckProviders={checkProviders}
+            onDone={(showWorkflows) => {
+              setSetupDone(true); setOnboardingPending(false);
+              void refreshProjects("default").then(() => loadBots(false)).then(() => setPage({ kind: showWorkflows ? "workflows" : "board" }));
+              refreshSkills(); refreshWorkflows();
+            }} />
+        </main>
+      </ProjectApiContext.Provider>
     );
   }
 
@@ -600,6 +600,12 @@ export default function App() {
             <ProjectsView key={page?.kind === "projects" ? String(page.adding) : "empty"} projects={projects ?? []} adding={page?.kind === "projects" && page.adding}
               onError={fail} onClose={() => navigate({ kind: "board" })}
               onChanged={(selected) => { void refreshProjects(projectRef.current === projectId ? selected : undefined); void loadBots(true); refreshTasks(); refreshWorkflows(); refreshSkills(); }} />
+          ) : page?.kind === "onboarding" ? (
+            <OnboardingView firstRun={false} providers={providers} onCheckProviders={checkProviders}
+              onDone={(showWorkflows) => {
+                void loadBots(true); refreshSkills(); refreshWorkflows();
+                navigate(showWorkflows ? { kind: "workflows" } : { kind: "settings", tab: "settings" });
+              }} />
           ) : page?.kind === "board" ? (
             <Board
               bots={state.bots}
@@ -763,6 +769,7 @@ export default function App() {
                 />
               ) : (
                 <SettingsView
+                  onPersonalize={() => navigate({ kind: "onboarding" })}
                   providers={providers}
                   onCheckProviders={checkProviders}
                   onBotsChanged={() => loadBots(true)}

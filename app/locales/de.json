@@ -386,7 +386,8 @@
     "master_changed_bot": "Anweisungen oder Fähigkeiten von @{{handle}} geändert.",
     "usage_limit_wait": "@{{handle}} hat das Nutzungslimit von {{provider}} erreicht. Es geht nach {{time}} weiter.",
     "usage_limit_retry": "@{{handle}} hat das Nutzungslimit von {{provider}} erreicht. Es versucht es in {{minutes}} Minuten erneut.",
-    "workflow_finished": "{{name}} wurde beim Schritt {{step}} abgeschlossen"
+    "workflow_finished": "{{name}} wurde beim Schritt {{step}} abgeschlossen",
+    "onboarding_ready": "Ihre Workflow-Vorschläge sind zur Prüfung im Einrichtungsassistenten bereit."
   },
   "about": {
     "logoAlt": "Das Sonata-Logo",
@@ -721,7 +722,11 @@
     "projectMismatch": "Dieses Element gehört zu einem anderen Projekt.",
     "projectActiveWork": "Beende oder stoppe aktive Bot-Arbeit vor dem Archivieren.",
     "projectQueuedWork": "Beende oder stoppe wartende Arbeit und unfertige Workflows vor dem Archivieren.",
-    "projectBackgroundWork": "Beende Hintergrundarbeit vor dem Archivieren. Wenn ihr Status unbekannt ist, stoppe zuerst den Bot."
+    "projectBackgroundWork": "Beende Hintergrundarbeit vor dem Archivieren. Wenn ihr Status unbekannt ist, stoppe zuerst den Bot.",
+    "onboardingGenerationFailed": "Die Generierung endete ohne gültigen Vorschlag. Prüfen Sie Ihr KI-Werkzeug und versuchen Sie es erneut. Ihre Antworten sind gespeichert.",
+    "onboardingInterrupted": "Die Erstellung wurde unterbrochen. Prüfen Sie die gespeicherte Auswahl und versuchen Sie es erneut.",
+    "onboardingChanged": "Der Vorschlag oder seine Abhängigkeiten haben sich geändert. Prüfen Sie die aktualisierte Auswahl vor der Erstellung.",
+    "onboardingRuntime": "Die Bot-Engine ist nicht verfügbar: {{error}}"
   },
   "linux": {
     "skills": {
@@ -771,5 +776,55 @@
     "sharedSkills": "Skills werden projektübergreifend geteilt. Das Ersetzen eines Skills betrifft auch Bots in anderen Projekten, die ihn verwenden.",
     "export": "Projekt exportieren",
     "import": "In Projekt importieren"
+  },
+  "onboarding": {
+    "steps": "Erste Schritte",
+    "step": {
+      "profile": "Ihre Arbeit",
+      "workspace": "Arbeitsbereich",
+      "suggestions": "Workflows",
+      "ready": "Fertig"
+    },
+    "title": {
+      "profile": "Passen Sie Sonata an Ihre Arbeit an",
+      "workspace": "Wählen Sie Ihren Arbeitsbereich",
+      "suggestions": "Erstellen Sie Ihr erstes Team",
+      "ready": "Ihre Workflows sind bereit"
+    },
+    "intro": "Erzählen Sie uns kurz von Ihrer Arbeit. Master schlägt Workflows, Bots und Skills für Ihre regelmäßigen Aufgaben vor.",
+    "job": "Was machen Sie beruflich?",
+    "jobExample": "Zum Beispiel: Softwareentwicklung, Marketing, Verwaltung, Forschung",
+    "tasks": "Welche Aufgaben erledigen Sie am häufigsten?",
+    "tasksExample": "Zum Beispiel: Code prüfen, Wochenberichte vorbereiten, Kampagnen entwerfen oder Forschung vergleichen. Nennen Sie auch verwendete Werkzeuge und Unterlagen.",
+    "privacy": "Ihre Antworten werden auf diesem Computer gespeichert und beim Erstellen von Vorschlägen an Ihren eingerichteten KI-Anbieter gesendet.",
+    "next": "Weiter",
+    "back": "Zurück",
+    "skip": "Personalisierung überspringen",
+    "advanced": "Erweiterte Einstellungen für den Arbeitsbereich",
+    "folderHint": "Benennen Sie dieses Projekt und wählen Sie den Ordner mit seinen Dokumenten oder seinem Quellcode. Master und neue Bots verwenden den gewählten KI-Anbieter.",
+    "suggestionsIntro": "Wählen Sie die gewünschten Workflows. Prüfen Sie deren Schritte, Bots und Skills, bevor Sie sie diesem Projekt hinzufügen.",
+    "generating": "Master bereitet Vorschläge für Ihre Arbeit vor…",
+    "cancel": "Generierung abbrechen",
+    "generate": "Workflows vorschlagen",
+    "retry": "Erneut versuchen",
+    "provider": "Master verwendet {{provider}}.",
+    "providerNeeded": "Installieren Sie das ausgewählte KI-Werkzeug und melden Sie sich an. Prüfen Sie danach erneut. Sie können diesen Schritt auch überspringen und später in den Einstellungen fortfahren.",
+    "output": "Erwartetes Ergebnis:",
+    "requirements": "Sie benötigen:",
+    "resources": "{{bots}} Bots · {{skills}} Skills",
+    "details": "Anweisungen und Skills prüfen",
+    "binaryFile": "Binärdatei eines vorhandenen Skills",
+    "selection": "Ausgewählt: {{workflows}} Workflows mit {{bots}} Bots und {{skills}} Skills. Vorhandene Ressourcen werden wiederverwendet.",
+    "create": "Ausgewählte Workflows erstellen",
+    "creating": "Ihre Workflows werden erstellt…",
+    "retryCreation": "Verbleibende Erstellung wiederholen",
+    "partial": "Vor dem Abbruch wurden {{count}} Ressourcen erstellt. Versuchen Sie es erneut, um den Rest zu erstellen, oder fahren Sie mit den vorhandenen Ressourcen fort.",
+    "edit": "Antworten ändern und neu generieren",
+    "ready": "Die ausgewählten Workflows mit ihren Bots und Skills stehen in diesem Projekt bereit.",
+    "manualRun": "Es wurde nichts ausgeführt oder geplant. Öffnen Sie einen Workflow, wenn Sie ihm eine Aufgabe geben möchten.",
+    "openWorkflows": "Workflows öffnen",
+    "personalize": "Workflows personalisieren",
+    "returnHint": "Beschreiben Sie Ihre Arbeit, um passende Workflows für dieses Projekt zu erhalten. Eine unterbrochene Einrichtung können Sie hier fortsetzen.",
+    "loading": "Ihre Einrichtung wird geladen…"
   }
 }

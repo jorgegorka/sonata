@@ -52,6 +52,10 @@ pub use config_transfer::{
     ItemStatus, PlannedItem, WorkflowFileEntry, WorkflowImportAction, WorkflowImportItem, WorkflowImportOutcome,
     WorkflowImportPreview, WorkflowImportRequest, WrittenItem,
 };
+pub use config_transfer::{
+    OnboardingApplyResult, OnboardingPreview, OnboardingProfile, OnboardingProgress, OnboardingProposal,
+    OnboardingState, OnboardingSuggestion,
+};
 pub use controls::DialogAnswer;
 pub use messaging::{DEFAULT_HOP_LIMIT, MASTER_HOP_FACTOR};
 pub use settings::MAX_HOP_LIMIT;
@@ -295,7 +299,7 @@ fn error_params(e: &CoreError) -> Value {
 impl Engine {
     pub fn new(store: Store, runtime: Arc<dyn BotRuntime>, cfg: EngineConfig) -> Self {
         let (ui, _) = broadcast::channel(1024);
-        Self {
+        let engine = Self {
             store,
             inner: Arc::new(Inner {
                 runtime,
@@ -314,7 +318,11 @@ impl Engine {
                 last_limit_read: std::sync::Mutex::new(None),
                 importing: std::sync::Mutex::new(()),
             }),
+        };
+        if let Err(error) = engine.recover_onboarding_generations() {
+            tracing::warn!(%error, "could not recover onboarding generation");
         }
+        engine
     }
 
     pub fn subscribe_ui(&self) -> broadcast::Receiver<UiEvent> {

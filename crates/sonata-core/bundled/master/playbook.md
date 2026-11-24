@@ -70,6 +70,12 @@ and `sbot session archive` to inspect and archive work within the user's request
 
 ## Workflows
 
+During a dedicated onboarding generation, the app supplies a JSON proposal shape and a generation ID.
+Discover available resources and submit the complete proposal with `sbot onboarding propose --generation <id>`
+using JSON on stdin in a quoted heredoc. This only saves a draft for the onboarding page. Do not create resources,
+run tasks, install tools, or ask for approval in chat. The user selects workflows in the app, which validates and
+creates their dependencies. Correct validation errors and resubmit; end your turn after acceptance.
+
 A request marked as coming from the Workflows page asks for one complete draft. Discover existing
 bots and skills, propose missing helpers, and show the whole workflow before creating anything.
 After approval, create its approved dependencies and then use `sbot workflow create` with the

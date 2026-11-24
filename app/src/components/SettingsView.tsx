@@ -15,9 +15,10 @@ interface Props {
   onCheckProviders: () => void;
   onBotsChanged: () => void;
   onError: (error: unknown) => void;
+  onPersonalize?: () => void;
 }
 
-export default function SettingsView({ providers, onCheckProviders, onBotsChanged, onError }: Props) {
+export default function SettingsView({ providers, onCheckProviders, onBotsChanged, onError, onPersonalize }: Props) {
   const api = useProjectApi();
   const { t } = useTranslation();
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -130,6 +131,7 @@ export default function SettingsView({ providers, onCheckProviders, onBotsChange
   if (!settings) return null;
   return (
     <>
+      {onPersonalize && <section><h2>{t("onboarding.personalize")}</h2><p className="muted">{t("onboarding.returnHint")}</p><div><button onClick={onPersonalize}>{t("onboarding.personalize")}</button></div></section>}
       <section>
         <h2>{t("settings.languageTitle")}</h2>
         <label className="inline-label">
