@@ -143,6 +143,11 @@ impl Engine {
             }
         }
         let response = match req.command {
+            command @ (BridgeCommand::OrchestrationStart { .. }
+            | BridgeCommand::OrchestrationShow { .. }
+            | BridgeCommand::OrchestrationUpdate { .. }
+            | BridgeCommand::OrchestrationFinish { .. }
+            | BridgeCommand::OrchestrationCancel { .. }) => self.bridge_orchestration(&req.pane_id, command).await,
             BridgeCommand::OnboardingPropose { generation, body } => {
                 self.bridge_onboarding_propose(&req.pane_id, &generation, &body).await
             }

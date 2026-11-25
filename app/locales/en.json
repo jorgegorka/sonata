@@ -726,7 +726,8 @@
     "onboardingGenerationFailed": "Generation ended without a valid proposal. Check your AI tool and try again. Your answers are saved.",
     "onboardingInterrupted": "Creation was interrupted. Review the saved selection and retry to finish it.",
     "onboardingChanged": "The proposal or its dependencies changed. Review the refreshed selection before creating it.",
-    "onboardingRuntime": "The bot engine is unavailable: {{error}}"
+    "onboardingRuntime": "The bot engine is unavailable: {{error}}",
+    "orchestration": "{{error}}"
   },
   "linux": {
     "skills": {
@@ -826,5 +827,31 @@
     "personalize": "Personalize workflows",
     "returnHint": "Describe your work to get tailored workflow suggestions for this project. You can resume an unfinished setup here.",
     "loading": "Loading your setup…"
+  },
+  "orchestration": {
+    "progress": "{{resolved}} of {{total}} tasks resolved",
+    "breakdown": "{{succeeded}} succeeded · {{failed}} failed · {{blocked}} blocked · {{cancelled}} cancelled",
+    "cancelProcess": "Cancel process",
+    "cancelTask": "Cancel task",
+    "restore": "Restore task",
+    "parent": "Process: {{name}}",
+    "dependencies": "Depends on: {{names}}",
+    "details": "Task details",
+    "criteria": "Acceptance criteria",
+    "prerequisites": "Prerequisites",
+    "result": "Result",
+    "review": "Master’s review",
+    "openExecution": "Open conversation and workflow",
+    "needsYou": "Needs your attention",
+    "coordinating": "Master is coordinating",
+    "state": {
+      "waiting": "Waiting for prerequisites",
+      "running": "Running",
+      "awaiting_review": "Awaiting Master’s review",
+      "succeeded": "Succeeded",
+      "failed": "Failed",
+      "blocked": "Blocked by a prerequisite",
+      "cancelled": "Cancelled"
+    }
   }
 }

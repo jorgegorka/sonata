@@ -20,6 +20,34 @@ async fn setup() -> Setup {
     setup_with(Provider::Claude).await
 }
 
+#[tokio::test]
+async fn orchestration_cli_starts_reads_and_cancels_real_persisted_tasks() {
+    let s = setup().await;
+    s.engine.finish_setup(None).unwrap();
+    let master = s.engine.master_id().unwrap().unwrap();
+    let (session, _) = s.engine.start_session_with_message(&master, "Coordinate two tasks", &[]).unwrap();
+    s.engine.pump_session(&session.id).await;
+    let body = r#"{"title":"Process","goal":"Two tasks","tasks":[{"key":"a","title":"First","instructions":"Do it","acceptance_criteria":["Checked"],"executor":{"kind":"bot","handle":"writer"}},{"key":"b","title":"Second","instructions":"Use first result","acceptance_criteria":["Checked"],"executor":{"kind":"bot","handle":"researcher"},"depends_on":["a"]}]}"#;
+    let (ok, stdout, stderr) =
+        sbot(&["orchestration", "start", "--key", "initial"], Some("w1:p2"), &s.socket, Some(body)).await;
+    assert!(ok, "{stderr}");
+    let run: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let id = run["id"].as_str().unwrap();
+    assert_eq!(run["tasks"][0]["state"], "running");
+    assert_eq!(run["tasks"][1]["state"], "waiting");
+    let (ok, output, error) = sbot(&["orchestration", "show", id], Some("w1:p2"), &s.socket, None).await;
+    assert!(ok, "{error}");
+    assert_eq!(serde_json::from_str::<serde_json::Value>(&output).unwrap()["id"], id);
+    let revision = run["revision"].to_string();
+    let (ok, _, _) =
+        sbot(&["orchestration", "finish", id, "--revision", &revision], Some("w1:p2"), &s.socket, Some("Too soon"))
+            .await;
+    assert!(!ok);
+    let (ok, _, error) = sbot(&["orchestration", "cancel", id], Some("w1:p2"), &s.socket, None).await;
+    assert!(ok, "{error}");
+    assert_eq!(s.engine.orchestration_view(id).unwrap().run.status, sonata_core::orchestration::Status::Cancelled);
+}
+
 async fn setup_with(provider: Provider) -> Setup {
     let tmp = tempfile::tempdir().unwrap();
     let paths = AppPaths::new(tmp.path().join("data"), tmp.path().join("bots"));

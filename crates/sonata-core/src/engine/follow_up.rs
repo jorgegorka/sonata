@@ -43,7 +43,7 @@ impl Engine {
                 follow_up: true,
                 after_limit: false,
                 scheduled: last.task_id.is_some(),
-                from_run: last.workflow_mark.is_some(),
+                from_run: last.workflow_mark.is_some() || super::orchestration::is_event(&last),
             });
             l.status = BotStatus::Working;
         }

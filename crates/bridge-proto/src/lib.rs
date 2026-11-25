@@ -15,6 +15,31 @@ pub struct BridgeRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "cmd", rename_all = "snake_case")]
 pub enum BridgeCommand {
+    OrchestrationStart {
+        key: String,
+        body: String,
+    },
+    OrchestrationShow {
+        id: String,
+    },
+    OrchestrationUpdate {
+        id: String,
+        revision: i64,
+        key: String,
+        body: String,
+    },
+    OrchestrationFinish {
+        id: String,
+        revision: i64,
+        body: String,
+        #[serde(default)]
+        files: Vec<String>,
+    },
+    OrchestrationCancel {
+        id: String,
+        #[serde(default)]
+        task: Option<String>,
+    },
     OnboardingPropose {
         generation: String,
         body: String,

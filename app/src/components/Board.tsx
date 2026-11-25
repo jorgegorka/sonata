@@ -2,8 +2,11 @@ import { useProjectApi } from "../projectContext";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { api, type BotView, type Glance, type SessionActivity, type SessionView, type UsageLimit } from "../api";
-import { buildDoneTasks, buildTasks, columnTasks, hasWorkGoingOn, type BoardTask, type Column } from "../board";
+import { api, type BotView, type Glance, type Orchestration, type SessionActivity, type SessionView, type UsageLimit } from "../api";
+import { columnTasks, hasWorkGoingOn, type BoardTask, type Column } from "../board";
+import { buildOrchestrationBoard } from "../orchestration";
+import OrchestrationTaskCard, { OrchestrationTaskDetails } from "./OrchestrationCard";
+import { useOrchestrations } from "./useOrchestrations";
 import { sessionLabel, type Translate } from "../state";
 import TaskCard, { type Tone } from "./TaskCard";
 import { useBoardData, type BoardData } from "./useBoardData";
@@ -20,6 +23,7 @@ interface Props {
   drawer?: (tasks: BoardTask[], now: Date, data: BoardData) => ReactNode;
   data?: BoardData;
   now?: Date;
+  orchestrations?: Orchestration[];
 }
 
 const COLUMNS: { column: Column; label: string; tone: Tone }[] = [
@@ -38,6 +42,11 @@ export async function markDone(
   name: string,
   t: Translate,
 ): Promise<void> {
+  if (task.orchestration?.taskKey) {
+    await api.archiveOrchestrationTask(task.orchestration.run.id, task.orchestration.taskKey, true);
+    return;
+  }
+  if (task.orchestration?.run.status === "active") return;
   if (hasWorkGoingOn(task, activity, glances)) {
     const confirmed = await ask(t("board.markDoneConfirm", { name }), {
       title: t("board.markDone"),
@@ -72,25 +81,34 @@ export default function Board({
   drawer,
   data,
   now,
+  orchestrations,
 }: Props) {
   const api = useProjectApi();
   const { t } = useTranslation();
   const [showDone, setShowDone] = useState(false);
+  const loadedRuns = useOrchestrations(onError);
+  const runs = orchestrations ?? loadedRuns;
+  const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const live = useBoardData(sessions, onError, showDone);
   const shown = data ?? live;
   const { activity, glances, attentionSince } = shown;
   const clock = useClock(now);
   const [clearing, setClearing] = useState(false);
   const providers = useMemo(() => Object.fromEntries(bots.map((b) => [b.id, b.provider])), [bots]);
-  const tasks = useMemo(
-    () => [
-      ...buildTasks({ sessions, activity, glances, attentionSince, paused, limits, providers }),
-      ...buildDoneTasks({ sessions, activity }),
-    ],
-    [sessions, activity, glances, attentionSince, paused, limits, providers],
+  const grouped = useMemo(
+    () => buildOrchestrationBoard({ sessions, activity, glances, attentionSince, paused, limits, providers }, runs),
+    [sessions, activity, glances, attentionSince, paused, limits, providers, runs],
   );
+  const tasks = grouped.normal;
+  const selected = grouped.children.find((c) => c.id === selectedTask);
+  const open = (task: BoardTask) => { setSelectedTask(null); onOpen(task); };
+  const openParent = (run: Orchestration) => {
+    const parent = tasks.find((task) => task.id === run.session_id);
+    if (parent) open(parent);
+  };
   const columns = COLUMNS.filter((c) => showDone || c.column !== "done")
-    .map((c) => ({ ...c, ...columnTasks(tasks, c.column, clock) }));
+    .map((c) => ({ ...c, ...columnTasks(tasks, c.column, clock), children: grouped.children.filter((task) => task.column === c.column)
+      .sort((a, b) => (b.task.archived_at ?? b.run.ended_at ?? b.run.created_at).localeCompare(a.task.archived_at ?? a.run.ended_at ?? a.run.created_at)) }));
 
   async function markAllDone(older: BoardTask[]) {
     const confirmed = await ask(t("board.markAllDoneConfirm", { count: older.length }), {
@@ -119,7 +137,8 @@ export default function Board({
       activity={activity}
       glances={glances}
       now={clock}
-      onOpen={() => onOpen(task)}
+      onOpen={() => open(task)}
+      onOrchestrationTask={(key) => setSelectedTask(`${task.orchestration!.run.id}:${key}`)}
       onMarkDone={() =>
         void markDone(task, activity, glances, sessionLabel(task.root, sessions, bots, t), t).catch(onError)
       }
@@ -136,7 +155,7 @@ export default function Board({
             {columns.map((c) => (
               <li key={c.column}>
                 <span className={`state-dot ${c.tone}`} aria-hidden="true" />
-                {`${t(c.label)} ${c.shown.length}`}
+                {`${t(c.label)} ${c.shown.length + c.children.length}`}
               </li>
             ))}
           </ul>
@@ -164,9 +183,9 @@ export default function Board({
             <div className="board-column-head">
               <span className={`state-dot ${c.tone}`} aria-hidden="true" />
               <h2 id={`board-${c.column}`}>{t(c.label)}</h2>
-              <span className="board-count">{c.shown.length}</span>
+              <span className="board-count">{c.shown.length + c.children.length}</span>
             </div>
-            {c.shown.length === 0 && c.older.length === 0 && (
+            {c.shown.length === 0 && c.older.length === 0 && c.children.length === 0 && (
               <div className="board-empty">
                 {tasks.length === 0 && c.column === "running" ? (
                   <>
@@ -179,6 +198,8 @@ export default function Board({
               </div>
             )}
             {c.shown.map(card)}
+            {c.children.map((child) => <OrchestrationTaskCard key={child.id} card={child}
+              onOpen={() => setSelectedTask(child.id)} onParent={() => openParent(child.run)} onError={onError} />)}
             {c.older.length > 0 && (
               <details className="board-fold">
                 <summary>{t("board.older", { n: c.older.length })}</summary>
@@ -193,7 +214,10 @@ export default function Board({
           </section>
         ))}
       </div>
-      {drawer?.(tasks, clock, shown)}
+      {selected ? <OrchestrationTaskDetails card={selected} onClose={() => setSelectedTask(null)}
+        onDependency={(key) => setSelectedTask(`${selected.run.id}:${key}`)} onError={onError}
+        onExecution={() => { if (selected.execution) open(selected.execution); }} />
+        : drawer?.([...tasks, ...grouped.children.flatMap((c) => c.execution ? [c.execution] : [])], clock, shown)}
     </div>
   );
 }

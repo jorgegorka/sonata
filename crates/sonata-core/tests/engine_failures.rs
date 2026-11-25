@@ -131,7 +131,8 @@ async fn watchdog_takes_a_vanished_agent_offline_and_interrupts_its_turn() {
             | UiEvent::WorkflowRunChanged { .. }
             | UiEvent::BotAdded { .. }
             | UiEvent::BotUpdated { .. }
-            | UiEvent::UsageLimits { .. } => {}
+            | UiEvent::UsageLimits { .. }
+            | UiEvent::OrchestrationChanged { .. } => {}
         }
     }
     assert!(interrupted && offline);

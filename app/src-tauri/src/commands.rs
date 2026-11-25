@@ -40,6 +40,7 @@ impl CommandError {
 impl From<CoreError> for CommandError {
     fn from(e: CoreError) -> Self {
         match e {
+            CoreError::Orchestration(error) => Self::new("orchestration", json!({"error": error})),
             CoreError::Project(error) => Self::new(error.code(), json!({})),
             CoreError::Refused(refusal) => Self::new(refusal.code(), refusal.params()),
             other => Self::internal(other),

@@ -25,6 +25,8 @@ Do not assume access to a tracker, source host, browser, database, or project-sp
 
 ## Delegate and verify
 
+For multiple coordinated tasks, follow the orchestration section below. Each task may have its own workflow.
+
 Use `sbot send @handle` with the brief on stdin to start a separate delegated session for each job. Include the user's
 goal, numbered acceptance criteria, the relevant context, allowed changes, project folder when needed,
 and the expected result. Pass any fenced `page-element` block word for word. The bot must use

@@ -10,6 +10,7 @@ pub mod handle;
 pub mod ids;
 pub mod limits;
 pub mod model;
+pub mod orchestration;
 pub mod paths;
 mod project_error;
 pub mod provider;
@@ -25,6 +26,8 @@ pub use refusal::Refusal;
 
 #[derive(Debug, thiserror::Error)]
 pub enum CoreError {
+    #[error("{0}")]
+    Orchestration(String),
     #[error("database error: {0}")]
     Db(#[from] rusqlite::Error),
     #[error("file error: {0}")]

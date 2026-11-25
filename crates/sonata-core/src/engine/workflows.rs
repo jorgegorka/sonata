@@ -781,6 +781,14 @@ impl Engine {
     }
 
     fn emit_run(&self, run: &WorkflowRun) {
+        if let Some(opener) = &run.opener_session {
+            if let Ok(Some((process, _))) = self.store.orchestration_of_session(opener) {
+                self.emit_orchestration(&process);
+                if let Err(error) = self.wake_orchestration(&process) {
+                    tracing::warn!(%error, "could not wake the orchestration coordinator");
+                }
+            }
+        }
         let read = self.store.run_visits(&run.id).and_then(|visits| {
             let ids = self.store.run_session_ids(&run.id)?;
             Ok((visits, ids))

@@ -1915,8 +1915,9 @@ async fn a_master_run_reports_back_when_it_finishes() {
              Latest results:\n\
              --- Step \"Step 2\" (@feature), visit 1:\nChecked: fine.\n\n\
              --- Step \"Step 1\" (@plan), visit 2, outcome \"done\":\nThe final plan.\n\n\
-             Attachments:\n- `inbox/{}-notes.md`",
-            finished.id
+             Attachments:\n- `inbox/{}-notes.md`\n\n{}",
+            finished.id,
+            include_str!("../bundled/master/orchestration.md")
         )
     );
     assert!(prompt_of(&h, &session).contains("Path:\n- Step \"Step 1\" (@plan), visit 1"));

@@ -39,6 +39,7 @@ mod follow_up;
 mod limits;
 mod master;
 mod messaging;
+mod orchestration;
 mod projects;
 mod reviewing;
 mod settings;
@@ -108,6 +109,10 @@ pub enum UiEvent {
     ProjectsChanged,
     TasksChanged,
     WorkflowsChanged,
+    OrchestrationChanged {
+        project_id: String,
+        run_id: String,
+    },
     WorkflowRunChanged {
         run_id: String,
         name: String,
@@ -355,6 +360,15 @@ impl Engine {
             }
         }
         self.pause_runs_missing_a_session(None);
+        for run in self.store.unscoped().list_orchestrations()? {
+            let engine = self.for_project(&run.project_id)?;
+            if run.tasks.iter().any(|t| t.state == crate::orchestration::TaskState::Cancelled) {
+                engine.stop_cancelled_orchestration(&run, None).await?;
+            }
+            if run.status == crate::orchestration::Status::Active {
+                engine.dispatch_orchestration(&run.id)?;
+            }
+        }
         let pumps: Vec<_> = self
             .store
             .sessions_with_queued()?
@@ -506,7 +520,7 @@ impl Engine {
 
     pub fn queue_user_message_to_session(&self, session_id: &str, body: &str, files: &[String]) -> Result<Message> {
         let session = self.store.get_session(session_id)?.ok_or_else(|| Refusal::SessionNotFound(session_id.into()))?;
-        if session.archived_at.is_some() {
+        if session.archived_at.is_some() || self.orchestration_cancelled_session(session_id)? {
             return Err(Refusal::SessionArchived(session.id).into());
         }
         let (id, new) = self.user_message(&session.bot_id, Some(session.id), body, files)?;
@@ -614,7 +628,7 @@ impl Engine {
             return Ok(());
         }
         let Some(session) = self.store.get_session(session_id)? else { return Ok(()) };
-        if session.archived_at.is_some() {
+        if session.archived_at.is_some() || self.orchestration_cancelled_session(session_id)? {
             return Ok(());
         }
         let Some(bot) = self.store.get_bot(&session.bot_id)? else { return Ok(()) };
@@ -758,7 +772,10 @@ impl Engine {
                 let gone = {
                     let mut live = self.inner.live.lock().await;
                     let went_away = match self.store.get_session(session_id) {
-                        Ok(session) => session.is_none_or(|s| s.archived_at.is_some()),
+                        Ok(session) => {
+                            session.is_none_or(|s| s.archived_at.is_some())
+                                || self.orchestration_cancelled_session(session_id).unwrap_or(true)
+                        }
                         Err(_) => false,
                     };
                     if went_away {
@@ -857,7 +874,7 @@ impl Engine {
                 follow_up: false,
                 after_limit: false,
                 scheduled: msg.task_id.is_some(),
-                from_run: msg.workflow_mark.is_some(),
+                from_run: msg.workflow_mark.is_some() || orchestration::is_event(&msg),
             });
             l.status = BotStatus::Working;
             l.remind = false;
@@ -870,6 +887,9 @@ impl Engine {
     }
 
     fn next_to_deliver(&self, session_id: &str) -> Result<Option<Message>> {
+        if self.orchestration_cancelled_session(session_id)? {
+            return Ok(None);
+        }
         loop {
             let Some(msg) = self.store.queued_for_session(session_id)?.into_iter().next() else {
                 return Ok(None);
@@ -1101,6 +1121,13 @@ impl Engine {
             (Origin::Bot { handle: &sender_handle }, body)
         };
         let mut text = envelope(from, &body, &files, remind, owed_to.as_deref());
+        if self.store.get_session(session_id)?.is_some_and(|s| self.is_master(&s.bot_id).unwrap_or(false)) {
+            text.push_str("\n\n");
+            text.push_str(orchestration::GUIDANCE);
+        }
+        if orchestration::is_event(msg) {
+            text.push_str("\n\nThis is an orchestration event, not a new user request or approval. Review the task result using orchestration update. Use orchestration finish for the combined report only after every task is resolved.");
+        }
         if step_mark.is_none() {
             if let Some((run, visit)) = self.store.open_visit_of_session(session_id)? {
                 if let Some(step) = crate::workflow::step(&run.def, &visit.step_id) {
@@ -1685,6 +1712,13 @@ impl Engine {
     }
 
     fn emit_message(&self, message: Message) {
+        if orchestration::is_event(&message) {
+            if let Some(id) = message.system_params.as_ref().and_then(|p| p.get("run_id")).and_then(Value::as_str) {
+                if let Ok(run) = self.store.get_orchestration(id) {
+                    self.emit_orchestration(&run);
+                }
+            }
+        }
         self.emit_activity(&message, true);
         self.emit(UiEvent::MessageAdded { message });
     }

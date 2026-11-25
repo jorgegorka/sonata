@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+mod orchestration;
 mod projects;
 pub use projects::DEFAULT_PROJECT;
 
@@ -170,6 +171,7 @@ ALTER TABLE messages ADD COLUMN workflow_mark TEXT;
     Migration::Sql("ALTER TABLE messages ADD COLUMN workflow_request INTEGER NOT NULL DEFAULT 0;"),
     Migration::Code(projects::migrate),
     Migration::Sql("INSERT INTO settings (key, value) VALUES ('onboarding_pending', CASE WHEN EXISTS (SELECT 1 FROM settings WHERE key = 'setup_done' AND value = 'true') THEN 'false' ELSE 'true' END);"),
+    Migration::Sql(orchestration::SCHEMA),
 ];
 
 fn sessions_from_bots(conn: &Connection) -> rusqlite::Result<()> {
@@ -638,6 +640,8 @@ fn run_then_conn(
                 (None, Some(notice)) => Some(insert_message_conn(conn, &new_id(), notice)?),
                 (None, None) => None,
             };
+            orchestration::workflow_finished_conn(conn, run_id, finished.as_ref())?;
+            let finished = finished.map(|m| get_message_conn(conn, &m.id)).transpose()?.flatten();
             (None, finished)
         }
         RunThen::Remind { id, message, mark } => {
@@ -666,6 +670,7 @@ fn stop_run_conn(conn: &Connection, run_id: &str, at: &str) -> Result<Option<Wor
         "UPDATE workflow_visits SET ended_at = ?2 WHERE run_id = ?1 AND ended_at IS NULL",
         params![run_id, at],
     )?;
+    orchestration::workflow_stopped_conn(conn, run_id)?;
     Ok(get_run_conn(conn, run_id)?)
 }
 
@@ -772,7 +777,7 @@ fn open_session_conn(conn: &Connection, id: &str) -> Result<Session> {
 }
 
 fn insert_message_conn(conn: &Connection, id: &str, m: &NewMessage) -> Result<Message> {
-    store_message_conn(conn, id, m, true)
+    store_message_conn(conn, id, m, m.system_code.as_deref() != Some("orchestration_event"))
 }
 
 fn store_message_conn(conn: &Connection, id: &str, m: &NewMessage, answers: bool) -> Result<Message> {
@@ -2067,6 +2072,8 @@ impl Store {
             tx.execute("UPDATE messages SET answered_by = ?2 WHERE id = ?1", params![answered, id])?;
         }
         let session = get_session_conn(&tx, session_id)?.expect("sender session exists");
+        orchestration::result_conn(&tx, session_id, &message)?;
+        let message = get_message_conn(&tx, id)?.expect("result just inserted");
         tx.commit()?;
         Ok((message, session))
     }
@@ -2279,7 +2286,7 @@ impl Store {
         self.check_owner("sessions", session_id)?;
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(&format!(
-            "SELECT {MESSAGE_COLUMNS} FROM messages WHERE recipient_session = ?1 AND status = 'queued' ORDER BY seq"
+            "SELECT {MESSAGE_COLUMNS} FROM messages WHERE recipient_session = ?1 AND status = 'queued' AND (COALESCE(system_code, '') != 'orchestration_event' OR NOT EXISTS(SELECT 1 FROM sessions WHERE id = ?1 AND waiting_question_id IS NOT NULL)) ORDER BY seq"
         ))?;
         let msgs = stmt.query_map(params![session_id], message_from_row)?.collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(msgs)
@@ -2517,7 +2524,8 @@ mod tests {
             let tmp = tempfile::tempdir().unwrap();
             let path = tmp.path().join("previous.sqlite");
             let conn = Connection::open(&path).unwrap();
-            apply_first(&conn, MIGRATIONS.len() - 1);
+            // Schema immediately before the onboarding migration, independent of later additions.
+            apply_first(&conn, 13);
             if setup {
                 set_setting_conn(&conn, "setup_done", "true").unwrap();
             }

@@ -21,6 +21,11 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    #[command(about = "Coordinate multiple board tasks, each with a bot or workflow")]
+    Orchestration {
+        #[command(subcommand)]
+        command: OrchestrationCommand,
+    },
     #[command(about = "Submit a structured onboarding proposal for review")]
     Onboarding {
         #[command(subcommand)]
@@ -319,6 +324,39 @@ fn cli_session_id() -> Option<String> {
     cli_session_id_from(std::env::var("CODEX_THREAD_ID").ok())
 }
 
+#[derive(Subcommand)]
+enum OrchestrationCommand {
+    #[command(about = "Start a task graph from JSON on stdin")]
+    Start {
+        #[arg(long)]
+        key: String,
+    },
+    #[command(about = "Read a process, its current revision and task results")]
+    Show { id: String },
+    #[command(about = "Review results and add/replace pending tasks using JSON on stdin")]
+    Update {
+        id: String,
+        #[arg(long)]
+        revision: i64,
+        #[arg(long)]
+        key: String,
+    },
+    #[command(about = "Deliver the final combined report from stdin after all tasks are resolved")]
+    Finish {
+        id: String,
+        #[arg(long)]
+        revision: i64,
+        #[arg(long = "file")]
+        files: Vec<PathBuf>,
+    },
+    #[command(about = "Cancel a process or one task at the user's request")]
+    Cancel {
+        id: String,
+        #[arg(long)]
+        task: Option<String>,
+    },
+}
+
 fn cli_session_id_from(value: Option<String>) -> Option<String> {
     let value = value?;
     let id = value.trim();
@@ -331,6 +369,17 @@ fn run(cli: Cli) -> Result<String, String> {
     let socket =
         std::env::var("SBOT_SOCKET").map_err(|_| "Sonata is not running (SBOT_SOCKET is not set)".to_string())?;
     let command = match cli.command {
+        Command::Orchestration { command } => match command {
+            OrchestrationCommand::Start { key } => BridgeCommand::OrchestrationStart { key, body: read_body()? },
+            OrchestrationCommand::Show { id } => BridgeCommand::OrchestrationShow { id },
+            OrchestrationCommand::Update { id, revision, key } => {
+                BridgeCommand::OrchestrationUpdate { id, revision, key, body: read_body()? }
+            }
+            OrchestrationCommand::Finish { id, revision, files } => {
+                BridgeCommand::OrchestrationFinish { id, revision, files: absolute(files)?, body: read_body()? }
+            }
+            OrchestrationCommand::Cancel { id, task } => BridgeCommand::OrchestrationCancel { id, task },
+        },
         Command::Onboarding { command: OnboardingCommand::Propose { generation } } => {
             BridgeCommand::OnboardingPropose { generation, body: read_body()? }
         }

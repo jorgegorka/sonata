@@ -176,7 +176,7 @@ impl Store {
     pub fn archive_project(&self, id: &str) -> Result<Project> {
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
-        let busy: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM messages m JOIN sessions s ON s.id = m.recipient_session WHERE s.project_id = ?1 AND m.status = 'queued') OR EXISTS(SELECT 1 FROM workflow_runs WHERE project_id = ?1 AND status IN ('running', 'paused'))", [id], |r| r.get(0))?;
+        let busy: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM messages m JOIN sessions s ON s.id = m.recipient_session WHERE s.project_id = ?1 AND m.status = 'queued') OR EXISTS(SELECT 1 FROM workflow_runs WHERE project_id = ?1 AND status IN ('running', 'paused')) OR EXISTS(SELECT 1 FROM orchestrations WHERE project_id = ?1 AND status = 'active')", [id], |r| r.get(0))?;
         if busy {
             return Err(CoreError::from(crate::ProjectError::QueuedWork));
         }
@@ -209,7 +209,7 @@ impl Store {
         let sql = match table {
             "messages" => "SELECT project_id FROM sessions WHERE id IN (SELECT sender_session FROM messages WHERE id = ?1 UNION SELECT recipient_session FROM messages WHERE id = ?1) LIMIT 1".to_string(),
             "threads" => "SELECT project_id FROM sessions WHERE id IN (SELECT participant_a FROM threads WHERE id = ?1 UNION SELECT participant_b FROM threads WHERE id = ?1) LIMIT 1".to_string(),
-            "bots" | "sessions" | "tasks" | "workflows" | "workflow_runs" => format!("SELECT project_id FROM {table} WHERE id = ?1"),
+            "bots" | "sessions" | "tasks" | "workflows" | "workflow_runs" | "orchestrations" => format!("SELECT project_id FROM {table} WHERE id = ?1"),
             _ => return Err(CoreError::Internal("unknown project entity".into())),
         };
         Ok(self.conn.lock().unwrap().query_row(&sql, [id], |r| r.get(0)).optional()?)

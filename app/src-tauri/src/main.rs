@@ -113,6 +113,41 @@ fn finish_project_setup(engine: State<'_, Engine>, input: ProjectInput) -> Resul
 }
 
 #[tauri::command]
+fn list_orchestrations(
+    engine: State<'_, Engine>,
+    project_id: Option<String>,
+) -> Result<Vec<sonata_core::orchestration::OrchestrationView>, CommandError> {
+    Ok(engine.request_project(project_id.as_deref(), &[])?.list_orchestrations()?)
+}
+
+#[tauri::command]
+async fn cancel_orchestration(
+    engine: State<'_, Engine>,
+    run_id: String,
+    task: Option<String>,
+    project_id: Option<String>,
+) -> Result<(), CommandError> {
+    Ok(engine
+        .request_project(project_id.as_deref(), &[("orchestrations", &run_id)])?
+        .cancel_orchestration(&run_id, task.as_deref())
+        .await?)
+}
+
+#[tauri::command]
+async fn archive_orchestration_task(
+    engine: State<'_, Engine>,
+    run_id: String,
+    task: String,
+    archived: bool,
+    project_id: Option<String>,
+) -> Result<(), CommandError> {
+    Ok(engine
+        .request_project(project_id.as_deref(), &[("orchestrations", &run_id)])?
+        .archive_orchestration_task(&run_id, &task, archived)
+        .await?)
+}
+
+#[tauri::command]
 fn get_onboarding(engine: State<'_, Engine>, project_id: Option<String>) -> Result<OnboardingState, CommandError> {
     Ok(engine.request_project(project_id.as_deref(), &[])?.onboarding_state()?)
 }
@@ -1026,6 +1061,9 @@ fn main() {
         .manage(menu::ViewState::default())
         .invoke_handler(tauri::generate_handler![
             list_projects,
+            list_orchestrations,
+            cancel_orchestration,
+            archive_orchestration_task,
             create_project,
             update_project,
             archive_project,

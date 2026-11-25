@@ -726,7 +726,8 @@
     "onboardingGenerationFailed": "Die Generierung endete ohne gültigen Vorschlag. Prüfen Sie Ihr KI-Werkzeug und versuchen Sie es erneut. Ihre Antworten sind gespeichert.",
     "onboardingInterrupted": "Die Erstellung wurde unterbrochen. Prüfen Sie die gespeicherte Auswahl und versuchen Sie es erneut.",
     "onboardingChanged": "Der Vorschlag oder seine Abhängigkeiten haben sich geändert. Prüfen Sie die aktualisierte Auswahl vor der Erstellung.",
-    "onboardingRuntime": "Die Bot-Engine ist nicht verfügbar: {{error}}"
+    "onboardingRuntime": "Die Bot-Engine ist nicht verfügbar: {{error}}",
+    "orchestration": "{{error}}"
   },
   "linux": {
     "skills": {
@@ -826,5 +827,31 @@
     "personalize": "Workflows personalisieren",
     "returnHint": "Beschreiben Sie Ihre Arbeit, um passende Workflows für dieses Projekt zu erhalten. Eine unterbrochene Einrichtung können Sie hier fortsetzen.",
     "loading": "Ihre Einrichtung wird geladen…"
+  },
+  "orchestration": {
+    "progress": "{{resolved}} von {{total}} Aufgaben abgeschlossen",
+    "breakdown": "{{succeeded}} erfolgreich · {{failed}} fehlgeschlagen · {{blocked}} blockiert · {{cancelled}} abgebrochen",
+    "cancelProcess": "Prozess abbrechen",
+    "cancelTask": "Aufgabe abbrechen",
+    "restore": "Aufgabe wiederherstellen",
+    "parent": "Prozess: {{name}}",
+    "dependencies": "Abhängig von: {{names}}",
+    "details": "Aufgabendetails",
+    "criteria": "Abnahmekriterien",
+    "prerequisites": "Voraussetzungen",
+    "result": "Ergebnis",
+    "review": "Prüfung durch Master",
+    "openExecution": "Unterhaltung und Workflow öffnen",
+    "needsYou": "Benötigt deine Aufmerksamkeit",
+    "coordinating": "Master koordiniert",
+    "state": {
+      "waiting": "Wartet auf Voraussetzungen",
+      "running": "In Bearbeitung",
+      "awaiting_review": "Wartet auf Prüfung durch Master",
+      "succeeded": "Erfolgreich",
+      "failed": "Fehlgeschlagen",
+      "blocked": "Durch eine Voraussetzung blockiert",
+      "cancelled": "Abgebrochen"
+    }
   }
 }

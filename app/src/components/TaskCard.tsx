@@ -12,6 +12,7 @@ import { glanceLine } from "../workflows";
 import { useAct } from "./useAct";
 import WorkflowPause from "./WorkflowPause";
 import RestoreTaskButton from "./RestoreTaskButton";
+import { OrchestrationSummary } from "./OrchestrationCard";
 
 interface Props {
   task: BoardTask;
@@ -23,6 +24,7 @@ interface Props {
   onOpen: () => void;
   onMarkDone: () => void;
   onError: (e: unknown) => void;
+  onOrchestrationTask?: (key: string) => void;
 }
 
 export type Tone = "running" | "waits" | "blocked" | "done";
@@ -53,6 +55,10 @@ export function stateText(task: BoardTask, now: Date, t: Translate): string {
   const time = task.since === null ? null : ago(task.since, now, t);
   const timed = (key: string, untimed: string) => (time === null ? t(untimed) : t(key, { time }));
   switch (task.kind) {
+    case "orchestration":
+      return task.orchestration?.taskKey
+        ? t(`orchestration.state.${task.orchestration.run.tasks.find((t) => t.spec.key === task.orchestration?.taskKey)?.state ?? "running"}`)
+        : t("orchestration.coordinating");
     case "question":
       return timed("board.asks", "sidebar.waitingForYou");
     case "dialog":
@@ -80,7 +86,7 @@ const bare = (bots: BotView[], botId: string) => bots.find((b) => b.id === botId
 export default function TaskCard(props: Props) {
   const { task, bots, sessions, now, onOpen } = props;
   const { t } = useTranslation();
-  const tone = toneOf(task.kind);
+  const tone = task.kind === "orchestration" && task.column === "needs_you" ? "waits" : toneOf(task.kind);
   return (
     <article className={`task-card ${task.column}`}>
       <div className="task-card-head">
@@ -103,6 +109,8 @@ export default function TaskCard(props: Props) {
           {stateText(task, now, t)}
         </span>
       </div>
+      {task.orchestration && !task.orchestration.taskKey && <OrchestrationSummary run={task.orchestration.run}
+        onTask={props.onOrchestrationTask} onError={props.onError} />}
       {task.column === "running" && <RunningBody {...props} />}
       {task.kind === "question" && <QuestionBody {...props} />}
       {task.kind === "dialog" && <DialogBody {...props} />}

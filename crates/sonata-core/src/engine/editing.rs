@@ -38,6 +38,19 @@ impl Engine {
     }
 
     pub async fn delete_bot(&self, bot_id: &str) -> Result<PathBuf> {
+        if self.inner.live.lock().await.values().any(|l| l.bot_id == bot_id && l.status == BotStatus::Starting) {
+            return Err(Refusal::BotStarting.into());
+        }
+        for session in self.store.sessions_of(bot_id)? {
+            if let Some((run, key)) = self.store.orchestration_of_session(&session.id)? {
+                let direct = key
+                    .as_ref()
+                    .is_none_or(|key| run.tasks.iter().any(|t| t.spec.key == *key && t.workflow_run_id.is_none()));
+                if direct && run.status == crate::orchestration::Status::Active {
+                    self.cancel_orchestration(&run.id, key.as_deref()).await?;
+                }
+            }
+        }
         let (bot, numbers, states, cancelled) = {
             let mut live = self.inner.live.lock().await;
             if live.values().any(|l| l.bot_id == bot_id && l.status == BotStatus::Starting) {

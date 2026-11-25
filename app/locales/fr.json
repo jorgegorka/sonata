@@ -726,7 +726,8 @@
     "onboardingGenerationFailed": "La génération s’est terminée sans proposition valide. Vérifiez votre outil d’IA et réessayez. Vos réponses sont enregistrées.",
     "onboardingInterrupted": "La création a été interrompue. Vérifiez la sélection enregistrée et réessayez pour terminer.",
     "onboardingChanged": "La proposition ou ses dépendances ont changé. Vérifiez la sélection actualisée avant de la créer.",
-    "onboardingRuntime": "Le moteur de bots est indisponible : {{error}}"
+    "onboardingRuntime": "Le moteur de bots est indisponible : {{error}}",
+    "orchestration": "{{error}}"
   },
   "linux": {
     "skills": {
@@ -826,5 +827,31 @@
     "personalize": "Personnaliser les workflows",
     "returnHint": "Décrivez votre travail pour obtenir des suggestions adaptées à ce projet. Vous pouvez reprendre ici une configuration inachevée.",
     "loading": "Chargement de votre configuration…"
+  },
+  "orchestration": {
+    "progress": "{{resolved}} tâches résolues sur {{total}}",
+    "breakdown": "{{succeeded}} réussies · {{failed}} échouées · {{blocked}} bloquées · {{cancelled}} annulées",
+    "cancelProcess": "Annuler le processus",
+    "cancelTask": "Annuler la tâche",
+    "restore": "Restaurer la tâche",
+    "parent": "Processus : {{name}}",
+    "dependencies": "Dépend de : {{names}}",
+    "details": "Détails de la tâche",
+    "criteria": "Critères d’acceptation",
+    "prerequisites": "Prérequis",
+    "result": "Résultat",
+    "review": "Vérification de Master",
+    "openExecution": "Ouvrir la conversation et le workflow",
+    "needsYou": "Nécessite votre attention",
+    "coordinating": "Master coordonne",
+    "state": {
+      "waiting": "En attente des prérequis",
+      "running": "En cours",
+      "awaiting_review": "En attente de vérification par Master",
+      "succeeded": "Réussie",
+      "failed": "Échouée",
+      "blocked": "Bloquée par un prérequis",
+      "cancelled": "Annulée"
+    }
   }
 }

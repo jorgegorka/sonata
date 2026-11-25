@@ -1,8 +1,9 @@
-import type { Glance, Provider, RunGlance, SessionActivity, SessionView, UiEvent, UsageLimit } from "./api";
+import type { Glance, Orchestration, Provider, RunGlance, SessionActivity, SessionView, UiEvent, UsageLimit } from "./api";
 import { isArchived, isWaiting } from "./state";
 
 export type Column = "needs_you" | "running" | "finished" | "done";
 export type CardKind =
+  | "orchestration"
   | "question"
   | "dialog"
   | "cut_off"
@@ -28,6 +29,7 @@ export interface BoardInput {
 }
 
 export interface BoardTask {
+  orchestration?: { run: Orchestration; taskKey?: string };
   id: string;
   root: SessionView;
   members: SessionView[];

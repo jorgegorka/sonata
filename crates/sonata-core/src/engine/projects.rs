@@ -242,6 +242,7 @@ impl Engine {
 
     pub fn event_project(&self, event: &UiEvent) -> Option<String> {
         let target = match event {
+            UiEvent::OrchestrationChanged { project_id, .. } => return Some(project_id.clone()),
             UiEvent::BotAdded { bot } | UiEvent::BotUpdated { bot } => return Some(bot.bot.project_id.clone()),
             UiEvent::SessionAdded { session } | UiEvent::SessionUpdated { session } => {
                 return Some(session.session.project_id.clone())

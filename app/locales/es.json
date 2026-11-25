@@ -726,7 +726,8 @@
     "onboardingGenerationFailed": "La generación terminó sin una propuesta válida. Comprueba la herramienta de IA y reintenta. Tus respuestas están guardadas.",
     "onboardingInterrupted": "La creación se interrumpió. Revisa la selección guardada y reintenta para terminar.",
     "onboardingChanged": "La propuesta o sus dependencias han cambiado. Revisa la selección actualizada antes de crearla.",
-    "onboardingRuntime": "El motor de bots no está disponible: {{error}}"
+    "onboardingRuntime": "El motor de bots no está disponible: {{error}}",
+    "orchestration": "{{error}}"
   },
   "linux": {
     "skills": {
@@ -826,5 +827,31 @@
     "personalize": "Personalizar flujos",
     "returnHint": "Describe tu trabajo para recibir sugerencias de flujos para este proyecto. Aquí puedes retomar una configuración incompleta.",
     "loading": "Cargando tu configuración…"
+  },
+  "orchestration": {
+    "progress": "{{resolved}} de {{total}} tareas resueltas",
+    "breakdown": "{{succeeded}} completadas · {{failed}} fallidas · {{blocked}} bloqueadas · {{cancelled}} canceladas",
+    "cancelProcess": "Cancelar proceso",
+    "cancelTask": "Cancelar tarea",
+    "restore": "Restaurar tarea",
+    "parent": "Proceso: {{name}}",
+    "dependencies": "Depende de: {{names}}",
+    "details": "Detalles de la tarea",
+    "criteria": "Criterios de aceptación",
+    "prerequisites": "Requisitos previos",
+    "result": "Resultado",
+    "review": "Revisión de Master",
+    "openExecution": "Abrir conversación y flujo de trabajo",
+    "needsYou": "Necesita tu atención",
+    "coordinating": "Master está coordinando",
+    "state": {
+      "waiting": "Esperando requisitos previos",
+      "running": "En ejecución",
+      "awaiting_review": "Pendiente de revisión de Master",
+      "succeeded": "Completada",
+      "failed": "Fallida",
+      "blocked": "Bloqueada por un requisito previo",
+      "cancelled": "Cancelada"
+    }
   }
 }

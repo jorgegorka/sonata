@@ -6,6 +6,7 @@ use crate::context::real_dir_chain;
 
 impl Engine {
     pub async fn remove_session(&self, session_id: &str) -> Result<RemovedSessions> {
+        self.cancel_orchestration_for_removal(session_id).await?;
         let (mut removed, stopped, released, runs) = {
             let mut live = self.inner.live.lock().await;
             let starting = |live: &HashMap<String, Live>, sessions: &[Session]| -> Result<()> {

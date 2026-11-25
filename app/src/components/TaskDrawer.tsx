@@ -21,6 +21,7 @@ import { stateText, toneOf } from "./TaskCard";
 import WorkflowMap from "./WorkflowMap";
 import WorkflowPause, { StopRun } from "./WorkflowPause";
 import RestoreTaskButton from "./RestoreTaskButton";
+import { isTaskTerminal } from "../orchestration";
 
 interface Props {
   task: BoardTask | null;
@@ -43,6 +44,8 @@ export default function TaskDrawer(props: Props) {
   const { task, drawer, bots, sessions, onOpenFull, onMarkDone, onClose, onError, children } = props;
   const { t } = useTranslation();
   const title = task ? sessionLabel(task.root, sessions, bots, t) : t("board.newTask");
+  const process = task?.orchestration;
+  const canMarkDone = !process || (process.taskKey ? process.run.tasks.some((t) => t.spec.key === process.taskKey && isTaskTerminal(t)) : process.run.status !== "active");
   return (
     <aside className="drawer" aria-label={title}>
       <header className="drawer-header">
@@ -64,7 +67,7 @@ export default function TaskDrawer(props: Props) {
           {task && (task.column === "done" ? (
             <RestoreTaskButton taskId={task.id} onError={onError} />
           ) : (
-            <button onClick={onMarkDone}>{t("board.markDone")}</button>
+            <button disabled={!canMarkDone} onClick={onMarkDone}>{t("board.markDone")}</button>
           ))}
           <button
             className="icon-button drawer-icon"

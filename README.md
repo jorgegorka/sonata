@@ -70,6 +70,33 @@ again**. If creation stops partway through, Sonata lists what was created; **Ret
 creation** finishes the remaining work without duplicates. If you have edited or removed a
 resource from that proposal, generate a fresh proposal so your changes are preserved.
 
+## Orchestrating work with Master
+
+Ask Master to coordinate a process with several tasks. Master creates an overview card and a
+separate linked card for every task, including tasks waiting for prerequisites. Each task can
+use a different workflow or a single bot. Independent tasks run in parallel; a dependent task
+starts only after Master has reviewed and accepted all its prerequisite results.
+
+Master can add follow-up tasks within your request and adjust work that has not started. When
+all tasks and reviews are resolved, it returns one combined report in the original conversation,
+including deliverables, evidence, failures, and blocked work. Failed tasks block their dependents;
+independent tasks continue. Workflow pauses and questions remain open until resolved or cancelled.
+
+Open **Task details** to inspect a task's requirements, dependencies, result and Master's review.
+**Open conversation and workflow** opens its execution history and existing workflow controls.
+Use **Cancel task** or **Cancel process** to stop work, then **Mark done** to archive it. Restoring
+an archived card preserves its results without rerunning it. Active processes prevent project
+archival; switching projects leaves background work running.
+
+For agent integrations, `sbot orchestration start --key KEY` takes a JSON task graph on stdin.
+Each task has a `key`, `title`, `instructions`, `acceptance_criteria`, `executor` (a bot `handle`
+or workflow `name`), optional `depends_on` task keys, and optional `files`. Use `show ID` to read
+results and the current revision, `update ID --revision N --key KEY` to submit `reviews`, `add`,
+or `replace`, and `finish ID --revision N` with the final report on stdin. Stable operation keys
+make identical retries safe; stale revisions are rejected. Master owns orchestration commands;
+worker bots continue to report with `sbot result`. Existing approval rules still apply to new
+bots/workflows and actions outside the authorized scope.
+
 ## Projects
 
 Use **Add project** on the main page to create a team with a name, source directory,

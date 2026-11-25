@@ -12,6 +12,21 @@ pub(super) enum Block {
 
 impl Engine {
     pub async fn archive_session(&self, session_id: &str) -> Result<Vec<Session>> {
+        if let Some((run, Some(key))) = self.store.orchestration_of_session(session_id)? {
+            self.archive_orchestration_task(&run.id, &key, true).await?;
+            let ids = self
+                .orchestration_view(&run.id)?
+                .executions
+                .into_iter()
+                .find(|t| t.task.spec.key == key)
+                .map(|t| t.session_ids)
+                .unwrap_or_default();
+            return ids
+                .iter()
+                .map(|id| self.store.get_session(id))
+                .collect::<Result<Vec<_>>>()
+                .map(|s| s.into_iter().flatten().collect());
+        }
         match self.archive_tree(session_id, None).await? {
             Archive::Done(archived) => Ok(archived),
             Archive::Blocked(_) => unreachable!("no guard was given"),
@@ -19,6 +34,7 @@ impl Engine {
     }
 
     pub(super) async fn archive_tree(&self, session_id: &str, guard: Option<&str>) -> Result<Archive> {
+        self.guard_orchestration_archive(session_id)?;
         let (archived, stops, runs) = {
             let mut live = self.inner.live.lock().await;
             if let Some(asker) = guard {
@@ -76,6 +92,21 @@ impl Engine {
     }
 
     pub async fn restore_session(&self, session_id: &str) -> Result<Vec<Session>> {
+        if let Some((run, Some(key))) = self.store.orchestration_of_session(session_id)? {
+            self.archive_orchestration_task(&run.id, &key, false).await?;
+            let ids = self
+                .orchestration_view(&run.id)?
+                .executions
+                .into_iter()
+                .find(|t| t.task.spec.key == key)
+                .map(|t| t.session_ids)
+                .unwrap_or_default();
+            return ids
+                .iter()
+                .map(|id| self.store.get_session(id))
+                .collect::<Result<Vec<_>>>()
+                .map(|s| s.into_iter().flatten().collect());
+        }
         let restored =
             self.store.restore_session(session_id)?.ok_or_else(|| Refusal::SessionNotFound(session_id.into()))?;
         for session in &restored {

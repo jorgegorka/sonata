@@ -1190,15 +1190,19 @@ async fn a_workflow_request_opens_a_new_master_session_that_says_what_to_do() {
     assert!(stored.iter().any(|m| m.id == message.id && m.workflow_request), "the mark is stored");
     let prompts = h.rt.state().prompts.clone();
     let text = &prompts.iter().find(|(to, _)| to == &pane).expect("the request was delivered").1;
+    let orchestration = include_str!("../bundled/master/orchestration.md");
     assert_eq!(
         text,
         &format!(
             "[Message from user · thread you↔user · language: English · from the Workflows page]\n{SEO_REQUEST}\n\n\
-             {WORKFLOW_REQUEST_NOTE}"
+             {WORKFLOW_REQUEST_NOTE}\n\n{orchestration}"
         )
     );
     let plain = &prompts.iter().find(|(to, _)| to == &earlier_pane).unwrap().1;
-    assert_eq!(plain, "[Message from user · thread you↔user · language: English]\nBuild TASK-1.");
+    assert_eq!(
+        plain,
+        &format!("[Message from user · thread you↔user · language: English]\nBuild TASK-1.\n\n{orchestration}")
+    );
     assert!(!h.engine.session_messages(&earlier.id).unwrap().iter().any(|m| m.workflow_request));
 }
 

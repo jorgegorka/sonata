@@ -28,6 +28,13 @@ impl Engine {
         let message = self.store.cancel_queued(message_id)?.ok_or(Refusal::NotQueued)?;
         drop(live);
         self.emit(UiEvent::MessageUpdated { message: message.clone() });
+        if let Some(session) = &message.recipient_session {
+            if let Some((run, Some(key))) = self.store.orchestration_of_session(session)? {
+                if run.tasks.iter().any(|t| t.spec.key == key && t.request_message_id.as_deref() == Some(message_id)) {
+                    self.cancel_orchestration(&run.id, Some(&key)).await?;
+                }
+            }
+        }
         Ok(message)
     }
 
@@ -36,6 +43,25 @@ impl Engine {
         let old = self.store.get_message(message_id)?.ok_or_else(|| Refusal::MessageNotFound(message_id.into()))?;
         if old.status != MessageStatus::Interrupted {
             return Err(only_interrupted().into());
+        }
+        if old
+            .recipient_session
+            .as_deref()
+            .map(|s| self.orchestration_cancelled_session(s))
+            .transpose()?
+            .unwrap_or(false)
+        {
+            return Err(crate::orchestration::invalid(
+                "This task was cancelled. Ask Master to create a follow-up task.",
+            ));
+        }
+        let orchestration_event = orchestration::is_event(&old);
+        if orchestration_event {
+            if let Some(id) = old.system_params.as_ref().and_then(|p| p.get("run_id")).and_then(|id| id.as_str()) {
+                if self.store.get_orchestration(id)?.status != crate::orchestration::Status::Active {
+                    return Err(crate::orchestration::invalid("This orchestration is no longer active."));
+                }
+            }
         }
         for bot_id in [Some(&old.recipient), Some(&old.sender).filter(|s| *s != USER)].into_iter().flatten() {
             if self.store.get_bot(bot_id)?.is_none() {
@@ -50,8 +76,8 @@ impl Engine {
             recipient_session: old.recipient_session,
             kind: if from_user { MessageKind::Text } else { old.kind },
             body: old.body,
-            system_code: None,
-            system_params: None,
+            system_code: if orchestration_event { old.system_code } else { None },
+            system_params: if orchestration_event { old.system_params } else { None },
             attachments: old.attachments,
             status: MessageStatus::Queued,
             chain_id: if from_user { new_id() } else { old.chain_id },

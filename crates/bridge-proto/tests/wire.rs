@@ -2,6 +2,30 @@ use bridge_proto::*;
 use serde_json::json;
 
 #[test]
+fn orchestration_commands_preserve_revision_keys_and_stdin_bodies() {
+    for command in [
+        BridgeCommand::OrchestrationStart { key: "initial".into(), body: "{\"tasks\":[]}".into() },
+        BridgeCommand::OrchestrationShow { id: "process".into() },
+        BridgeCommand::OrchestrationUpdate {
+            id: "process".into(),
+            revision: 7,
+            key: "review".into(),
+            body: "{\"reviews\":[]}".into(),
+        },
+        BridgeCommand::OrchestrationFinish {
+            id: "process".into(),
+            revision: 8,
+            body: "Full result\nwith evidence".into(),
+            files: vec!["/tmp/report.md".into()],
+        },
+        BridgeCommand::OrchestrationCancel { id: "process".into(), task: Some("research".into()) },
+    ] {
+        let request = BridgeRequest { v: PROTOCOL_VERSION, pane_id: "p1".into(), cli_session_id: None, command };
+        assert_eq!(serde_json::from_value::<BridgeRequest>(serde_json::to_value(&request).unwrap()).unwrap(), request);
+    }
+}
+
+#[test]
 fn onboarding_proposal_keeps_generation_and_json_body_separate() {
     let body = json!({"workflows": [{"name": "Research\nreport"}]}).to_string();
     let request = BridgeRequest {

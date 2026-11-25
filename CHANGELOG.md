@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Let Master coordinate linked board tasks with independent bots or different workflows,
+  parallel execution, dependencies, and one combined final report.
+- Require Master's review before dependent tasks start; support follow-up tasks,
+  partial results, cancellation, and recovery after restarting Sonata.
+- Show process progress, task results, prerequisites, and restorable completed tasks
+  on the board in English, Spanish, French, and German.
+
 ## 1.0.6 — 2026-11-24
 
 Omarchy package for x86_64. The signed Apple Silicon download on the homepage

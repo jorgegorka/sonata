@@ -12,7 +12,7 @@ import { systemParams } from "../errors";
 import { formatReset } from "../limits";
 import { elementSummary, splitPageElements } from "../pick";
 
-function MessageLink({ href, children }: AnchorHTMLAttributes<HTMLAnchorElement>) {
+export function MessageLink({ href, children }: AnchorHTMLAttributes<HTMLAnchorElement>) {
   const openInline = useContext(OpenLinkContext);
   return (
     <a
@@ -50,7 +50,7 @@ function markLabel(mark: WorkflowMark, t: TFunction): string {
 
 export function senderName(message: Message, botName: string, t: TFunction): string {
   if (message.sender !== USER) return botName;
-  return message.workflow_mark ? t("app.title") : t("message.you");
+  return message.workflow_mark || message.system_code === "orchestration_event" ? t("app.title") : t("message.you");
 }
 
 interface Props {

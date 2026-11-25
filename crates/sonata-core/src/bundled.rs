@@ -23,7 +23,7 @@ const MASTER_PLAYBOOK: &str = include_str!("../bundled/master/playbook.md");
 pub const NEW_ASK: &str = "ask with `sbot ask` and end the turn";
 
 pub fn master_skill_body() -> String {
-    MASTER_PLAYBOOK.to_string()
+    format!("{MASTER_PLAYBOOK}\n\n{}", include_str!("../bundled/master/orchestration.md"))
 }
 
 pub fn master_instructions(project: Option<&Path>) -> String {
