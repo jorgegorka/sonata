@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 1.0.7 — 2026-11-25
+
+Omarchy package for x86_64. The signed Apple Silicon download on the homepage
+remains 1.0.5. AppImage and DEB packages are still pending.
+
+### Features
 
 - Let Master coordinate linked board tasks with independent bots or different workflows,
   parallel execution, dependencies, and one combined final report.
@@ -8,6 +13,12 @@
   partial results, cancellation, and recovery after restarting Sonata.
 - Show process progress, task results, prerequisites, and restorable completed tasks
   on the board in English, Spanish, French, and German.
+
+### Distribution
+
+- Arch package `sonata-x86_64.pkg.tar.zst` on the Omarchy GitHub release.
+  Install or upgrade it with `pacman -U`. Saved settings, bots, skills and history
+  stay in place. Quit Sonata before upgrading.
 
 ## 1.0.6 — 2026-11-24
 
