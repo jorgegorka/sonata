@@ -12,6 +12,7 @@
   --needs-border: #fcd9a8;
   --shadow: rgba(27, 24, 64, 0.14);
   --card-shadow: rgba(27, 24, 64, 0.06);
+  --overlay: rgba(0, 0, 0, 0.45);
   --ok: #059669;
   --busy: #c96b05;
   --alert: #e11d48;
@@ -39,6 +40,7 @@
     --needs-border: #6e5222;
     --shadow: rgba(5, 4, 20, 0.6);
     --card-shadow: rgba(5, 4, 20, 0.3);
+    --overlay: rgba(0, 0, 0, 0.45);
     --ok: #34d399;
     --busy: #fbbf24;
     --alert: #fb7185;
@@ -428,3 +430,11 @@ body.resizing { cursor: col-resize; user-select: none; }
 .orchestration-details .drawer-header { display: flex; justify-content: space-between; align-items: center; }
 .orchestration-detail-body { padding: 1rem; overflow-y: auto; }
 .orchestration-detail-body > button { margin: 0.5rem 0.5rem 0.5rem 0; }
+
+.updates-checkbox { display: flex; gap: 8px; align-items: center; }
+.updates-checkbox input { width: auto; }
+.update-dialog { width: min(460px, calc(100vw - 48px)); padding: 24px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); color: var(--text); }
+.update-dialog::backdrop { background: var(--overlay); }
+.update-dialog h2 { margin-top: 0; }
+.update-dialog progress { width: 100%; }
+.update-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }

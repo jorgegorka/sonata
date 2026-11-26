@@ -1670,6 +1670,11 @@ impl Engine {
         self.inner.runtime.shutdown().await;
     }
 
+    pub async fn shutdown_for_update(&self) -> std::result::Result<(), RuntimeError> {
+        self.inner.closing.store(true, Ordering::SeqCst);
+        self.inner.runtime.shutdown_checked().await
+    }
+
     fn closing(&self) -> bool {
         self.inner.closing.load(Ordering::SeqCst)
     }

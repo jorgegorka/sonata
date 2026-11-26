@@ -28,6 +28,7 @@ jobs:
         run: |
           runtime="$(sh scripts/fetch-herdr.sh)"
           SONATA_HERDR_BIN="$runtime" cargo test --locked --workspace
+      - run: brew install minisign
       - run: python3 -m unittest discover -s scripts/tests -v
       - name: Sign, notarize and verify the Mac release
         run: bash scripts/macos-release.sh
@@ -78,7 +79,17 @@ jobs:
           pattern: release-*
           path: release-dist
           merge-multiple: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm --prefix app ci --engine-strict
+      - run: sudo apt-get update && sudo apt-get install -y minisign
       - run: python3 scripts/release.py finalize
+      - name: Sign and verify updater artifacts
+        run: python3 scripts/updates.py sign
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
       - name: Publish the complete release
         env:
           GH_TOKEN: ${{ github.token }}

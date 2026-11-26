@@ -17,6 +17,9 @@ tauri = { version = "2", features = ["tray-icon", "unstable"] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2.5.1"
+tauri-plugin-updater = "=2.14.1"
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
+semver = "1"
 rfd = { version = "0.16", default-features = false, features = ["gtk3"] }
 trash = "5"
 dirs.workspace = true
@@ -44,5 +47,6 @@ webkit2gtk = { version = "=2.0.2", features = ["v2_38"] }
 javascriptcore-rs = "=1.1.2"
 
 [dev-dependencies]
+tauri = { version = "2", features = ["test"] }
 sonata-core = { path = "../../crates/sonata-core", features = ["test-util"] }
 tempfile.workspace = true

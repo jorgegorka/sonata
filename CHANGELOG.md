@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Add an **Automatic updates** setting, enabled by default, which checks once at
+  startup and offers newer stable versions. Downloading and restarting each
+  require confirmation.
+- Install verified updates in the app on macOS, AppImage, and DEB installations;
+  guide Omarchy and terminal-installer users through the matching update process.
+- Publish independently versioned update feeds with signed artifacts, verified
+  before deployment. Stop bot work before installing and preserve saved data.
+
 ## 1.0.7 — 2026-11-25
 
 Signed and notarized Apple Silicon macOS DMG on the homepage, plus the Omarchy

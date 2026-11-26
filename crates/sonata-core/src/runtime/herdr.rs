@@ -527,11 +527,18 @@ impl BotRuntime for HerdrRuntime {
     }
 
     async fn shutdown(&self) {
+        if let Err(error) = self.shutdown_checked().await {
+            tracing::warn!(%error, "runtime shutdown failed");
+        }
+    }
+
+    async fn shutdown_checked(&self) -> Result<(), RuntimeError> {
         tracing::info!(session = %self.session, "stopping the herdr session");
         self.closed.store(true, Ordering::SeqCst);
         if let Some((server, _)) = self.server.lock().await.take() {
-            let _ = server.stop().await;
+            server.stop().await.map_err(other)?;
         }
+        Ok(())
     }
 
     fn subscribe(&self) -> broadcast::Receiver<RuntimeEvent> {

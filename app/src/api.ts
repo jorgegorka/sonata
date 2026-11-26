@@ -397,6 +397,7 @@ export interface HerdrStatus {
 }
 
 export interface AppSettings {
+  automatic_updates: boolean;
   hop_limit: number;
   bots_root: string;
   logs_dir: string;
@@ -641,6 +642,7 @@ export function projectApi(projectId?: string) {
   remindStep: (runId: string) => invoke<void>("remind_step", { runId }),
   stopRun: (runId: string) => invoke<void>("stop_run", { runId }),
   getSettings: () => invoke<AppSettings>("get_settings"),
+  setAutomaticUpdates: (enabled: boolean) => invoke<void>("set_automatic_updates", { enabled }),
   setHopLimit: (limit: number) => invoke<void>("set_hop_limit", { limit }),
   setLanguage: (choice: string) => invoke<string>("set_language", { choice }),
   setBrowserShown: (shown: boolean) => invoke<void>("set_browser_shown", { shown }),

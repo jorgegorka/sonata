@@ -11,6 +11,14 @@ pub(crate) enum FolderError {
 }
 
 impl Engine {
+    pub fn automatic_updates(&self) -> Result<bool> {
+        Ok(self.store.get_setting("automatic_updates")?.as_deref() != Some("false"))
+    }
+
+    pub fn set_automatic_updates(&self, enabled: bool) -> Result<()> {
+        self.store.set_setting("automatic_updates", if enabled { "true" } else { "false" })
+    }
+
     pub fn hop_limit(&self) -> Result<i64> {
         let stored = self.store.get_setting("hop_limit")?.and_then(|v| v.trim().parse::<i64>().ok());
         Ok(stored.unwrap_or(DEFAULT_HOP_LIMIT).clamp(1, MAX_HOP_LIMIT))

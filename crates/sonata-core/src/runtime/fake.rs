@@ -33,6 +33,7 @@ pub struct FakeState {
     pub snapshot_delay: Option<Duration>,
     pub snapshots: u32,
     pub shutdown_called: bool,
+    pub shutdown_error: Option<RuntimeError>,
     next_pane: u32,
 }
 
@@ -81,6 +82,7 @@ impl FakeRuntime {
                 snapshot_delay: None,
                 snapshots: 0,
                 shutdown_called: false,
+                shutdown_error: None,
                 next_pane: 0,
             }),
             tx,
@@ -194,6 +196,14 @@ impl BotRuntime for FakeRuntime {
 
     async fn shutdown(&self) {
         self.state().shutdown_called = true;
+    }
+
+    async fn shutdown_checked(&self) -> Result<(), RuntimeError> {
+        self.shutdown().await;
+        match self.state().shutdown_error.clone() {
+            Some(error) => Err(error),
+            None => Ok(()),
+        }
     }
 
     fn subscribe(&self) -> broadcast::Receiver<RuntimeEvent> {

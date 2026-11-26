@@ -52,3 +52,5 @@ npm --prefix app run dmg
 version="$(python3 scripts/release.py check-version)"
 xcrun stapler validate "target/release/bundle/dmg/Sonata_$version.dmg"
 python3 scripts/release.py collect --platform macos-aarch64
+
+python3 scripts/updates.py archive-mac

@@ -853,5 +853,27 @@
       "blocked": "Bloqueada por un requisito previo",
       "cancelled": "Cancelada"
     }
+  },
+  "updates": {
+    "title": "Actualizaciones",
+    "automatic": "Actualizaciones automáticas",
+    "hint": "Buscar nuevas versiones al iniciar Sonata. Preguntar antes de descargar o instalar. Los cambios se aplican en el próximo inicio.",
+    "available": "Sonata {{version}} está disponible",
+    "offer": "Hay una nueva versión de Sonata lista para descargar.",
+    "download": "Descargar actualización",
+    "instructions": "Ver instrucciones de actualización",
+    "later": "Más tarde",
+    "notes": "Notas de la versión",
+    "downloading": "Descargando y verificando la actualización…",
+    "ready": "La actualización se ha descargado y verificado.",
+    "restartHint": "Al reiniciar se detendrá el trabajo de los bots en todos los proyectos. Se conservarán los datos guardados y la configuración.",
+    "restartInstall": "Reiniciar e instalar",
+    "installing": "Deteniendo los bots e instalando la actualización…",
+    "downloadFailed": "No se ha podido descargar o verificar la actualización. Sonata no ha cambiado. Inténtalo de nuevo.",
+    "installFailed": "No se ha podido instalar la actualización. Debes reiniciar Sonata para continuar con la versión actual. Si no se abre, vuelve a instalarla desde la página de descargas; los datos se guardan por separado.",
+    "retry": "Reintentar",
+    "restart": "Reiniciar Sonata",
+    "archHint": "Descarga la versión {{version}}, termina tu trabajo y cierra Sonata. Instala el paquete descargado con sudo pacman -U seguido de la ruta del archivo y vuelve a abrir Sonata.",
+    "extractedHint": "Termina tu trabajo y cierra Sonata. Ejecuta de nuevo el instalador de terminal de Sonata con --version {{version}} y la misma ruta --dest que usaste antes. Se conservarán los datos guardados."
   }
 }

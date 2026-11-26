@@ -853,5 +853,27 @@
       "blocked": "Bloquée par un prérequis",
       "cancelled": "Annulée"
     }
+  },
+  "updates": {
+    "title": "Mises à jour",
+    "automatic": "Mises à jour automatiques",
+    "hint": "Rechercher de nouvelles versions au démarrage de Sonata. Demander avant de télécharger ou d’installer. Les changements prennent effet au prochain démarrage.",
+    "available": "Sonata {{version}} est disponible",
+    "offer": "Une nouvelle version de Sonata est prête à être téléchargée.",
+    "download": "Télécharger la mise à jour",
+    "instructions": "Voir les instructions de mise à jour",
+    "later": "Plus tard",
+    "notes": "Notes de version",
+    "downloading": "Téléchargement et vérification de la mise à jour…",
+    "ready": "La mise à jour a été téléchargée et vérifiée.",
+    "restartHint": "Le redémarrage arrêtera le travail des bots dans tous les projets. Vos données enregistrées et vos réglages seront conservés.",
+    "restartInstall": "Redémarrer et installer",
+    "installing": "Arrêt des bots et installation de la mise à jour…",
+    "downloadFailed": "La mise à jour n’a pas pu être téléchargée ou vérifiée. Sonata n’a pas été modifié. Réessayez.",
+    "installFailed": "La mise à jour n’a pas pu être installée. Sonata doit redémarrer pour continuer avec la version actuelle. Si elle ne s’ouvre pas, réinstallez-la depuis la page de téléchargement ; vos données sont conservées séparément.",
+    "retry": "Réessayer",
+    "restart": "Redémarrer Sonata",
+    "archHint": "Téléchargez la version {{version}}, terminez votre travail et quittez Sonata. Installez le paquet avec sudo pacman -U suivi du chemin du fichier, puis rouvrez Sonata.",
+    "extractedHint": "Terminez votre travail et quittez Sonata. Relancez l’installateur de terminal de Sonata avec --version {{version}} et le même chemin --dest qu’auparavant. Vos données enregistrées seront conservées."
   }
 }

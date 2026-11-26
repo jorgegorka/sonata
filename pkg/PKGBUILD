@@ -59,6 +59,8 @@ package() {
   [ -f "$data" ] || { echo "The DEB has no data archive." >&2; return 1; }
   tar -C "$pkgdir" -xf "$data"
   install -Dm644 "$SONATA_SRC/pkg/sonata.desktop" "$pkgdir/usr/share/applications/sonata.desktop"
+  install -d "$pkgdir/usr/share/sonata"
+  printf 'arch\n' > "$pkgdir/usr/share/sonata/install-format"
   install -Dm644 "$SONATA_SRC/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
   [ -x "$pkgdir/usr/bin/sonata" ] || { echo "The package has no /usr/bin/sonata." >&2; return 1; }
 }

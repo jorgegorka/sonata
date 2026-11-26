@@ -6,6 +6,9 @@ on:
     paths:
       - 'site/**'
       - 'scripts/release.py'
+      - 'scripts/updates.py'
+      - 'scripts/tests/test_updates.py'
+      - 'app/src-tauri/tauri.conf.json'
       - 'scripts/pages.py'
       - 'scripts/tests/test_pages.py'
       - '.github/workflows/pages.yml'
@@ -41,6 +44,11 @@ jobs:
         run: python3 -m unittest discover -s scripts/tests -p 'test_pages.py' -v
       - name: Advertise available platform downloads
         run: python3 scripts/release.py site
+      - run: sudo apt-get update && sudo apt-get install -y minisign
+      - name: Generate verified installation-specific update feeds
+        run: python3 scripts/updates.py site
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Record deployed revision and file checksums
         run: python3 scripts/pages.py record
       - name: Configure Pages

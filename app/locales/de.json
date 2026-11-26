@@ -853,5 +853,27 @@
       "blocked": "Durch eine Voraussetzung blockiert",
       "cancelled": "Abgebrochen"
     }
+  },
+  "updates": {
+    "title": "Updates",
+    "automatic": "Automatische Updates",
+    "hint": "Beim Start von Sonata nach neuen Versionen suchen. Vor dem Herunterladen oder Installieren nachfragen. Änderungen gelten ab dem nächsten Start.",
+    "available": "Sonata {{version}} ist verfügbar",
+    "offer": "Eine neue Version von Sonata steht zum Herunterladen bereit.",
+    "download": "Update herunterladen",
+    "instructions": "Update-Anleitung anzeigen",
+    "later": "Später",
+    "notes": "Versionshinweise",
+    "downloading": "Update wird heruntergeladen und überprüft…",
+    "ready": "Das Update wurde heruntergeladen und überprüft.",
+    "restartHint": "Beim Neustart wird die laufende Bot-Arbeit in allen Projekten beendet. Gespeicherte Daten und Einstellungen bleiben erhalten.",
+    "restartInstall": "Neu starten und installieren",
+    "installing": "Bot-Arbeit wird beendet und das Update installiert…",
+    "downloadFailed": "Das Update konnte nicht heruntergeladen oder überprüft werden. Sonata wurde nicht verändert. Versuche es erneut.",
+    "installFailed": "Das Update konnte nicht installiert werden. Sonata muss neu gestartet werden, bevor du mit der bisherigen Version fortfahren kannst. Falls sie sich nicht öffnen lässt, installiere sie erneut von der Downloadseite; deine Daten werden separat gespeichert.",
+    "retry": "Erneut versuchen",
+    "restart": "Sonata neu starten",
+    "archHint": "Lade Version {{version}} herunter, beende deine Arbeit und schließe Sonata. Installiere das Paket mit sudo pacman -U gefolgt vom Dateipfad und öffne Sonata erneut.",
+    "extractedHint": "Beende deine Arbeit und schließe Sonata. Führe das Terminal-Installationsprogramm erneut mit --version {{version}} und demselben --dest-Pfad aus. Gespeicherte Daten bleiben erhalten."
   }
 }

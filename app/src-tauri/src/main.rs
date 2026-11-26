@@ -12,6 +12,7 @@ mod omarchy_theme;
 mod platform;
 mod startup;
 mod tray;
+mod updates;
 
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -1055,6 +1056,8 @@ fn main() {
         .plugin(tauri_plugin_opener::Builder::new().open_js_links_on_click(false).build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(updates::Updates::default())
         .manage(engine)
         .manage(app_env)
         .manage(browser::Browser::default())
@@ -1141,6 +1144,14 @@ fn main() {
             delete_skill,
             open_skills_folder,
             get_settings,
+            updates::set_automatic_updates,
+            updates::check_startup_update,
+            updates::get_update_state,
+            updates::download_update,
+            updates::install_update,
+            updates::dismiss_update,
+            updates::open_update_link,
+            updates::restart_after_update_failure,
             set_hop_limit,
             set_language,
             set_browser_shown,
@@ -1243,6 +1254,11 @@ fn main() {
         .build(context)
         .expect("error while building Sonata")
         .run(move |_app, event| match event {
+            RunEvent::ExitRequested { api, code, .. } => {
+                if _app.state::<updates::Updates>().prevents_exit(code) {
+                    api.prevent_exit();
+                }
+            }
             RunEvent::Exit => {
                 if let Some(watch) = _app.try_state::<omarchy_theme::Watch>() {
                     watch.stop();

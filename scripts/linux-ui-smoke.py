@@ -190,7 +190,14 @@ def main():
                 expected_version = re.search(r"HERDR_VERSION=([0-9.]+)", pin).group(1)
                 assert health["error"] is None and health["version"] == expected_version, health
                 assert "/runtime/herdr" in health["path"], health
+                assert driver.invoke("get_settings")["automatic_updates"] is True
+                driver.invoke("set_automatic_updates", {"enabled": False})
+                assert driver.invoke("get_settings")["automatic_updates"] is False
+                driver.invoke("set_automatic_updates", {"enabled": True})
+                assert driver.invoke("get_settings")["automatic_updates"] is True
+                assert driver.invoke("get_update_state")["phase"] in ("idle", "checking", "dismissed")
                 print(f"Packaged setup and herdr health passed: {args.executable}", flush=True)
+                print("Packaged automatic-update settings and IPC passed", flush=True)
                 if args.picker:
                     picker(driver, main_view)
             except Exception:

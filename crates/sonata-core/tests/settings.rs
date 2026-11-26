@@ -175,3 +175,37 @@ async fn bots_are_told_the_resolved_language() {
     assert!(agents.contains("The user's preferred language is Spanish."), "{agents}");
     assert!(h.rt.state().prompts[0].1.contains("language: Spanish"));
 }
+
+#[tokio::test]
+async fn automatic_updates_default_on_and_persist_globally() {
+    let h = harness_after(|_| {});
+    assert!(h.engine.automatic_updates().unwrap());
+    h.engine.set_automatic_updates(false).unwrap();
+    assert!(!relaunch(&h).engine.automatic_updates().unwrap());
+    let folder = tempfile::tempdir().unwrap();
+    let project = h
+        .engine
+        .create_project(sonata_core::model::ProjectInput {
+            name: "Updates".into(),
+            default_directory: Some(folder.path().to_string_lossy().into_owned()),
+            default_provider: Provider::Claude,
+        })
+        .unwrap();
+    let scoped = h.engine.for_project(&project.id).unwrap();
+    assert!(!scoped.automatic_updates().unwrap());
+    scoped.set_automatic_updates(true).unwrap();
+    assert!(h.engine.automatic_updates().unwrap());
+    assert!(relaunch(&h).engine.automatic_updates().unwrap());
+}
+
+#[tokio::test]
+async fn updater_shutdown_reports_failure_and_prevents_new_bot_work() {
+    let h = harness();
+    let bot = h.engine.create_bot(claude_bot("Researcher")).unwrap();
+    h.rt.state().shutdown_error = Some(RuntimeError::Other("shutdown failed".into()));
+    assert!(h.engine.shutdown_for_update().await.is_err());
+    assert!(h.rt.state().shutdown_called);
+    h.engine.queue_user_message(&bot.id, "Do not start during an update").unwrap();
+    h.engine.pump(&bot.id).await;
+    assert!(h.rt.state().starts.is_empty());
+}

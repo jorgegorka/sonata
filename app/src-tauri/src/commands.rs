@@ -215,6 +215,7 @@ pub async fn open_skills_folder(engine: &Engine) -> Result<(), CommandError> {
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct AppSettings {
+    pub automatic_updates: bool,
     pub hop_limit: i64,
     pub bots_root: String,
     pub logs_dir: String,
@@ -230,6 +231,7 @@ pub struct AppSettings {
 pub fn get_settings(engine: &Engine) -> Result<AppSettings, CommandError> {
     let paths = engine.paths();
     Ok(AppSettings {
+        automatic_updates: engine.automatic_updates()?,
         hop_limit: engine.hop_limit()?,
         bots_root: paths.bots_root.to_string_lossy().into_owned(),
         logs_dir: paths.logs_dir().to_string_lossy().into_owned(),

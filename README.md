@@ -301,6 +301,25 @@ For a terminal installation on Linux, remove `~/.local/opt/sonata`, `~/.local/bi
 Removing the application preserves your data. Remove its data folder and bot folders separately
 only if you also want to delete your saved work.
 
+
+### Automatic updates
+
+Settings → **Automatic updates** is enabled by default. Sonata checks once when
+it starts and offers newer stable versions for your installation. It asks before
+downloading; after verification, **Restart and install** asks you to stop running
+bot work across all projects. Saved data and configuration are preserved.
+**Later** dismisses the offer until the next launch. Turning the checkbox on takes
+effect at the next launch. Offline startup does not show an error.
+
+macOS, AppImage, and DEB installations support in-app installation. DEB updates
+may require administrator authorization. Omarchy packages and Linux installations
+made through the terminal installer show matching update instructions instead.
+Finish work and quit Sonata before following those instructions.
+
+Versions before this feature need one manual upgrade. Developer builds do not
+check for updates. See [the release guide](docs/releases.md#automatic-update-feeds)
+for signing, feed publication, and validation.
+
 ## Omarchy
 
 Sonata 1.0.7 for Omarchy is an Arch package. It follows the Omarchy theme and

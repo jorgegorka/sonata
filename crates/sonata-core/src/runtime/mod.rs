@@ -88,5 +88,10 @@ pub trait BotRuntime: Send + Sync + 'static {
     async fn send_keys(&self, bot: &RuntimeBot, keys: &[&str]) -> Result<(), RuntimeError>;
     async fn stop_bot(&self, bot: &RuntimeBot) -> Result<(), RuntimeError>;
     async fn shutdown(&self);
+    /// Updates must not replace runtime binaries when shutdown failed.
+    async fn shutdown_checked(&self) -> Result<(), RuntimeError> {
+        self.shutdown().await;
+        Ok(())
+    }
     fn subscribe(&self) -> broadcast::Receiver<RuntimeEvent>;
 }

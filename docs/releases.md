@@ -154,8 +154,8 @@ Quit Sonata before upgrading an existing install with `sudo pacman -U`.
 ## Validation
 
 ```sh
-cargo test --locked --workspace
 npm --prefix app ci --engine-strict
+cargo test --locked --workspace
 npm --prefix app test
 npm --prefix app run build
 python3 -m unittest discover -s scripts/tests -v
@@ -226,3 +226,80 @@ SONATA_HERDR_BIN="$PWD/.tools/herdr/herdr" cargo test --locked -p sonata-core \
 This checks that background work remains detectable when herdr reports Grok idle,
 then clears after the command finishes. The watchdog regression test advances a
 paused clock across repeated 30-minute cleanup checks and verifies eventual cleanup.
+
+## Automatic update feeds
+
+The updater uses a dedicated Minisign key, separate from Apple code signing.
+The public key is in app/src-tauri/tauri.conf.json. The local private key is
+~/.tauri/sonata-updater.key; keep it outside the repository and back it up securely.
+Configure TAURI_SIGNING_PRIVATE_KEY and TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+as release secrets. The key variable accepts file contents or a local file path.
+Never change the embedded public key without planning how existing installations
+will trust subsequent releases.
+
+Install minisign (brew install minisign on Mac, apt-get install minisign on
+Debian or Ubuntu 24.04+) for release verification. The release workflow installs it.
+Ubuntu 22.04 package tests skip the Minisign-dependent cases; macOS checks and the
+Ubuntu 24.04 release publisher exercise actual signatures.
+Signing fails if the private key is missing, does not match the embedded public
+key, or does not bind the package to the advertised version. requireSignedVersion
+also makes the application reject a valid old artifact advertised as a new version.
+
+The tag workflow collects a notarized, stapled Sonata.app archive in addition
+to the existing installers. After all platform builds succeed, it finalizes
+checksums, signs the Mac archive and both Linux package formats, verifies their
+signatures, and includes the update manifests and signatures in the immutable
+GitHub release. The ordinary unsigned bundle command remains available for
+development and package validation; unsigned packages are never advertised
+as native updates.
+
+For a locally built Mac release, after the existing signing/notarization checks:
+
+    python3 scripts/updates.py archive-mac
+    python3 scripts/release.py finalize --platform macos-aarch64
+    export TAURI_SIGNING_PRIVATE_KEY="$HOME/.tauri/sonata-updater.key"
+    export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=''
+    python3 scripts/updates.py sign --platform macos-aarch64
+
+Publish all files from release-dist/ under the matching immutable v<version>
+release, following the existing release procedure. Do not upload the private key.
+
+For repository-hosted Mac releases, prepare the verified DMG, its existing
+SHA256SUMS, and version.txt in a staging directory. Archive the matching
+notarized application into that directory, then run:
+
+    python3 scripts/updates.py sign --platform macos-aarch64 --repository --directory /path/to/staging
+
+Copy the resulting versioned application archive, its .sig,
+update-darwin-aarch64.json, and UPDATES-SHA256SUMS alongside the DMG in
+site/downloads/. The separate update checksum manifest preserves the existing
+DMG-only download contract. The versioned archive must never be overwritten.
+Include the public archive in the normal publication/secret-scan review.
+
+Pages runs python3 scripts/updates.py site before recording its deployment
+manifest. It resolves all published stable releases independently for each target:
+darwin-aarch64, linux-{x86_64,aarch64}-{appimage,deb,arch}. Each feed lives at
+https://jorgegorka.github.io/sonata/updates/<target>.json. An Omarchy release
+cannot hide a Mac release. Missing platforms have no feed; missing feeds quietly
+produce no update. Repository-hosted Mac metadata competes by version with GitHub
+release metadata. Failed downloads, incomplete platform packages, incorrect
+checksums, or invalid signatures fail deployment and retain the previous site.
+Pages verifies every advertised native artifact before publishing its feed.
+
+Omarchy releases continue to use omarchy-<version> tags and architecture-specific
+package filenames. Include instructions in their release notes to quit Sonata,
+download the package, install with sudo pacman -U /path/to/package.pkg.tar.zst,
+and reopen Sonata. Packages contain an install-format marker so a repacked DEB
+is never updated with dpkg. Existing package ownership is also checked.
+
+Extracted Linux installations retain the terminal installer's .sonata-version
+marker. Their update dialog explains how to rerun the installer with the offered
+--version and the same --dest. Direct AppImage installation is used only when
+Sonata is actually launched from an existing AppImage file.
+
+Before publishing the first updater-enabled release, test a signed old-to-new
+upgrade in disposable installations of Mac, AppImage, and DEB. Verify restart,
+package-manager authorization cancellation, signature rejection, failure recovery,
+and preservation of settings, bots, projects, skills, and history. Exercise guided
+updates in Omarchy and the extracted terminal installation. Existing installations
+without this feature need a manual upgrade to the first updater-enabled release.

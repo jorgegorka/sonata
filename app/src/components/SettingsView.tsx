@@ -24,6 +24,7 @@ export default function SettingsView({ providers, onCheckProviders, onBotsChange
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [hopLimit, setHopLimit] = useState("");
   const [saved, setSaved] = useState(false);
+  const [updatesSaving, setUpdatesSaving] = useState(false);
   const [checkoutKept, setCheckoutKept] = useState<string[] | null>(null);
 
   const [exported, setExported] = useState<string | null>(null);
@@ -128,6 +129,15 @@ export default function SettingsView({ providers, onCheckProviders, onBotsChange
     }
   }
 
+  async function changeAutomaticUpdates(enabled: boolean) {
+    setUpdatesSaving(true);
+    try {
+      await api.setAutomaticUpdates(enabled);
+      setSettings(s => s && { ...s, automatic_updates: enabled });
+    } catch (error) { onError(error); }
+    finally { setUpdatesSaving(false); }
+  }
+
   if (!settings) return null;
   return (
     <>
@@ -148,6 +158,16 @@ export default function SettingsView({ providers, onCheckProviders, onBotsChange
           </select>
         </label>
         <p className="muted">{t("settings.languageHint")}</p>
+      </section>
+      <section>
+        <h2>{t("updates.title")}</h2>
+        <label className="updates-checkbox">
+          <input type="checkbox" checked={settings.automatic_updates} disabled={updatesSaving}
+            aria-describedby="automatic-updates-hint"
+            onChange={event => void changeAutomaticUpdates(event.target.checked)} />
+          {t("updates.automatic")}
+        </label>
+        <p className="muted" id="automatic-updates-hint">{t("updates.hint")}</p>
       </section>
       <section>
         <h2>{t("settings.teamTitle")}</h2>

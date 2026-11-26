@@ -1,3 +1,5 @@
+import UpdatePrompt from "./components/UpdatePrompt";
+import { useUpdates, updateIsVisible } from "./updates";
 import ProjectsView from "./components/ProjectsView";
 import { ProjectApiContext, ProjectContext } from "./projectContext";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
@@ -126,7 +128,8 @@ export default function App() {
   const browserPage = useCallback((page: PageState) => dispatchBrowser({ type: "page", page }), []);
   const closeBrowser = useCallback(() => dispatchBrowser({ type: "close" }), []);
   const toggleBrowser = useCallback(() => dispatchBrowser({ type: "toggle" }), []);
-  const panelShown = browser.open && isChat(page);
+  const update = useUpdates(setupDone !== null);
+  const panelShown = browser.open && isChat(page) && !updateIsVisible(update);
   useEffect(() => {
     if (panelShown) return;
     api.browserClose().catch(fail);
@@ -557,6 +560,7 @@ export default function App() {
     <ProjectContext.Provider value={project}>
     <ProjectApiContext.Provider value={scopedApi}>
     <OpenLinkContext.Provider value={openInline}>
+      {page?.kind !== "onboarding" && <UpdatePrompt state={update} onError={fail} />}
       <div className="app" style={panelShown ? { gridTemplateColumns: gridColumns(browser.width) } : undefined}>
         <Rail
           bots={state.bots}

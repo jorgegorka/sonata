@@ -30,6 +30,7 @@ jobs:
         run: |
           runtime="$(sh scripts/fetch-herdr.sh)"
           SONATA_HERDR_BIN="$runtime" cargo test --locked --workspace
+      - run: brew install minisign
       - run: python3 -m unittest discover -s scripts/tests -v
       - run: python3 scripts/release.py check-version
   linux:
