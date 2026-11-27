@@ -11,6 +11,8 @@ mod notify;
 mod omarchy_theme;
 mod platform;
 mod startup;
+#[cfg(test)]
+mod task_commands_tests;
 mod tray;
 mod updates;
 
@@ -121,7 +123,7 @@ async fn list_work_items(
     Ok(engine.request_project(project_id.as_deref(), &[])?.list_work_items().await?)
 }
 #[tauri::command]
-fn create_work_item(
+async fn create_work_item(
     engine: State<'_, Engine>,
     project_id: Option<String>,
     input: sonata_core::work_items::NewWorkItem,
@@ -129,7 +131,11 @@ fn create_work_item(
     Ok(engine.request_project(project_id.as_deref(), &[])?.create_work_item(input)?)
 }
 #[tauri::command]
-fn start_work_item(engine: State<'_, Engine>, project_id: Option<String>, task_id: String) -> Result<(), CommandError> {
+async fn start_work_item(
+    engine: State<'_, Engine>,
+    project_id: Option<String>,
+    task_id: String,
+) -> Result<(), CommandError> {
     Ok(engine.request_project(project_id.as_deref(), &[("work_items", &task_id)])?.start_work_item(&task_id)?)
 }
 #[tauri::command]

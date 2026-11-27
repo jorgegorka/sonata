@@ -6,7 +6,7 @@ name, instructions, model and skills. A built-in coordinator, **Master**, takes 
 delegates them to the right bots, checks their results and asks you before anything that needs
 your approval.
 
-> **Version:** 1.0.10. On Omarchy, install the x86_64 Arch package from the [1.0.7 release](https://github.com/jorgegorka/sonata/releases/tag/omarchy-1.0.7). macOS uses the signed and notarized [Apple Silicon DMG](https://jorgegorka.github.io/sonata/downloads/Sonata_1.0.10.dmg) ([SHA-256 checksum](https://jorgegorka.github.io/sonata/downloads/SHA256SUMS)), version 1.0.10. AppImage and DEB packages are coming soon. See the [changelog](CHANGELOG.md) for release notes.
+> **Version:** 1.0.11. On Omarchy, install the x86_64 Arch package from the [1.0.7 release](https://github.com/jorgegorka/sonata/releases/tag/omarchy-1.0.7). macOS uses the signed and notarized [Apple Silicon DMG](https://jorgegorka.github.io/sonata/downloads/Sonata_1.0.11.dmg) ([SHA-256 checksum](https://jorgegorka.github.io/sonata/downloads/SHA256SUMS)), version 1.0.11. AppImage and DEB packages are coming soon. See the [changelog](CHANGELOG.md) for release notes.
 
 > [!WARNING]
 > Bots work on their own. Each CLI runs in its autonomous mode (for example Claude Code with
@@ -264,7 +264,7 @@ provider with the account you signed in with.
 ## Installation
 
 Download the signed, notarized macOS DMG from
-[Sonata’s homepage](https://jorgegorka.github.io/sonata/). The 1.0.10 installer is stored in
+[Sonata’s homepage](https://jorgegorka.github.io/sonata/). The 1.0.11 installer is stored in
 `site/downloads/` and served by GitHub Pages. AppImage and DEB packages are pending. On
 Omarchy, install the 1.0.7 Arch package with the steps in [Omarchy](#omarchy). Elsewhere, use the
 source instructions below. Future automated desktop releases are published to
@@ -280,7 +280,7 @@ source instructions below. Future automated desktop releases are published to
   **herdr and sbot are included.**
 
 Once packages are published to GitHub Releases, the terminal installer below can install and
-update them. For the current Pages-hosted 1.0.10 release, use the DMG download above.
+update them. For the current Pages-hosted 1.0.11 release, use the DMG download above.
 
 ```sh
 curl -fsSL https://jorgegorka.github.io/sonata/install.sh | bash
@@ -478,8 +478,8 @@ npm --prefix app run bundle
 npm --prefix app run dmg
 ```
 
-For 1.0.10, these create `target/release/bundle/macos/Sonata.app` and
-`target/release/bundle/dmg/Sonata_1.0.10.dmg`. Both commands sign, submit to Apple and staple the
+For 1.0.11, these create `target/release/bundle/macos/Sonata.app` and
+`target/release/bundle/dmg/Sonata_1.0.11.dmg`. Both commands sign, submit to Apple and staple the
 accepted notarization ticket when the required credentials are present.
 
 See [Releasing Sonata](docs/releases.md) for the exact credential variables, verification

@@ -6,17 +6,17 @@ Debian 12, or a compatible system with WebKitGTK 4.1. There is no headless editi
 
 ## Release hosting
 
-### Repository-hosted 1.0.10 download
+### Repository-hosted 1.0.11 download
 
-The notarized Apple Silicon DMG is tracked as `site/downloads/Sonata_1.0.10.dmg`
+The notarized Apple Silicon DMG is tracked as `site/downloads/Sonata_1.0.11.dmg`
 and served by GitHub Pages. Its `SHA256SUMS` and `version.txt` are stored beside it.
-The matching `Sonata_1.0.10.app.tar.gz` archive and signature supply the macOS
+The matching `Sonata_1.0.11.app.tar.gz` archive and signature supply the macOS
 update feed. `UPDATES-SHA256SUMS` covers the updater artifacts separately.
 When the latest GitHub Release has no desktop packages, Pages verifies that checksum and renders the local
 download link. The terminal installer targets GitHub Releases and is not advertised
 for this repository-hosted download.
 
-The previous 1.0.0, 1.0.3, 1.0.4, 1.0.5, 1.0.7, 1.0.8 and 1.0.9 DMGs remain available at their original URLs. The secret scanner
+The previous 1.0.0, 1.0.3, 1.0.4, 1.0.5, 1.0.7, 1.0.8, 1.0.9 and 1.0.10 DMGs remain available at their original URLs. The secret scanner
 allows only these exact DMG paths and digests; other archives and private files
 remain excluded. A new repository-hosted installer requires updating
 that pin after signing, notarization and verification. Prefer GitHub Release assets
@@ -73,7 +73,7 @@ codesign --verify --deep --strict target/release/bundle/macos/Sonata.app
 xcrun stapler validate target/release/bundle/macos/Sonata.app
 spctl --assess --type execute target/release/bundle/macos/Sonata.app
 npm --prefix app run dmg
-xcrun stapler validate target/release/bundle/dmg/Sonata_1.0.10.dmg
+xcrun stapler validate target/release/bundle/dmg/Sonata_1.0.11.dmg
 ```
 
 Replace the DMG version for later releases. A signed artifact is ready to distribute
@@ -139,7 +139,7 @@ AppImage and DEB packages. The 1.0.7 Omarchy release uses the tag `omarchy-1.0.7
 and ships `sonata-x86_64.pkg.tar.zst`.
 
 The homepage reads the latest GitHub release when Pages deploys. A release with
-no desktop packages leaves the repository-hosted 1.0.10 DMG in place. A desktop
+no desktop packages leaves the repository-hosted 1.0.11 DMG in place. A desktop
 release that is missing part of a platform still fails that deploy.
 
 Build the package from a checkout with `pkg/PKGBUILD` (`SONATA_SRC` must point

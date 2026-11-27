@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+## 1.0.11 — 2026-11-27
+
+Signed and notarized Apple Silicon macOS DMG and signed automatic update archive.
+The Omarchy package remains 1.0.7; AppImage and DEB packages are still pending.
+
+### Fixes
+
+- Fix the crash when creating a task that starts immediately, starting a held
+  task, or adding a subtask to active work. Run these desktop commands on the
+  application's async runtime so starting background work cannot panic on the
+  UI thread.
+- Add desktop command regression coverage for bot and workflow execution,
+  attachments, manual starts, subtasks, pause/resume, validation errors, and
+  recovery of a task saved immediately before the crash.
+- Existing saved tasks and queued messages use normal startup recovery; no
+  database migration or task recreation is required.
+
+### Distribution
+
+- Publish the signed macOS installer and updater for 1.0.11.
+- Quit Sonata before replacing the app manually; saved data stays in place.
+
 ## 1.0.10 — 2026-11-27
 
 Signed and notarized Apple Silicon macOS DMG and signed automatic update archive.
