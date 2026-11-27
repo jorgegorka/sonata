@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+## 1.0.8 — 2026-11-27
+
+Signed and notarized Apple Silicon macOS DMG on the homepage. The Omarchy
+package remains 1.0.7; AppImage and DEB packages are still pending.
+
+### Tasks and subtasks
+
+- Give every task a stable identity and its own bot or workflow. Users and bots
+  can create nested subtasks with the same statuses and conversation controls.
+- Add a Pending column, hidden by default, for work waiting to start. Show its
+  count, sibling dependencies, and optional manual start controls.
+- Notify the immediate parent when a child finishes. Wait for child results and
+  reviews before advancing the parent's workflow, with optional automatic
+  acceptance of successful results on individual workflow steps.
+- Show direct-child progress on parent cards, including Pending and Done tasks,
+  and distinguish failed, blocked, and cancelled outcomes.
+- Require an explicit final result. Preserve early results across restarts,
+  continue independent work after failures, and cancel unfinished descendants
+  when their parent is cancelled.
+- Keep Finished separate from Done. Archive and restore task trees without
+  rerunning work; follow-ups reopen ancestors without rerunning completed siblings.
+- Back up the database before migrating existing conversations and orchestration
+  history, preserving session IDs and provider context.
+
+### Updates
+
 - Add an **Automatic updates** setting, enabled by default, which checks once at
   startup and offers newer stable versions. Downloading and restarting each
   require confirmation.
@@ -9,6 +35,14 @@
   guide Omarchy and terminal-installer users through the matching update process.
 - Publish independently versioned update feeds with signed artifacts, verified
   before deployment. Stop bot work before installing and preserve saved data.
+
+### Distribution
+
+- Publish the signed, notarized 1.0.8 macOS installer and a signed application
+  archive for the macOS update feed. Install this first updater-enabled release
+  manually; later releases can be offered at startup.
+- Quit Sonata before replacing the app. Saved settings, projects, bots, skills,
+  and history stay in place.
 
 ## 1.0.7 — 2026-11-25
 

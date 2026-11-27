@@ -55,3 +55,4 @@ secrets.yml
 !/site/downloads/Sonata_1.0.5.dmg
 !/site/downloads/Sonata_1.0.7.dmg
 *.app/
+!/site/downloads/Sonata_1.0.8.dmg
