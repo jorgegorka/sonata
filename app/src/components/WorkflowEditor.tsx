@@ -362,6 +362,7 @@ export default function WorkflowEditor({ workflow, bots, otherNames, onSaved, on
                   ))}
                 </select>
               </label>
+              <label className="work-check"><input type="checkbox" checked={step.automatic_child_review ?? false} onChange={(e) => editStep(step.id, { automatic_child_review: e.target.checked })} />{t("work.automaticReview")}</label>
               <label className="wf-instructions">
                 {t("workflowEditor.instructions")}
                 <textarea

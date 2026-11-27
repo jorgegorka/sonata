@@ -209,7 +209,7 @@ impl Store {
         let sql = match table {
             "messages" => "SELECT project_id FROM sessions WHERE id IN (SELECT sender_session FROM messages WHERE id = ?1 UNION SELECT recipient_session FROM messages WHERE id = ?1) LIMIT 1".to_string(),
             "threads" => "SELECT project_id FROM sessions WHERE id IN (SELECT participant_a FROM threads WHERE id = ?1 UNION SELECT participant_b FROM threads WHERE id = ?1) LIMIT 1".to_string(),
-            "bots" | "sessions" | "tasks" | "workflows" | "workflow_runs" | "orchestrations" => format!("SELECT project_id FROM {table} WHERE id = ?1"),
+            "bots" | "sessions" | "tasks" | "workflows" | "workflow_runs" | "orchestrations" | "work_items" => format!("SELECT project_id FROM {table} WHERE id = ?1"),
             _ => return Err(CoreError::Internal("unknown project entity".into())),
         };
         Ok(self.conn.lock().unwrap().query_row(&sql, [id], |r| r.get(0)).optional()?)

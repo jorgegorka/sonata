@@ -42,7 +42,8 @@ async fn orchestration_cli_starts_reads_and_cancels_real_persisted_tasks() {
     let (ok, _, _) =
         sbot(&["orchestration", "finish", id, "--revision", &revision], Some("w1:p2"), &s.socket, Some("Too soon"))
             .await;
-    assert!(!ok);
+    assert!(ok, "early completion is saved until children finish");
+    assert_eq!(s.engine.orchestration_view(id).unwrap().run.status, sonata_core::orchestration::Status::Active);
     let (ok, _, error) = sbot(&["orchestration", "cancel", id], Some("w1:p2"), &s.socket, None).await;
     assert!(ok, "{error}");
     assert_eq!(s.engine.orchestration_view(id).unwrap().run.status, sonata_core::orchestration::Status::Cancelled);
@@ -153,11 +154,11 @@ async fn ask_passes_its_options_in_order() {
 }
 
 #[tokio::test]
-async fn result_without_an_open_request_explains_itself() {
+async fn result_finishes_a_standalone_task() {
     let s = setup().await;
     let (ok, _, stderr) = sbot(&["result"], Some("w1:p1"), &s.socket, Some("Done.\n")).await;
-    assert!(!ok);
-    assert!(stderr.contains("sbot reply"), "{stderr}");
+    assert!(ok, "{stderr}");
+    assert_eq!(s.engine.list_work_items().await.unwrap()[0].state, "finished");
 }
 
 #[tokio::test]

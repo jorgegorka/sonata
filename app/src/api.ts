@@ -182,6 +182,20 @@ export interface Orchestration {
   created_at: string; ended_at: string | null;
 }
 
+export interface WorkItem {
+  id: string; project_id: string; parent_id: string | null; title: string; instructions: string;
+  state: "pending" | "working" | "needs_you" | "finished" | "done"; outcome: string | null;
+  primary_session_id: string | null; session_ids: string[]; workflow_run_id: string | null;
+  orchestration_id: string | null; execution: OrchestrationTask | null; manual_start: boolean;
+  created_at: string; finished_at: string | null; archived_at: string | null;
+  result_message_id: string | null; depends_on: string[];
+}
+export interface NewWorkItem {
+  parent_id: string | null; title: string; instructions: string;
+  executor: { kind: "bot"; handle: string } | { kind: "workflow"; name: string };
+  manual_start: boolean; depends_on: string[];
+}
+
 export type UiEvent = { project_id?: string } & (
   | { type: "message_added"; message: Message }
   | { type: "message_updated"; message: Message }
@@ -198,6 +212,7 @@ export type UiEvent = { project_id?: string } & (
   | { type: "bot_updated"; bot: BotView }
   | { type: "tasks_changed" }
   | { type: "workflows_changed" }
+  | { type: "work_items_changed" }
   | { type: "orchestration_changed"; project_id: string; run_id: string }
   | {
       type: "workflow_run_changed";
@@ -249,6 +264,7 @@ export interface WorkflowArrow {
 }
 
 export interface WorkflowStep {
+  automatic_child_review?: boolean;
   id: string;
   name: string;
   bot_id: string;
@@ -579,6 +595,11 @@ export function projectApi(projectId?: string) {
   listBots: () => invoke<BotView[]>("list_bots"),
   createBot: (input: CreateBotInput) => invoke<Bot>("create_bot", { input }),
   listSessions: () => invoke<SessionView[]>("list_sessions"),
+  listWorkItems: () => invoke<WorkItem[]>("list_work_items"),
+  createWorkItem: (input: NewWorkItem) => invoke<WorkItem>("create_work_item", { input }),
+  startWorkItem: (taskId: string) => invoke<void>("start_work_item", { taskId }),
+  archiveWorkItem: (taskId: string, archived: boolean) => invoke<void>("archive_work_item", { taskId, archived }),
+  cancelWorkItem: (taskId: string) => invoke<void>("cancel_work_item", { taskId }),
   listOrchestrations: () => invoke<Orchestration[]>("list_orchestrations"),
   cancelOrchestration: (runId: string, task: string | null = null) => invoke<void>("cancel_orchestration", { runId, task }),
   archiveOrchestrationTask: (runId: string, task: string, archived: boolean) => invoke<void>("archive_orchestration_task", { runId, task, archived }),

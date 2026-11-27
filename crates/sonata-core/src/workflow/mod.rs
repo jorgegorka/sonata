@@ -193,7 +193,15 @@ mod tests {
     }
 
     fn st(id: &str, name: &str, bot: &str, arrows: Vec<Arrow>) -> Step {
-        Step { id: id.into(), name: name.into(), bot_id: bot.into(), instructions: "Do it.".into(), arrows, pos: None }
+        Step {
+            automatic_child_review: false,
+            id: id.into(),
+            name: name.into(),
+            bot_id: bot.into(),
+            instructions: "Do it.".into(),
+            arrows,
+            pos: None,
+        }
     }
 
     fn ticket() -> NewWorkflow {

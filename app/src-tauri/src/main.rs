@@ -114,6 +114,45 @@ fn finish_project_setup(engine: State<'_, Engine>, input: ProjectInput) -> Resul
 }
 
 #[tauri::command]
+async fn list_work_items(
+    engine: State<'_, Engine>,
+    project_id: Option<String>,
+) -> Result<Vec<sonata_core::work_items::WorkItem>, CommandError> {
+    Ok(engine.request_project(project_id.as_deref(), &[])?.list_work_items().await?)
+}
+#[tauri::command]
+fn create_work_item(
+    engine: State<'_, Engine>,
+    project_id: Option<String>,
+    input: sonata_core::work_items::NewWorkItem,
+) -> Result<sonata_core::work_items::WorkItem, CommandError> {
+    Ok(engine.request_project(project_id.as_deref(), &[])?.create_work_item(input)?)
+}
+#[tauri::command]
+fn start_work_item(engine: State<'_, Engine>, project_id: Option<String>, task_id: String) -> Result<(), CommandError> {
+    Ok(engine.request_project(project_id.as_deref(), &[("work_items", &task_id)])?.start_work_item(&task_id)?)
+}
+#[tauri::command]
+fn archive_work_item(
+    engine: State<'_, Engine>,
+    project_id: Option<String>,
+    task_id: String,
+    archived: bool,
+) -> Result<(), CommandError> {
+    Ok(engine
+        .request_project(project_id.as_deref(), &[("work_items", &task_id)])?
+        .archive_work_item(&task_id, archived)?)
+}
+#[tauri::command]
+async fn cancel_work_item(
+    engine: State<'_, Engine>,
+    project_id: Option<String>,
+    task_id: String,
+) -> Result<(), CommandError> {
+    Ok(engine.request_project(project_id.as_deref(), &[("work_items", &task_id)])?.cancel_work_item(&task_id).await?)
+}
+
+#[tauri::command]
 fn list_orchestrations(
     engine: State<'_, Engine>,
     project_id: Option<String>,
@@ -1065,6 +1104,11 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             list_projects,
             list_orchestrations,
+            list_work_items,
+            create_work_item,
+            start_work_item,
+            archive_work_item,
+            cancel_work_item,
             cancel_orchestration,
             archive_orchestration_task,
             create_project,

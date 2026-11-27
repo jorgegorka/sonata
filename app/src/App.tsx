@@ -461,7 +461,7 @@ export default function App() {
     );
   };
 
-  const drawerOver = (view: DrawerView) => (boardTasks: BoardTask[], now: Date, data: BoardData) => {
+  const drawerOver = (view: DrawerView) => (boardTasks: BoardTask[], now: Date, data: BoardData, context?: (task: BoardTask) => ReactNode) => {
     const task = view.root === null ? null : (boardTasks.find((candidate) => candidate.id === view.root) ?? null);
     if (view.root !== null && task === null) return null;
     const show = view.show;
@@ -532,6 +532,7 @@ export default function App() {
       <OpenLinkContext.Provider value={drawerLink}>
         <TaskDrawer
           task={task}
+          taskContext={task && context?.(task)}
           drawer={view}
           bots={state.bots}
           workflows={workflows}

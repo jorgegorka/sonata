@@ -218,6 +218,7 @@ fn resolved_workflow(
         .iter()
         .map(|step| {
             Ok(Step {
+                automatic_child_review: step.automatic_child_review,
                 id: step.id.clone(),
                 name: step.name.clone(),
                 bot_id: bot_here(step.bot.as_deref())?,
@@ -288,6 +289,7 @@ fn file_workflow(workflow: &Workflow, handles: &HashMap<String, String>) -> File
                 .steps
                 .iter()
                 .map(|step| FileStep {
+                    automatic_child_review: step.automatic_child_review,
                     id: step.id.clone(),
                     name: step.name.clone(),
                     bot: handles.get(&step.bot_id).cloned(),

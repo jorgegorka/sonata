@@ -571,6 +571,8 @@ pub struct Arrow {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Step {
+    #[serde(default)]
+    pub automatic_child_review: bool,
     pub id: String,
     pub name: String,
     pub bot_id: String,

@@ -132,6 +132,7 @@ async fn watchdog_takes_a_vanished_agent_offline_and_interrupts_its_turn() {
             | UiEvent::BotAdded { .. }
             | UiEvent::BotUpdated { .. }
             | UiEvent::UsageLimits { .. }
+            | UiEvent::WorkItemsChanged
             | UiEvent::OrchestrationChanged { .. } => {}
         }
     }

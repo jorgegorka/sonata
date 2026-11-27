@@ -28,6 +28,8 @@ pub struct TaskSpec {
     pub depends_on: Vec<String>,
     #[serde(default)]
     pub files: Vec<String>,
+    #[serde(default)]
+    pub manual_start: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -92,6 +94,8 @@ pub enum Assignment {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Task {
+    #[serde(default)]
+    pub work_item_id: Option<String>,
     pub spec: TaskSpec,
     pub assignment: Assignment,
     pub state: TaskState,
@@ -108,6 +112,7 @@ pub struct Task {
 impl Task {
     pub fn new(spec: TaskSpec, assignment: Assignment) -> Self {
         Self {
+            work_item_id: None,
             spec,
             assignment,
             state: TaskState::Waiting,
@@ -232,6 +237,7 @@ pub fn block_dependents(run: &mut Orchestration) {
 pub fn ready(run: &Orchestration, task: &Task) -> bool {
     run.status == Status::Active
         && task.state == TaskState::Waiting
+        && !task.spec.manual_start
         && task
             .spec
             .depends_on

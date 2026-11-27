@@ -1465,6 +1465,7 @@ async fn a_workflow_step_picks_an_outcome_and_the_next_step_gets_its_result() {
     let first = bot("Chooser");
     let second = bot("Finisher");
     let step = |id: &str, name: &str, bot: &Bot, instructions: &str, arrows: Vec<Arrow>| Step {
+        automatic_child_review: false,
         id: id.into(),
         name: name.into(),
         bot_id: bot.id.clone(),

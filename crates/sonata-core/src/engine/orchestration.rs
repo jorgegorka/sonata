@@ -16,7 +16,11 @@ fn fingerprint<T: Serialize>(input: &T) -> Result<String> {
 }
 
 impl Engine {
-    fn prepare_orchestration_tasks(&self, session: &Session, specs: Vec<orch::TaskSpec>) -> Result<Vec<orch::Task>> {
+    pub(super) fn prepare_orchestration_tasks(
+        &self,
+        session: &Session,
+        specs: Vec<orch::TaskSpec>,
+    ) -> Result<Vec<orch::Task>> {
         let master = self.store.get_bot(&session.bot_id)?.ok_or_else(|| invalid("Master is missing."))?;
         let directory = self.bot_directory(&master)?;
         specs
@@ -57,9 +61,6 @@ impl Engine {
     pub fn start_orchestration(&self, session_id: &str, request: &str, key: &str, plan: Plan) -> Result<Orchestration> {
         self.store.require_active()?;
         let session = self.store.get_session(session_id)?.ok_or_else(|| invalid("Conversation not found."))?;
-        if !self.is_master(&session.bot_id)? {
-            return Err(invalid("Only Master can orchestrate tasks."));
-        }
         let fp = fingerprint(&("start", request, &plan))?;
         let operation = format!("start:{key}");
         if let Some(run) = self.store.orchestration_replay(session_id, &operation, &fp)? {
@@ -67,16 +68,8 @@ impl Engine {
             return self.store.get_orchestration(&run.id);
         }
         let message = self.store.get_message(request)?.ok_or_else(|| invalid("Original request not found."))?;
-        if message.recipient_session.as_deref() != Some(session_id)
-            || message.sender != USER
-            || message.task_id.is_some()
-            || message.workflow_mark.is_some()
-            || is_event(&message)
-        {
+        if message.recipient_session.as_deref() != Some(session_id) || is_event(&message) {
             return Err(invalid("Start orchestration on the user's own request."));
-        }
-        if self.store.orchestration_of_session(session_id)?.is_some_and(|(_, task)| task.is_some()) {
-            return Err(invalid("Nested orchestrations are not supported."));
         }
         if key.trim().is_empty() || plan.title.trim().is_empty() || plan.goal.trim().is_empty() {
             return Err(invalid("An operation key, title and goal are required."));
@@ -136,6 +129,7 @@ impl Engine {
         self.emit_orchestration(&run);
         self.dispatch_orchestration(id)?;
         self.wake_orchestration(&run)?;
+        self.reconcile_work_items()?;
         self.store.get_orchestration(id)
     }
 
@@ -164,16 +158,23 @@ impl Engine {
                 files.extend(prerequisite.attachments.iter().map(|a| a.path.clone()));
             }
         }
-        body.push_str("\n\nUse sbot result only when this execution is complete. Progress replies and questions do not finish this task. Master will review your result. Do not start a nested orchestration.");
+        body.push_str("\n\nUse sbot result only when this execution is complete. Progress replies and questions do not finish this task. The parent task will review your result. You may create subtasks with sbot orchestration; wait for their results before finishing.");
         (body, files)
     }
 
     pub(super) fn dispatch_orchestration(&self, id: &str) -> Result<()> {
-        let run = self.store.get_orchestration(id)?;
-        for task in run.tasks.iter().filter(|t| orch::ready(&run, t)) {
-            match self.dispatch_orchestration_task(&run, task) {
+        if self.paused()? || self.current_project()?.archived_at.is_some() {
+            return Ok(());
+        }
+        let run = self.store.reconcile_work_item_dependencies(id)?;
+        let context = self.store.work_item_dependency_context(&run)?;
+        for task in run.tasks.iter().filter(|t| orch::ready(&context, t)) {
+            match self.dispatch_orchestration_task(&context, task) {
                 Ok(Some(routed)) => {
                     self.emit_routed(&routed);
+                    if let Some(item) = self.store.work_item_of_session(&routed.session.id)? {
+                        self.attach_pending_children(&item)?;
+                    }
                     tokio::spawn(self.pump_session(&routed.session.id));
                 }
                 Ok(None) => {}
@@ -309,12 +310,33 @@ impl Engine {
         let message =
             self.store.finish_orchestration(id, revision, report, &attachments::in_place(&checked), answered)?;
         self.emit_message(message.clone());
+        if let Some(recipient) = &message.recipient_session {
+            tokio::spawn(self.pump_session(recipient));
+        }
         self.emit_orchestration(&self.store.get_orchestration(id)?);
         Ok(message)
     }
 
     pub async fn cancel_orchestration(&self, id: &str, key: Option<&str>) -> Result<()> {
         let run = self.store.cancel_orchestration(id, key)?;
+        let descendants: HashSet<String> = self
+            .orchestration_view(id)?
+            .executions
+            .into_iter()
+            .filter(|t| t.task.state == TaskState::Cancelled && key.is_none_or(|key| t.task.spec.key == key))
+            .flat_map(|t| t.session_ids)
+            .collect();
+        for nested in self
+            .store
+            .list_orchestrations()?
+            .into_iter()
+            .rev()
+            .filter(|r| r.id != id && descendants.contains(&r.session_id))
+        {
+            let cancelled = self.store.cancel_orchestration(&nested.id, None)?;
+            self.stop_cancelled_orchestration(&cancelled, None).await?;
+            self.emit_orchestration(&cancelled);
+        }
         self.stop_cancelled_orchestration(&run, key).await?;
         self.emit_orchestration(&run);
         self.wake_orchestration(&run)?;
@@ -395,6 +417,9 @@ impl Engine {
     }
 
     pub(super) fn orchestration_cancelled_session(&self, session: &str) -> Result<bool> {
+        if self.store.work_item_cancelled_session(session)? {
+            return Ok(true);
+        }
         Ok(self.store.orchestration_of_session(session)?.is_some_and(|(run, task)| {
             task.is_some_and(|key| {
                 run.status == Status::Cancelled
@@ -426,10 +451,7 @@ impl Engine {
     }
 
     pub(super) async fn bridge_orchestration(&self, pane: &str, command: BridgeCommand) -> BridgeResponse {
-        let (caller, flight) = match self.master_caller(pane, "orchestration").await {
-            Ok(caller) => caller,
-            Err(refusal) => return refusal,
-        };
+        let Some((caller, flight)) = self.caller(pane).await else { return super::messaging::not_a_bot() };
         let id = match &command {
             BridgeCommand::OrchestrationShow { id }
             | BridgeCommand::OrchestrationUpdate { id, .. }
@@ -443,7 +465,7 @@ impl Engine {
                 Ok(_) => {
                     return refuse(
                         ErrorCode::NotAllowed,
-                        "Only the owning Master conversation can change or inspect this orchestration.",
+                        "Only the owning conversation can change or inspect this orchestration.",
                     )
                 }
                 Err(e) => return refuse(ErrorCode::BadRequest, e.to_string()),
@@ -452,8 +474,11 @@ impl Engine {
         let answer = flight.as_ref().map(|f| f.message_id.as_str());
         let result = match command {
             BridgeCommand::OrchestrationStart { key, body } => {
-                if !on_users_turn(flight.as_ref()) {
-                    return refuse(ErrorCode::NotAllowed, "Start orchestration on the user's own message.");
+                if flight
+                    .as_ref()
+                    .is_none_or(|f| self.store.get_message(&f.message_id).ok().flatten().is_some_and(|m| is_event(&m)))
+                {
+                    return refuse(ErrorCode::NotAllowed, "Start orchestration while handling a task request.");
                 }
                 serde_json::from_str::<Plan>(&body)
                     .map_err(CoreError::from)
@@ -467,9 +492,15 @@ impl Engine {
                 .map_err(CoreError::from)
                 .and_then(|input| self.update_orchestration(&id, revision, &key, input, answer))
                 .and_then(|run| Ok(serde_json::to_string_pretty(&run)?)),
-            BridgeCommand::OrchestrationFinish { id, revision, body, files } => self
-                .finish_orchestration(&id, revision, &body, &files, answer)
-                .map(|_| "Combined report delivered. End your turn.".into()),
+            BridgeCommand::OrchestrationFinish { id, revision, body, files } => {
+                match self.store.get_orchestration(&id) {
+                    Ok(run) if run.revision == revision => return self.bridge_result(pane, body, files, None).await,
+                    Ok(_) => {
+                        return refuse(ErrorCode::BadRequest, "The task changed. Read its current revision and retry.")
+                    }
+                    Err(e) => return refuse(ErrorCode::BadRequest, e.to_string()),
+                }
+            }
             BridgeCommand::OrchestrationCancel { id, task } => {
                 if !on_users_turn(flight.as_ref()) {
                     return refuse(

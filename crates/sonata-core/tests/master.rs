@@ -998,8 +998,7 @@ async fn master_asking_the_user_on_a_bots_message_opens_no_request() {
     finish_turn(&h, &m_pane).await;
 
     user_says(&h, &m, "Yes.").await;
-    let prompt = h.rt.state().prompts.iter().rev().find(|(p, _)| *p == m_pane).unwrap().1.clone();
-    assert!(!prompt.contains("sbot result"), "{prompt}");
+    assert_eq!(h.engine.find_session_view(&m.id).await.unwrap().session.open_request_id, None);
     let refused = h.engine.handle_bridge(result(&m_pane, "Sent to @feature.")).await.error.unwrap();
     assert_eq!(refused.code, ErrorCode::NoOpenRequest);
     finish_turn(&h, &m_pane).await;

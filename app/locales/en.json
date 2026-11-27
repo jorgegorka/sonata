@@ -875,5 +875,25 @@
     "restart": "Restart Sonata",
     "archHint": "Download version {{version}}, finish your work, and quit Sonata. Install the downloaded package with sudo pacman -U followed by its file path, then open Sonata again.",
     "extractedHint": "Finish your work and quit Sonata. Run the Sonata terminal installer again with --version {{version}} and the same --dest path you used before. Your saved data is preserved."
+  },
+  "work": {
+    "pending": "Pending",
+    "hidePending": "Hide Pending",
+    "showPending": "Show Pending ({{count}})",
+    "parent": "Parent: {{title}}",
+    "progress": "{{finished}} of {{total}} subtasks finished",
+    "unsuccessful": "Unsuccessful outcomes: {{count}}",
+    "awaitingReview": "Awaiting parent review",
+    "addSubtask": "Add subtask",
+    "held": "Held for manual start",
+    "dependencies": "Waiting for dependencies",
+    "queued": "Ready · queued for execution",
+    "start": "Start",
+    "title": "Title",
+    "instructions": "Instructions",
+    "manual": "Hold for manual start",
+    "dependenciesLabel": "Depends on",
+    "create": "Create task",
+    "automaticReview": "Automatically accept successful subtask results"
   }
 }

@@ -10,6 +10,7 @@ fn spec(key: &str, executor: Executor, deps: &[&str]) -> TaskSpec {
         key: key.into(),
         title: format!("Task {key}"),
         instructions: format!("Do {key}"),
+        manual_start: false,
         acceptance_criteria: vec!["Evidence supports the result".into()],
         executor,
         depends_on: deps.iter().map(|s| (*s).into()).collect(),
@@ -26,6 +27,7 @@ fn workflow(h: &Harness, name: &str, bots: &[&Bot]) -> Workflow {
         .iter()
         .enumerate()
         .map(|(i, bot)| Step {
+            automatic_child_review: false,
             id: format!("s{i}"),
             name: format!("Step {i}"),
             bot_id: bot.id.clone(),
@@ -495,9 +497,9 @@ async fn restart_preserves_results_and_idempotency_without_relaunching_completed
 #[tokio::test]
 async fn restart_finishes_cancellation_committed_before_runtime_cleanup() {
     let h = harness_after(|_| {});
-    h.engine.set_paused(true).await.unwrap();
     let bot = h.engine.create_bot(claude_bot("Worker")).unwrap();
     let run = start(&h, vec![bot_spec("a", &bot, &[])]);
+    h.engine.set_paused(true).await.unwrap();
     settle().await;
     let store = sonata_core::store::Store::open(&h.paths.db_path()).unwrap();
     store.cancel_orchestration(&run.id, None).unwrap();
@@ -596,7 +598,7 @@ async fn task_results_and_workflow_completion_roll_back_if_review_state_cannot_b
         let session = h.engine.sessions_of(&bot.id).unwrap().remove(0);
         h.engine.pump_session(&session.id).await;
         let db = rusqlite::Connection::open(h.paths.db_path()).unwrap();
-        db.execute_batch("CREATE TRIGGER reject_review BEFORE UPDATE ON orchestrations WHEN json_extract(NEW.data, '$.tasks[0].state') = 'awaiting_review' BEGIN SELECT RAISE(ABORT, 'simulated failure'); END;").unwrap();
+        db.execute_batch("CREATE TRIGGER reject_review BEFORE UPDATE ON work_items WHEN json_extract(NEW.execution, '$.state') = 'awaiting_review' BEGIN SELECT RAISE(ABORT, 'simulated failure'); END;").unwrap();
         assert!(!h.engine.handle_bridge(result(&pane(&h, &session), "Complete")).await.ok);
         let after = current(&h, &run);
         assert_eq!(after.tasks[0].state, TaskState::Running);
@@ -642,4 +644,371 @@ async fn start_retries_and_competing_updates_do_not_duplicate_execution() {
         });
     assert_eq!(left.unwrap(), right.unwrap());
     assert_eq!(h.engine.sessions_of(&bot.id).unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn nested_tasks_wait_for_review_then_notify_only_their_immediate_parent() {
+    let h = harness();
+    let lead = h.engine.create_bot(claude_bot("Lead")).unwrap();
+    let worker = h.engine.create_bot(claude_bot("Worker")).unwrap();
+    let outer = start(&h, vec![bot_spec("feature", &lead, &[])]);
+    let task = current(&h, &outer).tasks[0].clone();
+    let session =
+        h.engine.sessions_of(&lead.id).unwrap().into_iter().find(|s| Some(&s.id) == task.session_id.as_ref()).unwrap();
+    h.engine.pump_session(&session.id).await;
+    let inner = h
+        .engine
+        .start_orchestration(
+            &session.id,
+            task.request_message_id.as_ref().unwrap(),
+            "nested",
+            Plan {
+                title: "Implement feature".into(),
+                goal: "Implement the feature".into(),
+                tasks: vec![bot_spec("implementation", &worker, &[])],
+            },
+        )
+        .unwrap();
+    let response = h.engine.handle_bridge(result(&pane(&h, &session), "Feature implemented")).await;
+    assert!(response.ok, "{response:?}");
+    assert_eq!(current(&h, &outer).tasks[0].state, TaskState::Running);
+    result_of(&h, &inner, "implementation", "Implementation tested").await;
+    assert_eq!(current(&h, &outer).tasks[0].state, TaskState::Running);
+    review(&h, &inner, "implementation", true);
+    assert_eq!(current(&h, &inner).status, Status::Completed);
+    assert_eq!(current(&h, &outer).tasks[0].state, TaskState::AwaitingReview);
+    let items = h.engine.list_work_items().await.unwrap();
+    let child = items.iter().find(|w| w.primary_session_id.as_ref() == Some(&session.id)).unwrap();
+    let grandchild = items.iter().find(|w| w.orchestration_id.as_deref() == Some(&inner.id)).unwrap();
+    assert_eq!(grandchild.parent_id.as_deref(), Some(child.id.as_str()));
+    assert_eq!(child.state, "finished");
+}
+
+#[tokio::test]
+async fn pending_tasks_have_no_session_and_idle_is_not_completion() {
+    use sonata_core::work_items::NewWorkItem;
+    let h = harness();
+    let bot = h.engine.create_bot(claude_bot("Worker")).unwrap();
+    let item = h
+        .engine
+        .create_work_item(NewWorkItem {
+            parent_id: None,
+            title: "Feature".into(),
+            instructions: "Implement it".into(),
+            executor: Executor::Bot { handle: bot.handle },
+            manual_start: true,
+            depends_on: vec![],
+        })
+        .unwrap();
+    assert_eq!(item.state, "pending");
+    assert!(item.session_ids.is_empty());
+    h.engine.start_work_item(&item.id).unwrap();
+    let item = h.engine.list_work_items().await.unwrap().into_iter().find(|w| w.id == item.id).unwrap();
+    assert_eq!(item.state, "working");
+    let session = h
+        .engine
+        .sessions_of(&bot.id)
+        .unwrap()
+        .into_iter()
+        .find(|s| Some(&s.id) == item.primary_session_id.as_ref())
+        .unwrap();
+    h.engine.pump_session(&session.id).await;
+    assert!(h.engine.handle_bridge(reply(&pane(&h, &session), "Progress only")).await.ok);
+    assert_eq!(
+        h.engine.list_work_items().await.unwrap().into_iter().find(|w| w.id == item.id).unwrap().state,
+        "working"
+    );
+    assert!(h.engine.handle_bridge(result(&pane(&h, &session), "Implemented and tested")).await.ok);
+    assert_eq!(
+        h.engine.list_work_items().await.unwrap().into_iter().find(|w| w.id == item.id).unwrap().state,
+        "finished"
+    );
+    h.engine.archive_work_item(&item.id, true).unwrap();
+    assert_eq!(h.engine.list_work_items().await.unwrap().into_iter().find(|w| w.id == item.id).unwrap().state, "done");
+    h.engine.archive_work_item(&item.id, false).unwrap();
+    assert_eq!(
+        h.engine.list_work_items().await.unwrap().into_iter().find(|w| w.id == item.id).unwrap().state,
+        "finished"
+    );
+}
+
+#[tokio::test]
+async fn a_workflow_step_waits_for_children_then_automatically_follows_its_arrow() {
+    let h = harness();
+    let planner = h.engine.create_bot(claude_bot("Planner")).unwrap();
+    let worker = h.engine.create_bot(claude_bot("Worker")).unwrap();
+    let reviewer = h.engine.create_bot(claude_bot("Reviewer")).unwrap();
+    let mut wf = workflow(&h, "Parent flow", &[&planner, &reviewer]);
+    wf.def.steps[0].automatic_child_review = true;
+    h.engine
+        .update_workflow(
+            &wf.id,
+            NewWorkflow { name: wf.name.clone(), when_to_use: wf.when_to_use.clone(), def: wf.def.clone() },
+        )
+        .unwrap();
+    let session = h.engine.start_workflow(&wf.id, "Plan, implement, then review", &[]).unwrap();
+    h.engine.pump_session(&session.id).await;
+    let request = h
+        .engine
+        .session_messages(&session.id)
+        .unwrap()
+        .into_iter()
+        .find(|m| m.workflow_mark.as_ref().is_some_and(|m| m.role == MarkRole::Request))
+        .unwrap();
+    let run = h
+        .engine
+        .start_orchestration(
+            &session.id,
+            &request.id,
+            "steps",
+            Plan {
+                title: "Children".into(),
+                goal: "Implement".into(),
+                tasks: vec![bot_spec("implementation", &worker, &[])],
+            },
+        )
+        .unwrap();
+    assert!(h.engine.handle_bridge(result(&pane(&h, &session), "Plan and implementation ready")).await.ok);
+    assert!(h.engine.sessions_of(&reviewer.id).unwrap().is_empty());
+    result_of(&h, &run, "implementation", "Implemented and tested").await;
+    assert_eq!(current(&h, &run).tasks[0].state, TaskState::Succeeded);
+    assert_eq!(h.engine.sessions_of(&reviewer.id).unwrap().len(), 1);
+    let items = h.engine.list_work_items().await.unwrap();
+    assert_eq!(items.iter().find(|w| w.primary_session_id.as_deref() == Some(&session.id)).unwrap().state, "working");
+}
+
+#[tokio::test]
+async fn a_pending_parent_can_have_pending_children_without_creating_sessions() {
+    use sonata_core::work_items::NewWorkItem;
+    let h = harness();
+    let bot = h.engine.create_bot(claude_bot("Worker")).unwrap();
+    let input = |parent| NewWorkItem {
+        parent_id: parent,
+        title: "Task".into(),
+        instructions: "Do the work".into(),
+        executor: Executor::Bot { handle: bot.handle.clone() },
+        manual_start: true,
+        depends_on: vec![],
+    };
+    let parent = h.engine.create_work_item(input(None)).unwrap();
+    let child = h.engine.create_work_item(input(Some(parent.id.clone()))).unwrap();
+    assert!(h.engine.sessions_of(&bot.id).unwrap().is_empty());
+    h.engine.start_work_item(&parent.id).unwrap();
+    let loaded = h.engine.list_work_items().await.unwrap().into_iter().find(|w| w.id == child.id).unwrap();
+    assert_eq!(loaded.parent_id.as_deref(), Some(parent.id.as_str()));
+    assert_eq!(loaded.state, "pending");
+    assert!(loaded.session_ids.is_empty());
+    h.engine.start_work_item(&child.id).unwrap();
+    let loaded = h.engine.list_work_items().await.unwrap().into_iter().find(|w| w.id == child.id).unwrap();
+    assert_eq!(loaded.state, "working");
+    assert_eq!(loaded.session_ids.len(), 1);
+    assert_eq!(h.engine.sessions_of(&bot.id).unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn cancelling_a_pending_parent_cancels_its_entire_unstarted_tree() {
+    use sonata_core::work_items::NewWorkItem;
+    let h = harness();
+    let bot = h.engine.create_bot(claude_bot("Worker")).unwrap();
+    let input = |parent| NewWorkItem {
+        parent_id: parent,
+        title: "Task".into(),
+        instructions: "Do the work".into(),
+        executor: Executor::Bot { handle: bot.handle.clone() },
+        manual_start: true,
+        depends_on: vec![],
+    };
+    let parent = h.engine.create_work_item(input(None)).unwrap();
+    let child = h.engine.create_work_item(input(Some(parent.id.clone()))).unwrap();
+    h.engine.create_work_item(input(Some(child.id.clone()))).unwrap();
+    h.engine.cancel_work_item(&parent.id).await.unwrap();
+    for item in h.engine.list_work_items().await.unwrap() {
+        assert_eq!(item.state, "finished");
+        assert_eq!(item.outcome.as_deref(), Some("cancelled"));
+        assert_eq!(item.execution.unwrap().state, TaskState::Cancelled);
+    }
+    h.engine.start_work_item(&child.id).unwrap();
+    assert!(h.engine.sessions_of(&bot.id).unwrap().is_empty());
+    h.engine.archive_work_item(&parent.id, true).unwrap();
+    assert!(h.engine.list_work_items().await.unwrap().iter().all(|w| w.state == "done"));
+}
+
+#[tokio::test]
+async fn starting_a_pending_tree_attaches_grandchildren_when_their_parent_starts() {
+    use sonata_core::work_items::NewWorkItem;
+    let h = harness();
+    let bot = h.engine.create_bot(claude_bot("Worker")).unwrap();
+    let input = |parent, manual| NewWorkItem {
+        parent_id: parent,
+        title: "Task".into(),
+        instructions: "Do the work".into(),
+        executor: Executor::Bot { handle: bot.handle.clone() },
+        manual_start: manual,
+        depends_on: vec![],
+    };
+    let parent = h.engine.create_work_item(input(None, true)).unwrap();
+    let child = h.engine.create_work_item(input(Some(parent.id.clone()), false)).unwrap();
+    let grandchild = h.engine.create_work_item(input(Some(child.id.clone()), false)).unwrap();
+    assert!(h.engine.sessions_of(&bot.id).unwrap().is_empty());
+    h.engine.start_work_item(&parent.id).unwrap();
+    let items = h.engine.list_work_items().await.unwrap();
+    assert_eq!(items.len(), 3);
+    assert!(items.iter().all(|w| w.state == "working" && w.session_ids.len() == 1));
+    assert!(items.iter().find(|w| w.id == grandchild.id).unwrap().orchestration_id.is_some());
+    h.engine.cancel_work_item(&parent.id).await.unwrap();
+    assert!(h.engine.list_work_items().await.unwrap().iter().all(|w| w.state == "finished"));
+}
+
+#[tokio::test]
+async fn followup_reopens_ancestors_without_relaunching_already_released_siblings() {
+    let h = harness_after(|_| {});
+    let bot = h.engine.create_bot(claude_bot("Worker")).unwrap();
+    let run = start(&h, vec![bot_spec("a", &bot, &[]), bot_spec("b", &bot, &["a"])]);
+    result_of(&h, &run, "a", "First result").await;
+    review(&h, &run, "a", true);
+    result_of(&h, &run, "b", "Dependent result").await;
+    let reviewed = review(&h, &run, "b", true);
+    h.engine.finish_orchestration(&run.id, reviewed.revision, "All work finished", &[], None).unwrap();
+    h.engine.archive_work_item(&run.session_id, true).unwrap();
+    let child_session = current(&h, &run).tasks[0].session_id.clone().unwrap();
+    let child_id = h
+        .engine
+        .list_work_items()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|w| w.primary_session_id.as_ref() == Some(&child_session))
+        .unwrap()
+        .id;
+    h.engine.archive_work_item(&child_id, false).unwrap();
+    assert!(h.engine.find_session_view(&run.session_id).await.unwrap().session.archived_at.is_none());
+    h.engine.queue_user_message_to_session(&child_session, "Please improve the result", &[]).unwrap();
+    assert_eq!(current(&h, &run).status, Status::Active);
+    assert_eq!(current(&h, &run).tasks[0].state, TaskState::Running);
+    assert_eq!(current(&h, &run).tasks[1].state, TaskState::Succeeded);
+    result_of(&h, &run, "a", "Improved result").await;
+    assert_eq!(current(&h, &run).tasks[0].state, TaskState::AwaitingReview);
+    assert_eq!(h.engine.sessions_of(&bot.id).unwrap().len(), 2);
+    assert_eq!(
+        h.engine.list_work_items().await.unwrap().into_iter().find(|w| w.id == run.session_id).unwrap().state,
+        "working"
+    );
+}
+
+#[tokio::test]
+async fn new_subtasks_can_depend_on_accepted_siblings_from_an_earlier_plan() {
+    use sonata_core::work_items::NewWorkItem;
+    let h = harness();
+    let bot = h.engine.create_bot(claude_bot("Worker")).unwrap();
+    let run = start(&h, vec![bot_spec("a", &bot, &[])]);
+    result_of(&h, &run, "a", "First result").await;
+    let reviewed = review(&h, &run, "a", true);
+    h.engine.finish_orchestration(&run.id, reviewed.revision, "First plan finished", &[], None).unwrap();
+    let sibling = h
+        .engine
+        .list_work_items()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|w| w.parent_id.as_deref() == Some(&run.session_id))
+        .unwrap();
+    let next = h
+        .engine
+        .create_work_item(NewWorkItem {
+            parent_id: Some(run.session_id.clone()),
+            title: "Follow-up child".into(),
+            instructions: "Use the first result".into(),
+            executor: Executor::Bot { handle: bot.handle.clone() },
+            manual_start: false,
+            depends_on: vec![sibling.id.clone()],
+        })
+        .unwrap();
+    assert_eq!(next.state, "working");
+    assert_eq!(next.depends_on, vec![sibling.id]);
+    assert_ne!(next.orchestration_id.as_ref(), Some(&run.id));
+    h.engine.pump_session(next.primary_session_id.as_ref().unwrap()).await;
+    assert!(h
+        .rt
+        .state()
+        .prompts
+        .iter()
+        .any(|(_, body)| body.contains("First result") && body.contains("Follow-up child")));
+}
+
+#[tokio::test]
+async fn cancelling_a_root_workflow_stops_its_current_step_and_prevents_restart() {
+    let h = harness_after(|_| {});
+    let a = h.engine.create_bot(claude_bot("Planner")).unwrap();
+    let b = h.engine.create_bot(claude_bot("Reviewer")).unwrap();
+    let wf = workflow(&h, "Flow", &[&a, &b]);
+    let root = h.engine.start_workflow(&wf.id, "Work", &[]).unwrap();
+    h.engine.pump_session(&root.id).await;
+    assert!(h.engine.handle_bridge(result(&pane(&h, &root), "Plan finished")).await.ok);
+    let second = h.engine.sessions_of(&b.id).unwrap().remove(0);
+    h.engine.pump_session(&second.id).await;
+    let current_pane = pane(&h, &second);
+    let item = h
+        .engine
+        .list_work_items()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|w| w.primary_session_id.as_ref() == Some(&root.id))
+        .unwrap();
+    h.engine.cancel_work_item(&item.id).await.unwrap();
+    assert_eq!(
+        h.engine.get_workflow_run(item.workflow_run_id.as_ref().unwrap()).unwrap().run.status,
+        RunStatus::Stopped
+    );
+    assert!(!h.engine.handle_bridge(result(&current_pane, "Late result")).await.ok);
+    assert!(h.engine.queue_user_message_to_session(&second.id, "Restart", &[]).is_err());
+    let next = relaunch(&h);
+    next.engine.recover().await.unwrap();
+    assert_eq!(
+        next.engine.list_work_items().await.unwrap().into_iter().find(|w| w.id == item.id).unwrap().outcome.as_deref(),
+        Some("cancelled")
+    );
+}
+
+#[tokio::test]
+async fn followup_in_a_workflows_last_conversation_finishes_the_same_task() {
+    for nested in [false, true] {
+        let h = harness();
+        let a = h.engine.create_bot(claude_bot("Planner")).unwrap();
+        let b = h.engine.create_bot(claude_bot("Reviewer")).unwrap();
+        let wf = workflow(&h, "Flow", &[&a, &b]);
+        let graph = if nested {
+            Some(start(&h, vec![spec("work", Executor::Workflow { name: wf.name.clone() }, &[])]))
+        } else {
+            None
+        };
+        let root = if let Some(graph) = &graph {
+            h.engine.find_session_view(graph.tasks[0].session_id.as_ref().unwrap()).await.unwrap().session
+        } else {
+            h.engine.start_workflow(&wf.id, "Work", &[]).unwrap()
+        };
+        h.engine.pump_session(&root.id).await;
+        assert!(h.engine.handle_bridge(result(&pane(&h, &root), "Planned")).await.ok);
+        let last = h.engine.sessions_of(&b.id).unwrap().remove(0);
+        h.engine.pump_session(&last.id).await;
+        let last_pane = pane(&h, &last);
+        assert!(h.engine.handle_bridge(result(&last_pane, "Reviewed")).await.ok);
+        if let Some(graph) = &graph {
+            review(&h, graph, "work", true);
+        }
+        let before = h.engine.list_work_items().await.unwrap();
+        let id = before.iter().find(|w| w.primary_session_id.as_ref() == Some(&root.id)).unwrap().id.clone();
+        h.engine.queue_user_message_to_session(&last.id, "Please improve the review", &[]).unwrap();
+        h.engine.pump_session(&last.id).await;
+        let response = h.engine.handle_bridge(result(&last_pane, "Improved review")).await;
+        assert!(response.ok, "{response:?}");
+        let items = h.engine.list_work_items().await.unwrap();
+        assert_eq!(items.len(), before.len());
+        let task = items.iter().find(|w| w.id == id).unwrap();
+        assert_eq!(task.state, "finished");
+        if nested {
+            assert_eq!(task.execution.as_ref().unwrap().state, TaskState::AwaitingReview);
+        }
+        assert_eq!(h.engine.sessions_of(&b.id).unwrap().len(), 1);
+    }
 }

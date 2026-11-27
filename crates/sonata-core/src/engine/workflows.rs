@@ -377,7 +377,7 @@ impl Engine {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn move_on(
+    pub(super) fn move_on(
         &self,
         run: &WorkflowRun,
         visit: &Visit,
@@ -657,6 +657,9 @@ impl Engine {
 
     fn remind_or_pause(&self, session_id: &str) -> Result<()> {
         let store = &self.store;
+        if store.has_pending_task_result(session_id)? || store.own_orchestration(session_id)?.is_some() {
+            return Ok(());
+        }
         let Some((run, visit)) = store.open_visit_of_session(session_id)? else { return Ok(()) };
         if run.status != RunStatus::Running {
             return Ok(());
@@ -1216,7 +1219,7 @@ impl Engine {
 
 const NO_REPLY: &str = "(no reply)";
 
-struct Moved {
+pub(super) struct Moved {
     result_id: Option<String>,
     said: String,
 }

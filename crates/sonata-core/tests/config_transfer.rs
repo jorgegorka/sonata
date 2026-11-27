@@ -404,6 +404,7 @@ fn file_bot(handle: &str) -> FileBot {
 
 fn one_step_workflow(name: &str, bot: Option<&str>) -> FileWorkflow {
     let step = FileStep {
+        automatic_child_review: false,
         id: "s1".into(),
         name: "Write".into(),
         bot: bot.map(Into::into),

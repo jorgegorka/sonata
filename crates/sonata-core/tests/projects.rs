@@ -230,6 +230,7 @@ fn flow(bot: &Bot) -> NewWorkflow {
             start_pos: None,
             done_pos: None,
             steps: vec![Step {
+                automatic_child_review: false,
                 id: "step".into(),
                 name: "Work".into(),
                 bot_id: bot.id.clone(),

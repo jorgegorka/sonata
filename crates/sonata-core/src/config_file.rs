@@ -88,6 +88,8 @@ pub struct FileDef {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FileStep {
+    #[serde(default)]
+    pub automatic_child_review: bool,
     pub id: String,
     pub name: String,
     pub bot: Option<String>,

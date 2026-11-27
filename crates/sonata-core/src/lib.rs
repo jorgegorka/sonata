@@ -20,6 +20,7 @@ pub mod runtime;
 pub mod schedule;
 pub mod skills;
 pub mod store;
+pub mod work_items;
 pub mod workflow;
 
 pub use refusal::Refusal;

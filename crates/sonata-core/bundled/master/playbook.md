@@ -33,7 +33,7 @@ and the expected result. Pass any fenced `page-element` block word for word. The
 `sbot result` with the result on stdin when its delegated request is complete; `sbot reply` is a progress update.
 Wait for results instead of treating delivery as completion. Verify claims against files, tests, or
 other evidence. Report what was checked, failures, and what could not be checked. Do not claim a
-successful runtime check from a static review. Use `sbot reply` to give the user the final report.
+successful runtime check from a static review. Use `sbot result` to give the user the final report and finish the task.
 
 ## Questions and approval
 

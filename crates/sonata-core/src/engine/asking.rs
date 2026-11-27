@@ -64,7 +64,75 @@ impl Engine {
         files: Vec<String>,
         outcome: Option<String>,
     ) -> BridgeResponse {
+        let response = self.bridge_result_inner(pane_id, body, files, outcome).await;
+        if response.ok {
+            if let Err(error) = self.reconcile_work_items() {
+                tracing::error!(%error, "could not continue tasks after result");
+            }
+        }
+        response
+    }
+
+    async fn bridge_result_inner(
+        &self,
+        pane_id: &str,
+        body: String,
+        files: Vec<String>,
+        outcome: Option<String>,
+    ) -> BridgeResponse {
         let Some((from, flight)) = self.caller(pane_id).await else { return not_a_bot() };
+        if body.trim().is_empty() {
+            return refuse(ErrorCode::EmptyBody, "A final result is required.");
+        }
+        if let Ok(Some((run, visit))) = self.store.open_visit_of_session(&from.session_id) {
+            if let Some(step) = crate::workflow::step(&run.def, &visit.step_id) {
+                if let Err(error) = crate::workflow::follow(step, outcome.as_deref()) {
+                    return refuse(ErrorCode::BadRequest, error);
+                }
+            }
+        } else if outcome.is_some() {
+            return refuse(
+                ErrorCode::BadRequest,
+                "--outcome is only for a workflow step, and this conversation has no open step.",
+            );
+        }
+        let staged = (|| {
+            let bot =
+                self.store.get_bot(&from.bot_id)?.ok_or_else(|| crate::orchestration::invalid("Bot not found."))?;
+            let checked = attachments::check(&files, &self.bot_directory(&bot)?).map_err(Refusal::Attachment)?;
+            let paths = checked.iter().map(|p| p.to_string_lossy().into_owned()).collect::<Vec<_>>();
+            self.store.stage_work_item_result(&from.session_id, &body, &paths, outcome.as_deref())
+        })();
+        match staged {
+            Ok(true) => {
+                if let Some(f) = flight {
+                    self.set_replied(&from.session_id, &f.message_id, true).await;
+                }
+                return BridgeResponse::output(
+                    "Final result saved. Waiting for subtasks and required reviews. End your turn.",
+                );
+            }
+            Err(e) => return refuse(ErrorCode::BadRequest, e.to_string()),
+            _ => {}
+        }
+        match self.store.own_orchestration(&from.session_id) {
+            Ok(own) if own.is_some() || self.store.session_is_task_followup(&from.session_id).unwrap_or(false) => {
+                return match self.finish_waiting_task(&from.session_id, &body, &files, outcome) {
+                    Ok(message) => {
+                        if let Some(f) = flight {
+                            self.set_replied(&from.session_id, &f.message_id, true).await;
+                        }
+                        self.emit_message(message.clone());
+                        let mut response = BridgeResponse::output("Task result recorded. End your turn.");
+                        response.message_id = Some(message.id);
+                        response
+                    }
+                    Err(e) => refuse(ErrorCode::BadRequest, e.to_string()),
+                }
+            }
+            Err(e) => return internal(e),
+            _ => {}
+        }
         match self.store.open_visit_of_session(&from.session_id) {
             Ok(Some((run, visit))) => {
                 return self.step_result(&from, flight, run, visit, body, files, outcome).await;
@@ -84,20 +152,49 @@ impl Engine {
             Err(e) => return internal(e),
         };
         let Some(request) = session.open_request_id.clone() else {
-            return match self.opener_handle(&session) {
-                Ok(Some(handle)) => refuse(
-                    ErrorCode::NoOpenRequest,
-                    format!(
-                        "No bot is waiting for a result from this conversation. Send your result to @{handle}, \
+            let followup = flight
+                .as_ref()
+                .and_then(|f| self.store.get_message(&f.message_id).ok().flatten())
+                .is_some_and(|m| m.sender == USER && m.workflow_mark.is_none() && m.system_code.is_none());
+            if !self.store.session_is_primary_task(&session.id).unwrap_or(false)
+                || (self.store.session_has_workflow(&session.id).unwrap_or(true) && !followup)
+            {
+                return match self.opener_handle(&session) {
+                    Ok(Some(handle)) => refuse(
+                        ErrorCode::NoOpenRequest,
+                        format!(
+                            "No bot is waiting for a result from this conversation. Send your result to @{handle}, \
                          who opened this conversation, with `sbot send @{handle}`."
+                        ),
                     ),
-                ),
-                Ok(None) => refuse(
-                    ErrorCode::NoOpenRequest,
-                    "No bot is waiting for a result from this conversation. Answer with `sbot reply`, or message \
+                    Ok(None) => refuse(
+                        ErrorCode::NoOpenRequest,
+                        "No bot is waiting for a result from this conversation. Answer with `sbot reply`, or message \
                      someone with `sbot send`.",
-                ),
-                Err(e) => internal(e),
+                    ),
+                    Err(e) => internal(e),
+                };
+            }
+            if body.trim().is_empty() {
+                return refuse(ErrorCode::EmptyBody, "A final result is required.");
+            }
+            let result = (|| {
+                let bot =
+                    self.store.get_bot(&from.bot_id)?.ok_or_else(|| crate::orchestration::invalid("Bot not found."))?;
+                let checked = attachments::check(&files, &self.bot_directory(&bot)?).map_err(Refusal::Attachment)?;
+                self.store.finish_standalone_task(&session.id, &body, &attachments::in_place(&checked))
+            })();
+            return match result {
+                Ok(message) => {
+                    if let Some(flight) = flight {
+                        self.set_replied(&session.id, &flight.message_id, true).await;
+                    }
+                    self.emit_message(message.clone());
+                    let mut response = BridgeResponse::output("Task finished. End your turn.");
+                    response.message_id = Some(message.id);
+                    response
+                }
+                Err(e) => refuse(ErrorCode::BadRequest, e.to_string()),
             };
         };
         let request = match self.store.get_message(&request) {

@@ -875,5 +875,25 @@
     "restart": "Redémarrer Sonata",
     "archHint": "Téléchargez la version {{version}}, terminez votre travail et quittez Sonata. Installez le paquet avec sudo pacman -U suivi du chemin du fichier, puis rouvrez Sonata.",
     "extractedHint": "Terminez votre travail et quittez Sonata. Relancez l’installateur de terminal de Sonata avec --version {{version}} et le même chemin --dest qu’auparavant. Vos données enregistrées seront conservées."
+  },
+  "work": {
+    "pending": "En attente",
+    "hidePending": "Masquer les tâches en attente",
+    "showPending": "Afficher les tâches en attente ({{count}})",
+    "parent": "Tâche parente : {{title}}",
+    "progress": "{{finished}} sous-tâches terminées sur {{total}}",
+    "unsuccessful": "Résultats non concluants : {{count}}",
+    "awaitingReview": "En attente de validation par la tâche parente",
+    "addSubtask": "Ajouter une sous-tâche",
+    "held": "En attente de démarrage manuel",
+    "dependencies": "En attente des dépendances",
+    "queued": "Prête · en attente d’exécution",
+    "start": "Démarrer",
+    "title": "Titre",
+    "instructions": "Instructions",
+    "manual": "Attendre un démarrage manuel",
+    "dependenciesLabel": "Dépend de",
+    "create": "Créer la tâche",
+    "automaticReview": "Accepter automatiquement les résultats réussis des sous-tâches"
   }
 }

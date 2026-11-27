@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useRef, useState, type ReactNode, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { answerBody } from "../answer";
 import { api, USER, type BotView, type Glance, type SessionActivity, type SessionView } from "../api";
@@ -15,6 +15,7 @@ import RestoreTaskButton from "./RestoreTaskButton";
 import { OrchestrationSummary } from "./OrchestrationCard";
 
 interface Props {
+  children?: ReactNode;
   task: BoardTask;
   bots: BotView[];
   sessions: SessionView[];
@@ -109,6 +110,7 @@ export default function TaskCard(props: Props) {
           {stateText(task, now, t)}
         </span>
       </div>
+      {props.children}
       {task.orchestration && !task.orchestration.taskKey && <OrchestrationSummary run={task.orchestration.run}
         onTask={props.onOrchestrationTask} onError={props.onError} />}
       {task.column === "running" && <RunningBody {...props} />}
@@ -325,7 +327,7 @@ function FinishedBody({ task, bots, activity, onOpen, onMarkDone, onError }: Pro
           {t("board.open")}
         </button>
         {task.column === "done" ? (
-          <RestoreTaskButton taskId={task.id} onError={onError} />
+          <RestoreTaskButton workItemId={task.workItem?.id} taskId={task.id} onError={onError} />
         ) : (
           <button onClick={onMarkDone}>{t("board.markDone")}</button>
         )}

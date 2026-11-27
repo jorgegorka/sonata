@@ -15,6 +15,7 @@ use support::*;
 
 fn step(n: usize, bot: &Bot, arrows: Vec<Arrow>) -> Step {
     Step {
+        automatic_child_review: false,
         id: format!("s{n}"),
         name: format!("Step {n}"),
         bot_id: bot.id.clone(),

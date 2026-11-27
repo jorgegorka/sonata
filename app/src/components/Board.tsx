@@ -6,12 +6,14 @@ import { api, type BotView, type Glance, type Orchestration, type SessionActivit
 import { columnTasks, hasWorkGoingOn, type BoardTask, type Column } from "../board";
 import { buildOrchestrationBoard } from "../orchestration";
 import OrchestrationTaskCard, { OrchestrationTaskDetails } from "./OrchestrationCard";
+import WorkBoard from "./WorkBoard";
+import { useWorkItems } from "./useWorkItems";
 import { useOrchestrations } from "./useOrchestrations";
 import { sessionLabel, type Translate } from "../state";
 import TaskCard, { type Tone } from "./TaskCard";
 import { useBoardData, type BoardData } from "./useBoardData";
 
-interface Props {
+export interface Props {
   bots: BotView[];
   sessions: SessionView[];
   paused: boolean;
@@ -20,7 +22,7 @@ interface Props {
   onOpen: (task: BoardTask) => void;
   onNewTask: () => void;
   onError: (e: unknown) => void;
-  drawer?: (tasks: BoardTask[], now: Date, data: BoardData) => ReactNode;
+  drawer?: (tasks: BoardTask[], now: Date, data: BoardData, context?: (task: BoardTask) => ReactNode) => ReactNode;
   data?: BoardData;
   now?: Date;
   orchestrations?: Orchestration[];
@@ -42,6 +44,7 @@ export async function markDone(
   name: string,
   t: Translate,
 ): Promise<void> {
+  if (task.workItem) { await api.archiveWorkItem(task.workItem.id, true); return; }
   if (task.orchestration?.taskKey) {
     await api.archiveOrchestrationTask(task.orchestration.run.id, task.orchestration.taskKey, true);
     return;
@@ -87,6 +90,7 @@ export default function Board({
   const { t } = useTranslation();
   const [showDone, setShowDone] = useState(false);
   const loadedRuns = useOrchestrations(onError);
+  const workItems = useWorkItems(onError);
   const runs = orchestrations ?? loadedRuns;
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const live = useBoardData(sessions, onError, showDone);
@@ -145,6 +149,8 @@ export default function Board({
       onError={onError}
     />
   );
+
+  if (workItems !== null && orchestrations === undefined) return <WorkBoard items={workItems} bots={bots} sessions={sessions} paused={paused} limits={limits} onTogglePause={onTogglePause} onOpen={onOpen} onNewTask={onNewTask} onError={onError} drawer={drawer} data={shown} now={clock} />;
 
   return (
     <div className="board">

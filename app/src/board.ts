@@ -1,4 +1,4 @@
-import type { Glance, Orchestration, Provider, RunGlance, SessionActivity, SessionView, UiEvent, UsageLimit } from "./api";
+import type { Glance, Orchestration, Provider, RunGlance, SessionActivity, SessionView, UiEvent, WorkItem, UsageLimit } from "./api";
 import { isArchived, isWaiting } from "./state";
 
 export type Column = "needs_you" | "running" | "finished" | "done";
@@ -29,6 +29,7 @@ export interface BoardInput {
 }
 
 export interface BoardTask {
+  workItem?: WorkItem;
   orchestration?: { run: Orchestration; taskKey?: string };
   id: string;
   root: SessionView;

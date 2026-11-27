@@ -70,32 +70,52 @@ again**. If creation stops partway through, Sonata lists what was created; **Ret
 creation** finishes the remaining work without duplicates. If you have edited or removed a
 resource from that proposal, generate a fresh proposal so your changes are preserved.
 
-## Orchestrating work with Master
+## Tasks and subtasks
 
-Ask Master to coordinate a process with several tasks. Master creates an overview card and a
-separate linked card for every task, including tasks waiting for prerequisites. Each task can
-use a different workflow or a single bot. Independent tasks run in parallel; a dependent task
-starts only after Master has reviewed and accepted all its prerequisite results.
+Every task has a stable identity and can use a bot or its own workflow. Use **New task** or
+**Add subtask** on any card. Subtasks have the same cards and statuses as their parents, and can
+have children of their own. Conversations are execution history: a workflow's bot handoffs and
+supporting conversations remain part of the same task.
 
-Master can add follow-up tasks within your request and adjust work that has not started. When
-all tasks and reviews are resolved, it returns one combined report in the original conversation,
-including deliverables, evidence, failures, and blocked work. Failed tasks block their dependents;
-independent tasks continue. Workflow pauses and questions remain open until resolved or cancelled.
+**Pending** holds work that has not started, including tasks waiting for prerequisites or a
+manual start. It is hidden by default; **Show Pending** displays it with its count. Ready tasks
+start automatically unless held for manual start. Working tasks move to **Needs you** when input
+is required. A bot must submit an explicit `sbot result` to finish; progress messages and going
+idle do not finish work. **Finished** means execution ended, while **Done** is the user's archive.
 
-Open **Task details** to inspect a task's requirements, dependencies, result and Master's review.
-**Open conversation and workflow** opens its execution history and existing workflow controls.
-Use **Cancel task** or **Cancel process** to stop work, then **Mark done** to archive it. Restoring
-an archived card preserves its results without rerunning it. Active processes prevent project
-archival; switching projects leaves background work running.
+Any bot, including Master, can plan subtasks within the user's request. Dependencies connect
+siblings. Independent work runs in parallel; dependents start after their prerequisites are
+accepted. Parent review is the default. A workflow step can enable automatic acceptance of
+successful child results with its **Automatically accept successful subtask results** setting
+(or `Subtasks: automatic` in the text format).
+
+A workflow step that creates children waits for them and their reviews before advancing. An
+early final result is saved across restarts. Child completion notifies its immediate parent;
+the parent can review the work, continue its workflow, or finish. Failed or cancelled tasks
+block dependents while independent work continues. There are no automatic retries.
+
+Parent cards show progress over their direct children, including Pending and Done children,
+with unsuccessful outcomes shown separately. The bar can reach 100% while the parent is still
+reviewing. Open a card for its conversation, workflow controls, parent, children, requirements,
+dependencies and result. Cancelling a parent cancels its unfinished descendants. Marking a
+finished parent Done archives its descendants too. Restore preserves results without rerunning
+work or accepting reviews. Follow-up work reopens the task and its ancestors without restarting
+previously released dependents. Switching projects leaves background work running.
 
 For agent integrations, `sbot orchestration start --key KEY` takes a JSON task graph on stdin.
 Each task has a `key`, `title`, `instructions`, `acceptance_criteria`, `executor` (a bot `handle`
-or workflow `name`), optional `depends_on` task keys, and optional `files`. Use `show ID` to read
+or workflow `name`), optional `depends_on` task keys, optional `files`, and optional `manual_start`.
+Use `show ID` to read
 results and the current revision, `update ID --revision N --key KEY` to submit `reviews`, `add`,
 or `replace`, and `finish ID --revision N` with the final report on stdin. Stable operation keys
-make identical retries safe; stale revisions are rejected. Master owns orchestration commands;
-worker bots continue to report with `sbot result`. Existing approval rules still apply to new
+make identical retries safe; stale revisions are rejected. The parent conversation owns its
+orchestration commands; child bots report with `sbot result`. Existing approval rules still apply to new
 bots/workflows and actions outside the authorized scope.
+
+The database stores this hierarchy in `work_items`, with session membership and dependencies
+in separate tables. The older `tasks` table remains the recurring schedule configuration.
+Upgrading preserves conversation IDs, provider context and history, and creates a
+`sonata.db.work-items.bak` backup before migration.
 
 ## Projects
 

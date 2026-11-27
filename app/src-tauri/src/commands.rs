@@ -691,6 +691,7 @@ mod tests {
                 version: WORKFLOW_FORMAT,
                 start: Some("a".into()),
                 steps: vec![Step {
+                    automatic_child_review: false,
                     id: "a".into(),
                     name: "Write".into(),
                     bot_id: bot_id.into(),

@@ -37,6 +37,7 @@ fn workflow(h: &Harness, name: &str, bots: &[Bot]) -> Workflow {
                     .iter()
                     .enumerate()
                     .map(|(i, b)| Step {
+                        automatic_child_review: false,
                         id: format!("s{i}"),
                         name: format!("Step {i}"),
                         bot_id: b.id.clone(),

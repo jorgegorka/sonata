@@ -29,18 +29,23 @@ CREATE TABLE orchestration_events (
 );
 "#;
 
-fn read(conn: &Connection, id: &str) -> Result<Orchestration> {
+pub(super) fn read(conn: &Connection, id: &str) -> Result<Orchestration> {
     let data: String = conn
         .query_row("SELECT data FROM orchestrations WHERE id = ?1", [id], |r| r.get(0))
         .optional()?
         .ok_or_else(|| invalid("Orchestration not found."))?;
-    Ok(serde_json::from_str(&data)?)
+    let mut run: Orchestration = serde_json::from_str(&data)?;
+    run.tasks = work_items::graph_tasks(conn, id)?;
+    Ok(run)
 }
 
-fn save(conn: &Connection, run: &Orchestration) -> Result<()> {
+pub(super) fn save(conn: &Connection, run: &Orchestration) -> Result<()> {
+    work_items::save_graph(conn, run)?;
+    let mut metadata = run.clone();
+    metadata.tasks.clear();
     conn.execute(
         "UPDATE orchestrations SET data = ?2, status = ?3 WHERE id = ?1",
-        params![run.id, serde_json::to_string(run)?, serde_json::to_value(run.status)?.as_str()],
+        params![run.id, serde_json::to_string(&metadata)?, serde_json::to_value(run.status)?.as_str()],
     )?;
     Ok(())
 }
@@ -88,7 +93,7 @@ fn acknowledge(conn: &Connection, message: Option<&str>, answer: &str) -> Result
     Ok(())
 }
 
-fn notice(conn: &Connection, run: &Orchestration, event: &str, body: &str) -> Result<Option<Message>> {
+pub(super) fn notice(conn: &Connection, run: &Orchestration, event: &str, body: &str) -> Result<Option<Message>> {
     let exists: bool = conn.query_row(
         "SELECT EXISTS(SELECT 1 FROM orchestration_events WHERE run_id = ?1 AND event_key = ?2)",
         params![run.id, event],
@@ -122,7 +127,7 @@ fn ready_notice(conn: &Connection, run: &Orchestration) -> Result<Option<Message
 pub(super) fn result_conn(conn: &Connection, session: &str, result: &Message) -> Result<bool> {
     let found: Option<(String, String)> = conn
         .query_row(
-            "SELECT run_id, task_key FROM orchestration_executions WHERE session_id = ?1 AND workflow_run_id IS NULL",
+            "SELECT w.orchestration_id,json_extract(w.execution,'$.spec.key') FROM work_items w JOIN work_item_sessions s ON s.work_item_id=w.id WHERE s.session_id=?1 AND w.orchestration_id IS NOT NULL AND (w.primary_session_id=?1 OR w.followup_session_id=?1) AND (w.workflow_run_id IS NULL OR w.followup_session_id=?1)",
             [session],
             |r| Ok((r.get(0)?, r.get(1)?)),
         )
@@ -138,7 +143,8 @@ fn collect(conn: &Connection, id: &str, key: &str, result: &Message) -> Result<(
     if run.status != Status::Active || task.state != TaskState::Running {
         return Err(invalid("This task no longer accepts results."));
     }
-    task.state = TaskState::AwaitingReview;
+    let automatic: bool = conn.query_row("SELECT COALESCE(json_extract(r.definition, '$.steps[' || (SELECT key FROM json_each(r.definition, '$.steps') WHERE json_extract(value,'$.id')=v.step_id) || '].automatic_child_review'),0) FROM workflow_visits v JOIN workflow_runs r ON r.id=v.run_id WHERE v.session_id=?1 AND v.ended_at IS NULL ORDER BY v.ord DESC LIMIT 1", [&run.session_id], |r|r.get(0)).optional()?.unwrap_or(false);
+    task.state = if automatic { TaskState::Succeeded } else { TaskState::AwaitingReview };
     task.result_message_id = Some(result.id.clone());
     task.result = Some(result.body.clone());
     task.attachments = result.attachments.clone();
@@ -164,6 +170,28 @@ pub(super) fn workflow_finished_conn(conn: &Connection, workflow: &str, result: 
         let result = result.ok_or_else(|| invalid("An orchestrated workflow must preserve its final result."))?;
         collect(conn, &id, &key, result)?;
     }
+    Ok(())
+}
+
+/// A coordinating workflow step closes its graph in the same transaction as its visit.
+pub(super) fn finish_step_graph(conn: &Connection, session: &str, result: &Message) -> Result<()> {
+    let id: Option<String> = conn
+        .query_row("SELECT id FROM orchestrations WHERE session_id=?1 AND status='active'", [session], |r| r.get(0))
+        .optional()?;
+    let Some(id) = id else { return Ok(()) };
+    let mut run = read(conn, &id)?;
+    if run.tasks.iter().any(|t| !t.state.terminal()) {
+        return Err(invalid("This step is waiting for subtasks and their reviews."));
+    }
+    run.status = Status::Completed;
+    run.final_message_id = Some(result.id.clone());
+    run.final_report = Some(result.body.clone());
+    run.final_files = result.attachments.clone();
+    run.ended_at = Some(now());
+    run.revision += 1;
+    save(conn, &run)?;
+    acknowledge(conn, Some(&run.request_message_id), &result.id)?;
+    cancel_events(conn, &id)?;
     Ok(())
 }
 
@@ -204,11 +232,11 @@ impl Store {
     pub fn list_orchestrations(&self) -> Result<Vec<Orchestration>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt =
-            conn.prepare("SELECT data FROM orchestrations WHERE ?1 IS NULL OR project_id = ?1 ORDER BY rowid")?;
+            conn.prepare("SELECT id FROM orchestrations WHERE ?1 IS NULL OR project_id = ?1 ORDER BY rowid")?;
         let rows =
             stmt.query_map([&self.project_id], |r| r.get::<_, String>(0))?.collect::<rusqlite::Result<Vec<_>>>()?;
         rows.into_iter()
-            .map(|r| Ok(serde_json::from_str::<Orchestration>(&r)?))
+            .map(|id| read(&conn, &id))
             .filter(|r: &Result<Orchestration>| r.as_ref().map_or(true, |r| self.includes(&r.project_id)))
             .collect()
     }
@@ -239,11 +267,12 @@ impl Store {
                 "This Master conversation already has an active orchestration. Update it or start a new conversation.",
             ));
         }
-        orch::validate_graph(&run.tasks)?;
+        orch::validate_graph(&work_items::dependency_context(&tx, run)?.tasks)?;
         tx.execute(
             "INSERT INTO orchestrations VALUES (?1, ?2, ?3, ?4, 'active', ?5)",
             params![run.id, run.project_id, run.session_id, run.request_message_id, serde_json::to_string(run)?],
         )?;
+        save(&tx, run)?;
         record_operation(&tx, run, key, fingerprint)?;
         // A committed orchestration owns this request even if the app exits before the CLI turn ends.
         acknowledge(&tx, Some(&run.request_message_id), &run.id)?;
@@ -271,7 +300,7 @@ impl Store {
         }
         require_active(&run, revision)?;
         let mut keys = std::collections::HashSet::new();
-        for task in replace {
+        for mut task in replace {
             if !keys.insert(task.spec.key.clone()) {
                 return Err(invalid("A task was replaced twice."));
             }
@@ -283,10 +312,11 @@ impl Store {
             if old.state != TaskState::Waiting {
                 return Err(invalid("Only tasks that have not started can be replaced."));
             }
+            task.work_item_id = old.work_item_id.clone();
             *old = task;
         }
         run.tasks.extend(add);
-        orch::validate_graph(&run.tasks)?;
+        orch::validate_graph(&work_items::dependency_context(&tx, &run)?.tasks)?;
         for review in reviews {
             let task = run
                 .tasks
@@ -323,7 +353,7 @@ impl Store {
         let mut run = read(&tx, id)?;
         let key = &expected.spec.key;
         let pos = run.tasks.iter().position(|t| t.spec.key == *key).ok_or_else(|| invalid("Task not found."))?;
-        if &run.tasks[pos] != expected || !orch::ready(&run, &run.tasks[pos]) {
+        if &run.tasks[pos] != expected || !orch::ready(&work_items::dependency_context(&tx, &run)?, &run.tasks[pos]) {
             return Ok(None);
         }
         let session = create_session_conn(&tx, bot, Some(&run.tasks[pos].spec.title), Some(&run.session_id))?;
@@ -358,7 +388,7 @@ impl Store {
         let mut run = read(&tx, id)?;
         let key = &expected.spec.key;
         let pos = run.tasks.iter().position(|t| t.spec.key == *key).ok_or_else(|| invalid("Task not found."))?;
-        if &run.tasks[pos] != expected || !orch::ready(&run, &run.tasks[pos]) {
+        if &run.tasks[pos] != expected || !orch::ready(&work_items::dependency_context(&tx, &run)?, &run.tasks[pos]) {
             return Ok(None);
         }
         open_session_conn(&tx, &run.session_id)?;
@@ -425,17 +455,21 @@ impl Store {
             return Err(invalid("A nonempty final report and resolved tasks (including every review) are required."));
         }
         let session = open_session_conn(&tx, &run.session_id)?;
+        let request =
+            get_message_conn(&tx, &run.request_message_id)?.ok_or_else(|| invalid("Original request not found."))?;
+        let recipient_session = request.sender_session.clone();
+        let recipient = request.sender.clone();
         let message = NewMessage {
             sender: session.bot_id,
-            recipient: USER.into(),
-            sender_session: Some(session.id),
-            recipient_session: None,
+            recipient: recipient.clone(),
+            sender_session: Some(session.id.clone()),
+            recipient_session,
             kind: MessageKind::Text,
             body: report.into(),
             attachments: files.to_vec(),
             system_code: None,
             system_params: None,
-            status: MessageStatus::Delivered,
+            status: if recipient == USER { MessageStatus::Delivered } else { MessageStatus::Queued },
             chain_id: new_id(),
             hop: 0,
             in_reply_to: Some(run.request_message_id.clone()),
@@ -451,6 +485,18 @@ impl Store {
         run.revision += 1;
         save(&tx, &run)?;
         cancel_events(&tx, id)?;
+        let workflow_step: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM workflow_visits WHERE session_id=?1 AND ended_at IS NULL)",
+            [&session.id],
+            |r| r.get(0),
+        )?;
+        if !workflow_step {
+            tx.execute("UPDATE sessions SET open_request_id=NULL WHERE id=?1", [&session.id])?;
+            tx.execute("DELETE FROM work_item_pending_results WHERE session_id=?1", [&session.id])?;
+            if !result_conn(&tx, &session.id, &message)? {
+                work_items::complete(&tx, &session.id, &message)?;
+            }
+        }
         tx.commit()?;
         Ok(message)
     }

@@ -455,13 +455,23 @@ async fn result_without_an_open_request_in_a_session_a_bot_opened_points_to_that
 }
 
 #[tokio::test]
-async fn result_without_an_open_request_is_refused() {
+async fn result_explicitly_finishes_a_standalone_user_task() {
     let h = harness_after(|_| {});
     let (researcher, _, _) = team(&h).await;
     let resp = h.engine.handle_bridge(result("w1:p1", "Done.")).await;
-    assert_eq!(code(&resp), Some(ErrorCode::NoOpenRequest), "{resp:?}");
-    assert!(error_text(&resp).contains("sbot reply"), "{resp:?}");
-    assert!(h.engine.user_thread(&researcher.id).unwrap().iter().all(|m| m.body != "Done."));
+    assert!(resp.ok, "{resp:?}");
+    assert!(h.engine.user_thread(&researcher.id).unwrap().iter().any(|m| m.body == "Done."));
+    let item = h
+        .engine
+        .list_work_items()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|w| {
+            w.session_ids.iter().any(|id| h.engine.sessions_of(&researcher.id).unwrap().iter().any(|s| &s.id == id))
+        })
+        .unwrap();
+    assert_eq!(item.state, "finished");
 }
 
 #[tokio::test]

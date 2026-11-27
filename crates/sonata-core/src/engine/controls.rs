@@ -44,6 +44,11 @@ impl Engine {
         if old.status != MessageStatus::Interrupted {
             return Err(only_interrupted().into());
         }
+        for bot_id in [Some(&old.recipient), Some(&old.sender).filter(|s| *s != USER)].into_iter().flatten() {
+            if self.store.get_bot(bot_id)?.is_none() {
+                return Err(Refusal::BotNotFound(bot_id.clone()).into());
+            }
+        }
         if old
             .recipient_session
             .as_deref()
@@ -61,11 +66,6 @@ impl Engine {
                 if self.store.get_orchestration(id)?.status != crate::orchestration::Status::Active {
                     return Err(crate::orchestration::invalid("This orchestration is no longer active."));
                 }
-            }
-        }
-        for bot_id in [Some(&old.recipient), Some(&old.sender).filter(|s| *s != USER)].into_iter().flatten() {
-            if self.store.get_bot(bot_id)?.is_none() {
-                return Err(Refusal::BotNotFound(bot_id.clone()).into());
             }
         }
         let from_user = old.sender == USER;
@@ -262,6 +262,7 @@ impl Engine {
         tracing::info!(paused, "pause all bots");
         self.emit(UiEvent::Paused { paused });
         if !paused {
+            self.reconcile_work_items()?;
             for session_id in self.store.sessions_with_queued()? {
                 tokio::spawn(self.pump_session(&session_id));
             }

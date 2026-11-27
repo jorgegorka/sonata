@@ -46,6 +46,7 @@ mod settings;
 mod skills;
 mod tasks;
 mod watchdog;
+mod work_items;
 mod workflows;
 pub use changing::Trash;
 pub use config_transfer::{
@@ -109,6 +110,7 @@ pub enum UiEvent {
     ProjectsChanged,
     TasksChanged,
     WorkflowsChanged,
+    WorkItemsChanged,
     OrchestrationChanged {
         project_id: String,
         run_id: String,
@@ -369,6 +371,7 @@ impl Engine {
                 engine.dispatch_orchestration(&run.id)?;
             }
         }
+        self.reconcile_work_items()?;
         let pumps: Vec<_> = self
             .store
             .sessions_with_queued()?

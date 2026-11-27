@@ -9,6 +9,9 @@ pub fn format_text(name: &str, when: &str, def: &WorkflowDef, handle_of: impl Fn
     }
     for s in ordered(def) {
         out.push_str(&format!("\n## {}\nBot: @{}\n", s.name.trim(), handle_of(&s.bot_id)));
+        if s.automatic_child_review {
+            out.push_str("Subtasks: automatic\n");
+        }
         for a in &s.arrows {
             out.push_str(&format!("{}\n", arrow_text(def, a)));
         }
@@ -52,6 +55,7 @@ fn arrow_text(def: &WorkflowDef, a: &Arrow) -> String {
 }
 
 struct Block {
+    automatic_child_review: Option<bool>,
     name: String,
     handle: String,
     arrows: Vec<(Option<String>, String)>,
@@ -98,6 +102,17 @@ pub fn parse_text(
             .filter(|h| !h.is_empty())
             .ok_or_else(no_bot)?;
         let mut i = 2;
+        let automatic_child_review = match lines.get(i).and_then(|l| l.trim().strip_prefix("Subtasks:")) {
+            Some(value) => {
+                i += 1;
+                Some(match value.trim() {
+                    "automatic" => true,
+                    "review" => false,
+                    _ => return Err("Subtasks must be automatic or review.".into()),
+                })
+            }
+            None => None,
+        };
         let mut arrows = Vec::new();
         while let Some(line) = lines.get(i).map(|l| l.trim()).filter(|l| !l.is_empty() && l.contains("->")) {
             let (outcome, target) = line.split_once("->").unwrap_or((line, ""));
@@ -106,7 +121,7 @@ pub fn parse_text(
             i += 1;
         }
         let instructions = lines[i..].join("\n").trim().to_string();
-        blocks.push(Block { name: step_name, handle, arrows, instructions });
+        blocks.push(Block { automatic_child_review, name: step_name, handle, arrows, instructions });
     }
 
     let kept = |n: &str| keep.and_then(|k| k.steps.iter().find(|s| s.name.trim().eq_ignore_ascii_case(n)));
@@ -144,6 +159,9 @@ pub fn parse_text(
         }
         let pos = kept(&b.name).filter(|s| &s.id == id).and_then(|s| s.pos.clone());
         steps.push(Step {
+            automatic_child_review: b
+                .automatic_child_review
+                .unwrap_or_else(|| kept(&b.name).is_some_and(|s| s.automatic_child_review)),
             id: id.clone(),
             name: b.name.clone(),
             bot_id,
@@ -173,6 +191,7 @@ mod tests {
 
     fn st(id: &str, name: &str, bot: &str, instructions: &str, arrows: Vec<Arrow>, x: f64) -> Step {
         Step {
+            automatic_child_review: false,
             id: id.into(),
             name: name.into(),
             bot_id: bot.into(),

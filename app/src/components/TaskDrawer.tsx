@@ -38,6 +38,7 @@ interface Props {
   onClose: () => void;
   onError: (e: unknown) => void;
   children: ReactNode;
+  taskContext?: ReactNode;
 }
 
 export default function TaskDrawer(props: Props) {
@@ -45,7 +46,7 @@ export default function TaskDrawer(props: Props) {
   const { t } = useTranslation();
   const title = task ? sessionLabel(task.root, sessions, bots, t) : t("board.newTask");
   const process = task?.orchestration;
-  const canMarkDone = !process || (process.taskKey ? process.run.tasks.some((t) => t.spec.key === process.taskKey && isTaskTerminal(t)) : process.run.status !== "active");
+  const canMarkDone = task?.workItem ? task.workItem.state === "finished" : !process || (process.taskKey ? process.run.tasks.some((t) => t.spec.key === process.taskKey && isTaskTerminal(t)) : process.run.status !== "active");
   return (
     <aside className="drawer" aria-label={title}>
       <header className="drawer-header">
@@ -65,7 +66,7 @@ export default function TaskDrawer(props: Props) {
             </svg>
           </button>
           {task && (task.column === "done" ? (
-            <RestoreTaskButton taskId={task.id} onError={onError} />
+            <RestoreTaskButton workItemId={task.workItem?.id} taskId={task.id} onError={onError} />
           ) : (
             <button disabled={!canMarkDone} onClick={onMarkDone}>{t("board.markDone")}</button>
           ))}
@@ -92,7 +93,7 @@ export default function TaskDrawer(props: Props) {
           archivedMembers={task.column === "done" ? task.members.map((m) => m.id) : undefined}
         />
       )}
-      <div className="drawer-body">{children}</div>
+      <div className="drawer-body">{props.taskContext}{children}</div>
     </aside>
   );
 }

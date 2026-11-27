@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 
 mod orchestration;
 mod projects;
+mod work_items;
 pub use projects::DEFAULT_PROJECT;
 
 use rusqlite::{params, Connection, OptionalExtension, Row};
@@ -172,6 +173,7 @@ ALTER TABLE messages ADD COLUMN workflow_mark TEXT;
     Migration::Code(projects::migrate),
     Migration::Sql("INSERT INTO settings (key, value) VALUES ('onboarding_pending', CASE WHEN EXISTS (SELECT 1 FROM settings WHERE key = 'setup_done' AND value = 'true') THEN 'false' ELSE 'true' END);"),
     Migration::Sql(orchestration::SCHEMA),
+    Migration::Code(work_items::migrate),
 ];
 
 fn sessions_from_bots(conn: &Connection) -> rusqlite::Result<()> {
@@ -596,6 +598,17 @@ fn open_visit_conn(conn: &Connection, run_id: &str, ord: i64, open: &VisitOpen) 
         ),
         params![open.visit_id, run_id, ord, open.step_id, open.n, session.id, open.message_id, now()],
     )?;
+    let root: Option<String> =
+        conn.query_row("SELECT root_session FROM workflow_runs WHERE id=?1", [run_id], |r| r.get(0))?;
+    if let Some(root) = root {
+        if let Some(item) = work_items::owner(conn, &root)? {
+            conn.execute("INSERT OR REPLACE INTO work_item_sessions VALUES (?1,?2)", params![session.id, item])?;
+            conn.execute(
+                "UPDATE work_items SET workflow_run_id=?2 WHERE id=?1 AND primary_session_id=?3",
+                params![item, run_id, root],
+            )?;
+        }
+    }
     let message = NewMessage { recipient_session: Some(session.id.clone()), ..open.message.clone() };
     let message = insert_marked_conn(conn, &open.message_id, &message, &open.mark)?;
     let session = get_session_conn(conn, &session.id)?.expect("session just used");
@@ -641,6 +654,20 @@ fn run_then_conn(
                 (None, None) => None,
             };
             orchestration::workflow_finished_conn(conn, run_id, finished.as_ref())?;
+            if let Some(result) = &finished {
+                let primary: Option<String> = conn
+                    .query_row("SELECT primary_session_id FROM work_items WHERE workflow_run_id=?1", [run_id], |r| {
+                        r.get(0)
+                    })
+                    .optional()?
+                    .flatten();
+                if let Some(primary) = primary {
+                    let coordinated: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM work_items WHERE workflow_run_id=?1 AND orchestration_id IS NOT NULL)", [run_id], |r| r.get(0))?;
+                    if !coordinated {
+                        work_items::complete(conn, &primary, result)?;
+                    }
+                }
+            }
             let finished = finished.map(|m| get_message_conn(conn, &m.id)).transpose()?.flatten();
             (None, finished)
         }
@@ -746,7 +773,9 @@ fn create_session_conn(
          SELECT ?1, ?2, COALESCE(MAX(number), 0) + 1, ?3, NULL, NULL, ?4, ?5, ?5, (SELECT project_id FROM bots WHERE id = ?2) FROM sessions WHERE bot_id = ?2",
         params![id, bot_id, title, opened_by, t],
     )?;
-    Ok(get_session_conn(conn, &id)?.expect("session just inserted"))
+    let session = get_session_conn(conn, &id)?.expect("session just inserted");
+    work_items::attach_session(conn, &session)?;
+    Ok(session)
 }
 
 fn shared_session_conn(conn: &Connection, bot_id: &str, with: &str) -> rusqlite::Result<Option<Session>> {
@@ -837,6 +866,18 @@ fn store_message_conn(conn: &Connection, id: &str, m: &NewMessage, answers: bool
         ];
         for session in ends.into_iter().flatten() {
             conn.execute("UPDATE sessions SET last_activity_at = ?2 WHERE id = ?1", params![session, created_at])?;
+        }
+    }
+    if m.sender == USER && m.system_code.is_none() && answers && m.status == MessageStatus::Queued {
+        if let Some(session) = &m.recipient_session {
+            work_items::reopen(conn, session, id)?;
+            if let Some(item) = work_items::owner(conn, session)? {
+                conn.execute(
+                    "UPDATE work_items SET instructions=?2 WHERE id=?1 AND instructions=''",
+                    params![item, m.body],
+                )?;
+                conn.execute("UPDATE work_items SET state='working', finished_at=NULL, outcome=NULL, result_message_id=NULL WHERE id=?1 AND orchestration_id IS NULL", [&item])?;
+            }
         }
     }
     if let Some(session) = m.recipient_session.as_ref().filter(|_| answers) {
@@ -1076,6 +1117,12 @@ impl Store {
         for (i, migration) in MIGRATIONS.iter().enumerate().skip(current as usize) {
             if let (4, Some(backup)) = (i, v4_backup.filter(|_| current > 0)) {
                 back_up(&conn, backup)?;
+            }
+            if i == 15 && current > 0 {
+                if let Some(old_backup) = v4_backup {
+                    let db = old_backup.to_string_lossy();
+                    back_up(&conn, Path::new(&format!("{}.work-items.bak", db.trim_end_matches(".v4.bak"))))?;
+                }
             }
             let projects = i == 12;
             if projects {
@@ -1403,7 +1450,10 @@ impl Store {
             _ => return Err(not_found().into()),
         }
         let ended = now();
-        insert_marked_conn(&tx, &close.result_id, &close.result, &close.mark)?;
+        let result = insert_marked_conn(&tx, &close.result_id, &close.result, &close.mark)?;
+        if let Some(session) = &visit.session_id {
+            orchestration::finish_step_graph(&tx, session, &result)?;
+        }
         if let Some(answered) = &close.answered {
             tx.execute("UPDATE messages SET answered_by = ?2 WHERE id = ?1", params![answered, close.result_id])?;
         }
@@ -1411,6 +1461,7 @@ impl Store {
             "UPDATE workflow_visits SET result_message = ?2, outcome = ?3, ended_at = ?4 WHERE id = ?1",
             params![visit.id, close.result_id, close.outcome, ended],
         )?;
+        tx.execute("DELETE FROM work_item_pending_results WHERE session_id=?1", [&visit.session_id])?;
         let (opened, finished) = run_then_conn(&tx, run_id, then, &ended)?;
         let result = get_message_conn(&tx, &close.result_id)?;
         let run = get_run_conn(&tx, run_id)?.expect("run just moved");
@@ -2072,7 +2123,12 @@ impl Store {
             tx.execute("UPDATE messages SET answered_by = ?2 WHERE id = ?1", params![answered, id])?;
         }
         let session = get_session_conn(&tx, session_id)?.expect("sender session exists");
-        orchestration::result_conn(&tx, session_id, &message)?;
+        if !orchestration::result_conn(&tx, session_id, &message)? {
+            let owner = work_items::owner(&tx, session_id)?;
+            if owner.as_deref() == Some(session_id) {
+                work_items::complete(&tx, session_id, &message)?;
+            }
+        }
         let message = get_message_conn(&tx, id)?.expect("result just inserted");
         tx.commit()?;
         Ok((message, session))
