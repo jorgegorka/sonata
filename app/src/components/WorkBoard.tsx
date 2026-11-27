@@ -109,7 +109,9 @@ function WorkItemForm({ bots, parent, siblings, onClose, onSaved, onError }: Pic
   const [executor, setExecutor] = useState(`bot:${bots[0]?.handle ?? ""}`), [manual, setManual] = useState(false), [dependencies, setDependencies] = useState<string[]>([]);
   useEffect(() => { let disposed = false; api.listWorkflows().then((w) => { if (!disposed) setWorkflows(w); }).catch(onError); return () => { disposed = true; }; }, [api, onError]);
   function submit(e: FormEvent) {
-    e.preventDefault(); const colon = executor.indexOf(":"), name = executor.slice(colon + 1);
+    e.preventDefault();
+    if (!instructions.trim()) return;
+    const colon = executor.indexOf(":"), name = executor.slice(colon + 1);
     const input: NewWorkItem = { parent_id: parent?.id ?? null, title, instructions, manual_start: manual, depends_on: dependencies,
       executor: executor.startsWith("bot:") ? { kind: "bot", handle: name } : { kind: "workflow", name } };
     act(async () => { await api.createWorkItem(input); onSaved(); });
@@ -117,12 +119,12 @@ function WorkItemForm({ bots, parent, siblings, onClose, onSaved, onError }: Pic
   return <aside className="drawer" aria-label={t(parent ? "work.addSubtask" : "board.newTask")}><header className="drawer-header"><h2>{t(parent ? "work.addSubtask" : "board.newTask")}</h2><button onClick={onClose}>{t("board.close")}</button></header>
     <form className="drawer-body work-form" onSubmit={submit}>
       {parent && <p>{t("work.parent", { title: parent.title })}</p>}
-      <label>{t("work.title")}<input required value={title} onChange={(e) => setTitle(e.target.value)} /></label>
+      <label>{t("work.title")}<input value={title} onChange={(e) => setTitle(e.target.value)} /><span className="muted">{t("work.titleHint")}</span></label>
       <label>{t("board.pickBot")}<select value={executor} onChange={(e) => setExecutor(e.target.value)}><optgroup label={t("board.pickBots")}>{bots.map((b) => <option key={b.id} value={`bot:${b.handle}`}>{b.display_name}</option>)}</optgroup><optgroup label={t("board.pickWorkflows")}>{workflows.map((w) => <option key={w.id} value={`workflow:${w.name}`}>{w.name}</option>)}</optgroup></select></label>
       <label>{t("work.instructions")}<textarea required rows={8} value={instructions} onChange={(e) => setInstructions(e.target.value)} /></label>
       <label className="work-check"><input type="checkbox" checked={manual} onChange={(e) => setManual(e.target.checked)} />{t("work.manual")}</label>
       {siblings.length > 0 && <fieldset><legend>{t("work.dependenciesLabel")}</legend>{siblings.map((w) => <label key={w.id} className="work-check"><input type="checkbox" checked={dependencies.includes(w.id)} onChange={(e) => setDependencies((ids) => e.target.checked ? [...ids, w.id] : ids.filter((id) => id !== w.id))} />{w.title}</label>)}</fieldset>}
-      <button type="submit" className="primary" disabled={busy || !bots.length}>{t("work.create")}</button>
+      <button type="submit" className="primary" disabled={busy || !bots.length || !instructions.trim()}>{t("work.create")}</button>
     </form>
   </aside>;
 }

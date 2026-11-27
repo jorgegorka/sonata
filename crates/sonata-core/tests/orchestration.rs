@@ -685,6 +685,121 @@ async fn nested_tasks_wait_for_review_then_notify_only_their_immediate_parent() 
 }
 
 #[tokio::test]
+async fn work_item_titles_default_to_the_description_and_preserve_explicit_titles() {
+    let h = harness();
+    let bot = h.engine.create_bot(claude_bot("Worker")).unwrap();
+    let sixty = "界".repeat(60);
+    let long = "界".repeat(61);
+    let explicit = "My title ".repeat(10);
+    for (title, instructions, expected) in [
+        (None, "Review the login flow", "Review the login flow".to_string()),
+        (Some(""), "\n \n  Review the login flow  \nCheck password reset.", "Review the login flow".into()),
+        (Some(" \t "), "Inspect the report", "Inspect the report".into()),
+        (None, sixty.as_str(), sixty.clone()),
+        (None, long.as_str(), format!("{}…", "界".repeat(59))),
+        (Some("  Custom title  "), "Review the login flow", "Custom title".into()),
+        (Some(explicit.as_str()), "Review the login flow", explicit.trim().to_string()),
+    ] {
+        let mut input = serde_json::json!({
+            "instructions": instructions,
+            "executor": { "kind": "bot", "handle": bot.handle },
+            "manual_start": true,
+        });
+        if let Some(title) = title {
+            input["title"] = title.into();
+        }
+        let item = h.engine.create_work_item(serde_json::from_value(input).unwrap()).unwrap();
+        assert_eq!(item.title, expected);
+        assert_eq!(item.instructions, instructions);
+        assert_eq!(item.execution.as_ref().unwrap().spec.title, expected);
+        assert_eq!(item.state, "pending");
+        assert!(item.session_ids.is_empty());
+        let stored = h.engine.list_work_items().await.unwrap().into_iter().find(|w| w.id == item.id).unwrap();
+        assert_eq!(stored.title, expected);
+        assert_eq!(stored.instructions, instructions);
+    }
+    assert!(h.engine.sessions_of(&bot.id).unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn work_items_reject_blank_descriptions_even_with_a_title() {
+    use sonata_core::work_items::NewWorkItem;
+    let h = harness();
+    let bot = h.engine.create_bot(claude_bot("Worker")).unwrap();
+    for title in ["", "Custom title"] {
+        for instructions in ["", " \n\t "] {
+            let error = h
+                .engine
+                .create_work_item(NewWorkItem {
+                    parent_id: None,
+                    title: title.into(),
+                    instructions: instructions.into(),
+                    executor: Executor::Bot { handle: bot.handle.clone() },
+                    manual_start: false,
+                    depends_on: vec![],
+                })
+                .unwrap_err();
+            assert!(error.to_string().contains("Instructions are required."));
+        }
+    }
+    assert!(h.engine.list_work_items().await.unwrap().is_empty());
+    assert!(h.engine.sessions_of(&bot.id).unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn generated_work_item_titles_survive_starting_bot_workflow_and_child_tasks() {
+    use sonata_core::work_items::NewWorkItem;
+    for use_workflow in [false, true] {
+        for manual_start in [false, true] {
+            let h = harness();
+            let bot = h.engine.create_bot(claude_bot("Worker")).unwrap();
+            let executor = if use_workflow {
+                let workflow = workflow(&h, "Review", &[&bot]);
+                Executor::Workflow { name: workflow.name }
+            } else {
+                Executor::Bot { handle: bot.handle.clone() }
+            };
+            let parent = h
+                .engine
+                .create_work_item(NewWorkItem {
+                    parent_id: None,
+                    title: String::new(),
+                    instructions: "Review the login flow\nCheck password reset too.".into(),
+                    executor,
+                    manual_start,
+                    depends_on: vec![],
+                })
+                .unwrap();
+            assert_eq!(parent.state, if manual_start { "pending" } else { "working" });
+            assert_eq!(parent.title, "Review the login flow");
+            let child = h
+                .engine
+                .create_work_item(NewWorkItem {
+                    parent_id: Some(parent.id.clone()),
+                    title: " \t ".into(),
+                    instructions: "\n  Check the reset email  \nUse a test account.".into(),
+                    executor: Executor::Bot { handle: bot.handle.clone() },
+                    manual_start: true,
+                    depends_on: vec![],
+                })
+                .unwrap();
+            assert_eq!(child.title, "Check the reset email");
+            assert_eq!(child.state, "pending");
+            assert!(child.session_ids.is_empty());
+            h.engine.start_work_item(&parent.id).unwrap();
+            h.engine.start_work_item(&child.id).unwrap();
+            let items = h.engine.list_work_items().await.unwrap();
+            for (id, title) in [(&parent.id, "Review the login flow"), (&child.id, "Check the reset email")] {
+                let item = items.iter().find(|w| &w.id == id).unwrap();
+                assert_eq!(item.title, title);
+                assert_eq!(item.execution.as_ref().unwrap().spec.title, title);
+                assert_eq!(item.state, "working");
+            }
+        }
+    }
+}
+
+#[tokio::test]
 async fn pending_tasks_have_no_session_and_idle_is_not_completion() {
     use sonata_core::work_items::NewWorkItem;
     let h = harness();

@@ -191,7 +191,7 @@ export interface WorkItem {
   result_message_id: string | null; depends_on: string[];
 }
 export interface NewWorkItem {
-  parent_id: string | null; title: string; instructions: string;
+  parent_id: string | null; title?: string; instructions: string;
   executor: { kind: "bot"; handle: string } | { kind: "workflow"; name: string };
   manual_start: boolean; depends_on: string[];
 }

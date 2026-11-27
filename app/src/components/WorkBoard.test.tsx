@@ -21,7 +21,53 @@ async function mount(items: WorkItem[]) {
   await act(async () => root!.render(<WorkBoard items={items} bots={[bot]} sessions={items.flatMap((w) => w.session_ids.map(session))} paused={false} limits={[]} onTogglePause={() => {}} onOpen={() => {}} onNewTask={() => {}} onError={(e) => { throw e; }} data={data} now={new Date("2026-11-27T11:00:00Z")} />));
 }
 const button = (text: string) => [...host.querySelectorAll("button")].find((b) => b.textContent === text)!;
+async function fill(field: HTMLInputElement | HTMLTextAreaElement, value: string) {
+  await act(async () => {
+    const prototype = field instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(prototype, "value")!.set!.call(field, value);
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
 describe("unified tasks", () => {
+  it.each([
+    { title: "", parent: false },
+    { title: " \t ", parent: true },
+    { title: "Custom title", parent: false },
+  ])("creates work with title '$title' and parent $parent", async ({ title, parent }) => {
+    await mount(parent ? [item("parent")] : []);
+    await act(async () => button(parent ? "Add subtask" : "New task").click());
+    const form = host.querySelector("form")!;
+    const instructions = "Review the login flow\nCheck the password reset too.";
+    expect(form.textContent).toContain("Title (optional)");
+    expect(form.textContent).toContain("Leave blank to use the beginning of the description.");
+    await fill(form.querySelector("input")!, title);
+    await fill(form.querySelector("textarea")!, instructions);
+    await act(async () => form.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
+    expect(form.checkValidity()).toBe(true);
+    expect(button("Create task").disabled).toBe(false);
+    await act(async () => button("Create task").click());
+    expect(calls).toContainEqual(["create_work_item", { input: {
+      parent_id: parent ? "parent" : null, title, instructions, manual_start: true, depends_on: [],
+      executor: { kind: "bot", handle: "worker" },
+    } }]);
+    expect(host.querySelector("form")).toBeNull();
+  });
+  it("requires a nonblank description even when a title is supplied", async () => {
+    await mount([]);
+    await act(async () => button("New task").click());
+    const form = host.querySelector("form")!;
+    const instructions = form.querySelector("textarea")!;
+    await fill(form.querySelector("input")!, "Custom title");
+    expect(instructions.required).toBe(true);
+    expect(form.checkValidity()).toBe(false);
+    expect(button("Create task").disabled).toBe(true);
+    await fill(instructions, " \n\t ");
+    expect(button("Create task").disabled).toBe(true);
+    await act(async () => form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    expect(calls.some(([name]) => name === "create_work_item")).toBe(false);
+    await fill(instructions, "Describe the work");
+    expect(button("Create task").disabled).toBe(false);
+  });
   it("does not finish an idle conversation without an explicit result", () => {
     const execution=taskExecution(item("parent"),{sessions:[session("parent")],...data,paused:false,limits:[],providers:{b:"claude"}});
     expect(execution?.column).toBe("running");

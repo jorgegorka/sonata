@@ -189,9 +189,11 @@ impl Engine {
 
     pub fn create_work_item(&self, input: NewWorkItem) -> Result<WorkItem> {
         self.store.require_active()?;
-        if input.title.trim().is_empty() || input.instructions.trim().is_empty() {
-            return Err(invalid("A title and instructions are required."));
-        }
+        let default_title = session_title(&input.instructions).ok_or_else(|| invalid("Instructions are required."))?;
+        let title = match input.title.trim() {
+            "" => default_title,
+            title => title.into(),
+        };
         let key = new_id();
         let items = self.store.list_work_items()?;
         let parent = input
@@ -201,7 +203,7 @@ impl Engine {
             .transpose()?;
         let mut spec = TaskSpec {
             key: key.clone(),
-            title: input.title.trim().into(),
+            title,
             instructions: input.instructions,
             acceptance_criteria: vec!["Complete the requested work and report the result.".into()],
             executor: input.executor,

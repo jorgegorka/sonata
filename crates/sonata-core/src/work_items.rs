@@ -34,6 +34,7 @@ pub struct WorkItem {
 #[serde(deny_unknown_fields)]
 pub struct NewWorkItem {
     pub parent_id: Option<String>,
+    #[serde(default)]
     pub title: String,
     pub instructions: String,
     pub executor: Executor,
