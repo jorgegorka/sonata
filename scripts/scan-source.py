@@ -19,6 +19,8 @@ denied = re.compile(r"(?i)(^|/)(?:\.env(?:\..*)?|id_(?:rsa|ed25519|ecdsa).*|cred
 failures = []
 # User-approved public installers are pinned to the notarized artifacts' digests.
 public_artifacts = {
+    "site/downloads/Sonata_1.0.11.dmg": "d3464053b2a912bb2e17c4f28c71e0ce1be3ab0dfa680a66687912bedc2fc066",
+    "site/downloads/Sonata_1.0.11.app.tar.gz": "9d38751a10fc708df6ff2a8b34ebe4a8603b5383d4b3d97cbaa6fec9a4ab7f18",
     "site/downloads/Sonata_1.0.10.dmg": "6272eae16af921fcd5a9521fac2b621efe6c6ca7cf514c10e9988ea2d7217d5e",
     "site/downloads/Sonata_1.0.10.app.tar.gz": "ec0beb25c109ddd5ffdf87c163d66e676d6803b664e210f5fddec56f32c08e52",
 

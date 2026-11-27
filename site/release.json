@@ -1,9 +1,9 @@
 {
   "available": true,
-  "version": "1.0.10",
+  "version": "1.0.11",
   "notes": "https://github.com/jorgegorka/sonata/blob/master/CHANGELOG.md",
   "downloads": {
-    "Sonata-macos-aarch64.dmg": "./downloads/Sonata_1.0.10.dmg",
+    "Sonata-macos-aarch64.dmg": "./downloads/Sonata_1.0.11.dmg",
     "SHA256SUMS": "./downloads/SHA256SUMS",
     "version.txt": "./downloads/version.txt"
   }
