@@ -42,4 +42,6 @@ pub struct NewWorkItem {
     pub manual_start: bool,
     #[serde(default)]
     pub depends_on: Vec<String>,
+    #[serde(default)]
+    pub files: Vec<String>,
 }

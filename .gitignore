@@ -57,3 +57,4 @@ secrets.yml
 *.app/
 !/site/downloads/Sonata_1.0.8.dmg
 !/site/downloads/Sonata_1.0.9.dmg
+!/site/downloads/Sonata_1.0.10.dmg

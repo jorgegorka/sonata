@@ -877,6 +877,10 @@
     "extractedHint": "Finish your work and quit Sonata. Run the Sonata terminal installer again with --version {{version}} and the same --dest path you used before. Your saved data is preserved."
   },
   "work": {
+    "loading": "Loading tasks…",
+    "loadFailed": "Could not load tasks.",
+    "retry": "Retry",
+    "selectExecutor": "Select a bot or workflow",
     "pending": "Pending",
     "hidePending": "Hide Pending",
     "showPending": "Show Pending ({{count}})",

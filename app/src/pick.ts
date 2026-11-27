@@ -113,10 +113,6 @@ export function pickTarget(
     const label = `${handle} · ${sessionLabel(session, sessions, bots, t)}`;
     return { botId: session.bot_id, sessionId: session.id, label };
   }
-  if (page?.kind === "newSession" && page.botId) {
-    const handle = handleOf(bots, page.botId);
-    return handle ? { botId: page.botId, sessionId: null, label: `${handle} · ${t("chat.newSession")}` } : null;
-  }
   return null;
 }
 

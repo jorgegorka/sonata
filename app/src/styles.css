@@ -118,7 +118,7 @@ input, select, textarea { font: inherit; color: inherit; background: var(--bg); 
 .terminal-panel { border-top: 1px solid var(--border); padding: 8px 16px; display: flex; flex-direction: column; gap: 8px; }
 .terminal-view { display: flex; flex-direction: column; gap: 4px; }
 .terminal-host { max-height: 320px; overflow: auto; background: var(--console-bg); border: 1px solid var(--border); border-radius: 6px; padding: 4px; }
-.composer.dragging { outline: 2px dashed var(--accent); outline-offset: -6px; }
+.composer.dragging, .work-form.dragging { outline: 2px dashed var(--accent); outline-offset: -6px; }
 .composer-row .actions { display: flex; gap: 8px; }
 .pending-files { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; padding: 0; }
 .chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--border); border-radius: 12px; padding: 2px 4px 2px 8px; font-size: 12px; }

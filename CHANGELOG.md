@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+## 1.0.10 — 2026-11-27
+
+Signed and notarized Apple Silicon macOS DMG and signed automatic update archive.
+The Omarchy package remains 1.0.7; AppImage and DEB packages are still pending.
+
+### Tasks
+
+- Use the new task form everywhere: the board, bot shortcuts, workflow Run,
+  newly created bots, and subtasks. Remove the old board and creation screens.
+- Keep task creation available while the board loads. Show loading errors with
+  Retry, keep existing cards after refresh failures, and preserve an open draft.
+- Attach files with the picker or drag-and-drop. Store copies when creating the
+  task so bots, workflows, and subtasks can use them after a restart or a wait
+  for manual start or dependencies, even if the original files are removed.
+- Keep optional titles and required descriptions. Workflow creation uses the
+  shared form without the previous workflow preview.
+- Preserve existing conversations, scheduled tasks, and archive/restore.
+
+### Distribution
+
+- Publish the signed macOS installer and update archive for 1.0.10. Existing
+  1.0.8 and 1.0.9 installations can offer it through their startup update check.
+- Quit Sonata before replacing the app manually; saved data stays in place.
+
 ## 1.0.9 — 2026-11-27
 
 Signed and notarized Apple Silicon macOS DMG on the homepage, with a signed

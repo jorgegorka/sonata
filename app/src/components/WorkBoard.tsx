@@ -1,30 +1,41 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useTranslation } from "react-i18next";
-import type { NewWorkItem, WorkItem, Workflow } from "../api";
+import type { WorkItem } from "../api";
 import { FOLD_DAYS, type BoardTask } from "../board";
 import { pendingReason, taskExecution, taskProgress } from "../workItems";
 import { useProjectApi } from "../projectContext";
 import { useAct } from "./useAct";
 import TaskCard from "./TaskCard";
 import type { Props as BoardProps } from "./Board";
+import WorkItemForm from "./WorkItemForm";
+import { useBoardData } from "./useBoardData";
+import { errorMessage } from "../errors";
 
-type Props = BoardProps & { items: WorkItem[] };
+export type Props = BoardProps & {
+  items: WorkItem[];
+  loading?: boolean;
+  loadError?: unknown;
+  onRetry?: () => void;
+  onSaved: (item: WorkItem) => void;
+};
 export default function WorkBoard(props: Props) {
   const { items, bots, sessions, data, onError } = props;
   const api = useProjectApi(); const { t } = useTranslation();
   const { busy, act } = useAct(onError);
   const [showPending, setShowPending] = useState(false), [showDone, setShowDone] = useState(false);
-  const [creating, setCreating] = useState<WorkItem | null | undefined>(undefined);
   const [selected, setSelected] = useState<WorkItem | null>(null);
-  const now = props.now ?? new Date();
-  const boardData = data ?? { activity: {}, glances: {}, attentionSince: {} };
+  const [clock, setClock] = useState(() => new Date());
+  useEffect(() => { const timer = setInterval(() => setClock(new Date()), 30_000); return () => clearInterval(timer); }, []);
+  const now = props.now ?? clock;
+  const live = useBoardData(sessions, onError, showDone);
+  const boardData = data ?? live;
   const input = { sessions, ...boardData, paused: props.paused, limits: props.limits,
     providers: Object.fromEntries(bots.map((b) => [b.id, b.provider])) };
   const executions = new Map(items.map((item) => [item.id, taskExecution(item, input)]));
   const status = (item: WorkItem) => item.archived_at ? "done" : item.state === "pending" ? "pending"
     : executions.get(item.id)?.column ?? (item.state === "working" ? "running" : item.state);
-  const open = (item: WorkItem) => { const execution = executions.get(item.id); setSelected(execution ? null : item); if (execution) props.onOpen(execution); };
+  const open = (item: WorkItem) => { props.onCloseCreation(); const execution = executions.get(item.id); setSelected(execution ? null : item); if (execution) props.onOpen(execution); };
   const columns = ["pending", "running", "needs_you", "finished", "done"].filter((c) => (c !== "pending" || showPending) && (c !== "done" || showDone));
   const columnLabels: Record<string, string> = { pending: "work.pending", running: "board.running", needs_you: "board.needsYou", finished: "board.finished", done: "board.doneColumn" };
   const context = (item: WorkItem, detailed = false): ReactNode => {
@@ -54,7 +65,7 @@ export default function WorkBoard(props: Props) {
       </details>}
       <div className="task-actions">
         {item.state === "pending" && item.manual_start && <button disabled={busy} onClick={() => act(() => api.startWorkItem(item.id))}>{t("work.start")}</button>}
-        {!item.archived_at && <button onClick={() => setCreating(item)}>{t("work.addSubtask")}</button>}
+        {!item.archived_at && <button onClick={() => props.onCreate(item)}>{t("work.addSubtask")}</button>}
         {["pending", "working", "needs_you"].includes(item.state) && <button disabled={busy} onClick={() => act(() => api.cancelWorkItem(item.id))}>{t("orchestration.cancelTask")}</button>}
       </div>
     </div>;
@@ -75,9 +86,11 @@ export default function WorkBoard(props: Props) {
       <button aria-expanded={showPending} aria-controls="work-pending" onClick={() => setShowPending(!showPending)}>{t(showPending ? "work.hidePending" : "work.showPending", { count: items.filter((w) => status(w) === "pending").length })}</button>
       <button aria-expanded={showDone} aria-controls="work-done" onClick={() => setShowDone(!showDone)}>{t(showDone ? "board.hideDone" : "board.showDone")}</button>
       <button onClick={props.onTogglePause}>{t(props.paused ? "board.resume" : "board.pause")}</button>
-      <button className="primary" onClick={() => setCreating(null)}>{t("board.newTask")}</button>
+      <button className="primary" onClick={() => props.onCreate()}>{t("board.newTask")}</button>
     </div></header>
     {props.paused && <p className="board-note muted">{t("board.pausedNote")}</p>}
+    {props.loading && <p role="status">{t("work.loading")}</p>}
+    {props.loadError != null && <div className="error" role="alert">{t("work.loadFailed")} {errorMessage(t, props.loadError)} <button onClick={props.onRetry}>{t("work.retry")}</button></div>}
     <div className="board-columns work-columns" style={{ "--work-columns": columns.length } as React.CSSProperties}>
       {columns.map((column) => {
         const rows = items.filter((w) => status(w) === column).sort((a, b) => column === "done" || column === "finished" ? (b.archived_at ?? b.finished_at ?? b.created_at).localeCompare(a.archived_at ?? a.finished_at ?? a.created_at) : a.created_at.localeCompare(b.created_at));
@@ -85,7 +98,7 @@ export default function WorkBoard(props: Props) {
         const shown = rows.filter((w) => !older.includes(w));
         return <section id={`work-${column}`} className={`board-column ${column}`} data-column={column} key={column} aria-label={t(columnLabels[column])}>
           <div className="board-column-head"><h2>{t(columnLabels[column])}</h2><span className="board-count">{rows.length}</span></div>
-          {rows.length ? shown.map(card) : <div className="board-empty">{t("board.emptyColumn")}</div>}
+          {rows.length ? shown.map(card) : <div className="board-empty">{!props.loading && props.loadError == null ? t("board.emptyColumn") : ""}</div>}
           {older.length > 0 && <details className="board-fold"><summary>{t("board.older", { n: older.length })}</summary><div className="board-fold-body">{older.map(card)}
             <button disabled={busy} onClick={() => act(async () => {
               if (await ask(t("board.markAllDoneConfirm", { count: older.length }), { title: t("board.markAllDone"), kind: "warning" })) {
@@ -96,35 +109,10 @@ export default function WorkBoard(props: Props) {
         </section>;
       })}
     </div>
-    {creating !== undefined ? <WorkItemForm bots={bots} parent={creating} siblings={items.filter((w) => w.parent_id === creating?.id)} onClose={() => setCreating(undefined)} onSaved={() => setCreating(undefined)} onError={onError} />
+    {props.creation ? <WorkItemForm key={props.creation.id} creation={props.creation} bots={bots}
+      siblings={items.filter((w) => w.parent_id === props.creation?.parent?.id)}
+      onClose={props.onCloseCreation} onSaved={(item) => { props.onSaved(item); props.onCloseCreation(); }} />
       : selected ? <aside className="drawer" aria-label={selected.title}><header className="drawer-header"><h2>{selected.title}</h2><button onClick={() => setSelected(null)}>{t("board.close")}</button></header><div className="drawer-body work-details">{context(items.find((w) => w.id === selected.id) ?? selected, true)}</div></aside>
       : props.drawer?.([...executions.values()].filter((task): task is BoardTask => task !== null), now, boardData, (task) => task.workItem && <div className="work-details">{context(task.workItem, true)}</div>)}
   </div>;
-}
-
-function WorkItemForm({ bots, parent, siblings, onClose, onSaved, onError }: Pick<BoardProps, "bots" | "onError"> & { parent: WorkItem | null; siblings: WorkItem[]; onClose: () => void; onSaved: () => void }) {
-  const api = useProjectApi(); const { t } = useTranslation(); const { busy, act } = useAct(onError);
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [title, setTitle] = useState(""), [instructions, setInstructions] = useState("");
-  const [executor, setExecutor] = useState(`bot:${bots[0]?.handle ?? ""}`), [manual, setManual] = useState(false), [dependencies, setDependencies] = useState<string[]>([]);
-  useEffect(() => { let disposed = false; api.listWorkflows().then((w) => { if (!disposed) setWorkflows(w); }).catch(onError); return () => { disposed = true; }; }, [api, onError]);
-  function submit(e: FormEvent) {
-    e.preventDefault();
-    if (!instructions.trim()) return;
-    const colon = executor.indexOf(":"), name = executor.slice(colon + 1);
-    const input: NewWorkItem = { parent_id: parent?.id ?? null, title, instructions, manual_start: manual, depends_on: dependencies,
-      executor: executor.startsWith("bot:") ? { kind: "bot", handle: name } : { kind: "workflow", name } };
-    act(async () => { await api.createWorkItem(input); onSaved(); });
-  }
-  return <aside className="drawer" aria-label={t(parent ? "work.addSubtask" : "board.newTask")}><header className="drawer-header"><h2>{t(parent ? "work.addSubtask" : "board.newTask")}</h2><button onClick={onClose}>{t("board.close")}</button></header>
-    <form className="drawer-body work-form" onSubmit={submit}>
-      {parent && <p>{t("work.parent", { title: parent.title })}</p>}
-      <label>{t("work.title")}<input value={title} onChange={(e) => setTitle(e.target.value)} /><span className="muted">{t("work.titleHint")}</span></label>
-      <label>{t("board.pickBot")}<select value={executor} onChange={(e) => setExecutor(e.target.value)}><optgroup label={t("board.pickBots")}>{bots.map((b) => <option key={b.id} value={`bot:${b.handle}`}>{b.display_name}</option>)}</optgroup><optgroup label={t("board.pickWorkflows")}>{workflows.map((w) => <option key={w.id} value={`workflow:${w.name}`}>{w.name}</option>)}</optgroup></select></label>
-      <label>{t("work.instructions")}<textarea required rows={8} value={instructions} onChange={(e) => setInstructions(e.target.value)} /></label>
-      <label className="work-check"><input type="checkbox" checked={manual} onChange={(e) => setManual(e.target.checked)} />{t("work.manual")}</label>
-      {siblings.length > 0 && <fieldset><legend>{t("work.dependenciesLabel")}</legend>{siblings.map((w) => <label key={w.id} className="work-check"><input type="checkbox" checked={dependencies.includes(w.id)} onChange={(e) => setDependencies((ids) => e.target.checked ? [...ids, w.id] : ids.filter((id) => id !== w.id))} />{w.title}</label>)}</fieldset>}
-      <button type="submit" className="primary" disabled={busy || !bots.length || !instructions.trim()}>{t("work.create")}</button>
-    </form>
-  </aside>;
 }

@@ -737,6 +737,7 @@ async fn work_items_reject_blank_descriptions_even_with_a_title() {
                     executor: Executor::Bot { handle: bot.handle.clone() },
                     manual_start: false,
                     depends_on: vec![],
+                    files: vec![],
                 })
                 .unwrap_err();
             assert!(error.to_string().contains("Instructions are required."));
@@ -768,6 +769,7 @@ async fn generated_work_item_titles_survive_starting_bot_workflow_and_child_task
                     executor,
                     manual_start,
                     depends_on: vec![],
+                    files: vec![],
                 })
                 .unwrap();
             assert_eq!(parent.state, if manual_start { "pending" } else { "working" });
@@ -781,6 +783,7 @@ async fn generated_work_item_titles_survive_starting_bot_workflow_and_child_task
                     executor: Executor::Bot { handle: bot.handle.clone() },
                     manual_start: true,
                     depends_on: vec![],
+                    files: vec![],
                 })
                 .unwrap();
             assert_eq!(child.title, "Check the reset email");
@@ -813,6 +816,7 @@ async fn pending_tasks_have_no_session_and_idle_is_not_completion() {
             executor: Executor::Bot { handle: bot.handle },
             manual_start: true,
             depends_on: vec![],
+            files: vec![],
         })
         .unwrap();
     assert_eq!(item.state, "pending");
@@ -904,6 +908,7 @@ async fn a_pending_parent_can_have_pending_children_without_creating_sessions() 
         executor: Executor::Bot { handle: bot.handle.clone() },
         manual_start: true,
         depends_on: vec![],
+        files: vec![],
     };
     let parent = h.engine.create_work_item(input(None)).unwrap();
     let child = h.engine.create_work_item(input(Some(parent.id.clone()))).unwrap();
@@ -932,6 +937,7 @@ async fn cancelling_a_pending_parent_cancels_its_entire_unstarted_tree() {
         executor: Executor::Bot { handle: bot.handle.clone() },
         manual_start: true,
         depends_on: vec![],
+        files: vec![],
     };
     let parent = h.engine.create_work_item(input(None)).unwrap();
     let child = h.engine.create_work_item(input(Some(parent.id.clone()))).unwrap();
@@ -960,6 +966,7 @@ async fn starting_a_pending_tree_attaches_grandchildren_when_their_parent_starts
         executor: Executor::Bot { handle: bot.handle.clone() },
         manual_start: manual,
         depends_on: vec![],
+        files: vec![],
     };
     let parent = h.engine.create_work_item(input(None, true)).unwrap();
     let child = h.engine.create_work_item(input(Some(parent.id.clone()), false)).unwrap();
@@ -1036,6 +1043,7 @@ async fn new_subtasks_can_depend_on_accepted_siblings_from_an_earlier_plan() {
             executor: Executor::Bot { handle: bot.handle.clone() },
             manual_start: false,
             depends_on: vec![sibling.id.clone()],
+            files: vec![],
         })
         .unwrap();
     assert_eq!(next.state, "working");
@@ -1126,4 +1134,129 @@ async fn followup_in_a_workflows_last_conversation_finishes_the_same_task() {
         }
         assert_eq!(h.engine.sessions_of(&b.id).unwrap().len(), 1);
     }
+}
+
+#[tokio::test]
+async fn work_item_attachments_reach_bots_and_workflows_after_restart_and_source_removal() {
+    use sonata_core::work_items::NewWorkItem;
+    for use_workflow in [false, true] {
+        for manual_start in [false, true] {
+            let h = harness_after(|_| {});
+            let worker = h.engine.create_bot(claude_bot("Worker")).unwrap();
+            let executor = if use_workflow {
+                Executor::Workflow { name: workflow(&h, "Review", &[&worker]).name }
+            } else {
+                Executor::Bot { handle: worker.handle.clone() }
+            };
+            let sources = h.paths.data_dir.join("sources");
+            for name in ["one", "two"] {
+                std::fs::create_dir_all(sources.join(name)).unwrap();
+                std::fs::write(sources.join(name).join("report.txt"), name).unwrap();
+            }
+            let input: NewWorkItem = serde_json::from_value(serde_json::json!({
+                "instructions": "Read both reports", "executor": executor, "manual_start": manual_start,
+                "files": [sources.join("one/report.txt"), sources.join("two/report.txt")],
+            }))
+            .unwrap();
+            let item = h.engine.create_work_item(input).unwrap();
+            let snapshots = item.execution.as_ref().unwrap().spec.files.clone();
+            assert_eq!(snapshots.len(), 2);
+            assert!(snapshots.iter().all(|file| std::path::Path::new(file)
+                .starts_with(h.paths.data_dir.join("task-inputs/default").join(&item.id))));
+            std::fs::remove_dir_all(sources).unwrap();
+            let next = relaunch(&h);
+            next.engine.start_work_item(&item.id).unwrap();
+            let stored = next.engine.list_work_items().await.unwrap().into_iter().find(|w| w.id == item.id).unwrap();
+            let session = stored.primary_session_id.unwrap();
+            let messages = next.engine.session_messages(&session).unwrap();
+            let message = messages.iter().find(|m| !m.attachments.is_empty()).unwrap();
+            assert_eq!(
+                message.attachments.iter().map(|a| a.name.as_str()).collect::<Vec<_>>(),
+                ["report.txt", "report.txt"]
+            );
+            assert_eq!(
+                message.attachments.iter().map(|a| std::fs::read_to_string(&a.path).unwrap()).collect::<Vec<_>>(),
+                ["one", "two"]
+            );
+            assert!(message.attachments.iter().all(|a| !snapshots.contains(&a.path)));
+            if let Some(run) = stored.workflow_run_id {
+                assert_eq!(
+                    sonata_core::store::Store::open(&h.paths.db_path())
+                        .unwrap()
+                        .get_run(&run)
+                        .unwrap()
+                        .unwrap()
+                        .request_files,
+                    snapshots
+                );
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn work_item_attachments_wait_for_parent_and_sibling_review() {
+    let h = harness_after(|_| {});
+    let worker = h.engine.create_bot(claude_bot("Worker")).unwrap();
+    let file = h.paths.data_dir.join("input.txt");
+    std::fs::write(&file, "Input for later").unwrap();
+    let make =
+        |parent: Option<String>, dependencies: Vec<String>, manual: bool, files: Vec<String>| {
+            h.engine.create_work_item(serde_json::from_value(serde_json::json!({
+            "parent_id": parent, "instructions": "Do the work", "manual_start": manual,
+            "executor": { "kind": "bot", "handle": worker.handle }, "depends_on": dependencies, "files": files,
+        })).unwrap()).unwrap()
+        };
+    let parent = make(None, vec![], true, vec![]);
+    let first = make(Some(parent.id.clone()), vec![], false, vec![]);
+    let child = make(Some(parent.id.clone()), vec![first.id.clone()], false, vec![file.to_string_lossy().into_owned()]);
+    std::fs::remove_file(file).unwrap();
+    h.engine.start_work_item(&parent.id).unwrap();
+    let items = h.engine.list_work_items().await.unwrap();
+    let running = items.iter().find(|w| w.id == first.id).unwrap();
+    let waiting = items.iter().find(|w| w.id == child.id).unwrap();
+    assert!(waiting.session_ids.is_empty());
+    let run = h.engine.orchestration_view(running.orchestration_id.as_ref().unwrap()).unwrap().run;
+    let key = &running.execution.as_ref().unwrap().spec.key;
+    result_of(&h, &run, key, "Prerequisite finished").await;
+    review(&h, &run, key, true);
+    let started = h.engine.list_work_items().await.unwrap().into_iter().find(|w| w.id == child.id).unwrap();
+    let database = sonata_core::store::Store::open(&h.paths.db_path()).unwrap();
+    let message = database
+        .get_message(started.execution.as_ref().unwrap().request_message_id.as_ref().unwrap())
+        .unwrap()
+        .unwrap();
+    let attached = message.attachments.iter().find(|a| a.name == "input.txt").unwrap();
+    assert_eq!(std::fs::read_to_string(&attached.path).unwrap(), "Input for later");
+    h.engine.cancel_work_item(&parent.id).await.unwrap();
+    h.engine.archive_work_item(&parent.id, true).unwrap();
+    h.engine.archive_work_item(&parent.id, false).unwrap();
+    assert!(std::path::Path::new(&started.execution.unwrap().spec.files[0]).is_file());
+}
+
+#[tokio::test]
+async fn work_item_attachment_failures_leave_no_task_or_partial_snapshot() {
+    let h = harness_after(|_| {});
+    let worker = h.engine.create_bot(claude_bot("Worker")).unwrap();
+    let file = h.paths.data_dir.join("report.txt");
+    std::fs::write(&file, "Report").unwrap();
+    let create = |files: Vec<String>| {
+        h.engine.create_work_item(serde_json::from_value(serde_json::json!({
+        "instructions": "Read report", "manual_start": true, "executor": { "kind": "bot", "handle": worker.handle }, "files": files,
+    })).unwrap())
+    };
+    for invalid in [h.paths.data_dir.join("missing"), h.paths.data_dir.clone()] {
+        assert!(create(vec![file.to_string_lossy().into_owned(), invalid.to_string_lossy().into_owned()]).is_err());
+    }
+    let too_large = h.paths.data_dir.join("large.bin");
+    std::fs::File::create(&too_large).unwrap().set_len(101 * 1024 * 1024).unwrap();
+    assert!(create(vec![too_large.to_string_lossy().into_owned()]).is_err());
+    let database = rusqlite::Connection::open(h.paths.db_path()).unwrap();
+    database.execute_batch("CREATE TRIGGER reject_task BEFORE INSERT ON work_items BEGIN SELECT RAISE(ABORT, 'injected insert failure'); END;").unwrap();
+    assert!(create(vec![file.to_string_lossy().into_owned()]).is_err());
+    assert!(h.engine.list_work_items().await.unwrap().is_empty());
+    assert_eq!(std::fs::read_dir(h.paths.data_dir.join("task-inputs/default")).unwrap().count(), 0);
+    database.execute_batch("DROP TRIGGER reject_task;").unwrap();
+    let saved = create(vec![file.to_string_lossy().into_owned()]).unwrap();
+    assert!(std::path::Path::new(&saved.execution.unwrap().spec.files[0]).is_file());
 }

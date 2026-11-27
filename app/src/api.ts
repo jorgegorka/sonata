@@ -193,7 +193,7 @@ export interface WorkItem {
 export interface NewWorkItem {
   parent_id: string | null; title?: string; instructions: string;
   executor: { kind: "bot"; handle: string } | { kind: "workflow"; name: string };
-  manual_start: boolean; depends_on: string[];
+  manual_start: boolean; depends_on: string[]; files?: string[];
 }
 
 export type UiEvent = { project_id?: string } & (

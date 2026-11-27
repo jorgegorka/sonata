@@ -138,13 +138,10 @@ describe("pickTarget", () => {
       label: "@feature · Login fix",
     });
   });
-  it("is the bot of a blank chat, with no session yet", () => {
-    expect(target({ kind: "newSession", botId: "b1" })).toEqual({
-      botId: "b1",
-      sessionId: null,
-      label: "@feature · New session",
-    });
+  it("does not create a conversation from a retired blank-chat route", () => {
+    expect(target({ kind: "newSession", botId: "b1" })).toBeNull();
   });
+
   it("is none for an archived session, unless its own chat is archiving it", () => {
     expect(target({ kind: "session", id: "s2" })).toBeNull();
     expect(target({ kind: "session", id: "s2" }, "s2")).toEqual({

@@ -502,14 +502,14 @@ impl Store {
 
     pub fn insert_pending_work_item(
         &self,
+        id: &str,
         task: &orch::Task,
         parent: Option<&str>,
         dependencies: &[String],
     ) -> Result<WorkItem> {
         self.require_active()?;
-        let id = new_id();
         let mut task = task.clone();
-        task.work_item_id = Some(id.clone());
+        task.work_item_id = Some(id.into());
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
         if let Some(parent) = parent {
@@ -521,8 +521,9 @@ impl Store {
                 return Err(crate::ProjectError::Mismatch.into());
             }
         }
+        let created_at = now();
         tx.execute("INSERT INTO work_items (id,project_id,parent_id,title,instructions,state,execution,manual_start,created_at) VALUES (?1,?2,?3,?4,?5,'pending',?6,?7,?8)",
-            params![id,self.project_key(),parent,task.spec.title,task.spec.instructions,serde_json::to_string(&task)?,task.spec.manual_start,now()])?;
+            params![id,self.project_key(),parent,task.spec.title,task.spec.instructions,serde_json::to_string(&task)?,task.spec.manual_start,created_at])?;
         for dep in dependencies {
             let sibling: bool = tx.query_row(
                 "SELECT EXISTS(SELECT 1 FROM work_items WHERE id=?1 AND parent_id=?2 AND project_id=?3)",
@@ -535,8 +536,26 @@ impl Store {
             tx.execute("INSERT INTO work_item_dependencies VALUES (?1,?2)", params![id, dep])?;
         }
         tx.commit()?;
-        drop(conn);
-        self.list_work_items()?.into_iter().find(|w| w.id == id).ok_or_else(|| invalid("Task not found."))
+        Ok(WorkItem {
+            id: id.into(),
+            project_id: self.project_key().into(),
+            parent_id: parent.map(str::to_string),
+            title: task.spec.title.clone(),
+            instructions: task.spec.instructions.clone(),
+            state: "pending".into(),
+            outcome: None,
+            primary_session_id: None,
+            session_ids: vec![],
+            workflow_run_id: None,
+            orchestration_id: None,
+            manual_start: task.spec.manual_start,
+            execution: Some(task),
+            created_at,
+            finished_at: None,
+            archived_at: None,
+            result_message_id: None,
+            depends_on: dependencies.to_vec(),
+        })
     }
 
     pub fn start_pending_work_item(
@@ -544,6 +563,7 @@ impl Store {
         id: &str,
         bot: Option<&str>,
         workflow: Option<(&NewRun, &VisitOpen)>,
+        attachments: &[Attachment],
     ) -> Result<Option<Routed>> {
         self.check_owner("work_items", id)?;
         let mut conn = self.conn.lock().unwrap();
@@ -574,7 +594,7 @@ impl Store {
                     recipient_session: Some(session.id.clone()),
                     kind: MessageKind::Text,
                     body: task.spec.instructions.clone(),
-                    attachments: vec![],
+                    attachments: attachments.to_vec(),
                     system_code: None,
                     system_params: None,
                     status: MessageStatus::Queued,

@@ -14,6 +14,7 @@ import {
   type SessionView,
   type Task,
   type Workflow,
+  type WorkItem,
 } from "./api";
 import type { BoardTask } from "./board";
 import AboutView from "./components/AboutView";
@@ -34,15 +35,12 @@ import TaskForm from "./components/TaskForm";
 import TasksView from "./components/TasksView";
 import ThreadView from "./components/ThreadView";
 import WorkflowEditor from "./components/WorkflowEditor";
-import WorkflowStart from "./components/WorkflowStart";
+import type { TaskCreation } from "./components/WorkItemForm";
 import WorkflowsView from "./components/WorkflowsView";
 import type { BoardData } from "./components/useBoardData";
 import {
-  blankDrawer,
   chatShown,
   drawerAfter,
-  followsInDrawer,
-  followsRunStart,
   fullChatOf,
   handoffsOf,
   openTask,
@@ -50,13 +48,13 @@ import {
   type DrawerView,
 } from "./drawer";
 import { errorMessage, failUnless } from "./errors";
-import { EMPTY_DRAFT, moveDraft, newSessionKey, withDraft, type Draft } from "./drafts";
-import { followsFirstSend, isChat, type Selection } from "./selection";
+import { EMPTY_DRAFT, withDraft, type Draft } from "./drafts";
+import { isChat, type Selection } from "./selection";
 import { browserReducer, gridColumns, initialBrowser, panelStorage, writeWidth } from "./browser";
 import { reloadsSkills } from "./skills";
 import { reloadsTasks } from "./tasks";
 import { OpenLinkContext } from "./openLink";
-import { PendingSessions, pickBody, pickStrings, pickTarget } from "./pick";
+import { pickBody, pickStrings, pickTarget } from "./pick";
 import i18n from "./i18n";
 import {
   hasArchivedEnd,
@@ -107,11 +105,9 @@ export default function App() {
   const [browser, dispatchBrowser] = useReducer(browserReducer, panelStorage(), initialBrowser);
   const [page, setPage] = useState<Page | null>(null);
   const [drawer, setDrawer] = useState<DrawerView | null>(null);
+  const [creation, setCreation] = useState<TaskCreation | null>(null);
+  const creationSequence = useRef(0);
   const [archiving, setArchiving] = useState<string | null>(null);
-  const pageRef = useRef(page);
-  pageRef.current = page;
-  const drawerRef = useRef(drawer);
-  drawerRef.current = drawer;
   const [error, setError] = useState<string | null>(null);
   const [allTasks, setTasks] = useState<Task[]>([]);
   const [allWorkflows, setWorkflows] = useState<Workflow[]>([]);
@@ -192,30 +188,13 @@ export default function App() {
     try { localStorage.setItem("sonata.project", projectId); } catch { /* storage can be unavailable */ }
     setPage({ kind: "board" });
     setDrawer(null);
+    setCreation(null);
     setFollowed(null);
     dispatchBrowser({ type: "close" });
     void api.browserPickStop().catch(fail);
   }, [projectId, fail]);
   const refreshTasks = useCallback(() => void api.listTasks().then(setTasks).catch(fail), [fail]);
   const refreshWorkflows = useCallback(() => void api.listWorkflows().then(setWorkflows).catch(fail), [fail]);
-  const followFirstSend = useCallback((created: SessionView, focus = true) => {
-    dispatch({ type: "ui_event", event: { type: "session_added", session: created } });
-    if (created.project_id !== projectRef.current) return;
-    const inDrawer = followsInDrawer(pageRef.current?.kind === "board" ? drawerRef.current : null, created);
-    if (!inDrawer && !followsFirstSend(pageRef.current, created)) return;
-    setDrafts((all) => moveDraft(all, created.bot_id, created.id));
-    if (focus) setFollowed(created.id);
-    if (inDrawer) setDrawer({ root: created.id, show: { kind: "session", id: created.id } });
-    else setPage({ kind: "session", id: created.id });
-  }, []);
-  const followRunStart = useCallback((root: SessionView, workflowId: string) => {
-    dispatch({ type: "ui_event", event: { type: "session_added", session: root } });
-    if (root.project_id !== projectRef.current) return;
-    if (pageRef.current?.kind !== "board" || !followsRunStart(drawerRef.current, workflowId)) return;
-    setFollowed(root.id);
-    setDrawer({ root: root.id, show: { kind: "session", id: root.id } });
-  }, []);
-
   const followWorkflowRequest = useCallback((sent: SentMessage) => {
     dispatch({ type: "ui_event", event: { type: "session_added", session: sent.session } });
     dispatch({ type: "ui_event", event: { type: "message_added", message: sent.message } });
@@ -242,7 +221,6 @@ export default function App() {
   useEffect(() => {
     if (browserRef.current.picking) void startPick();
   }, [t, startPick]);
-  const pendingSessions = useRef(new PendingSessions());
   const sendPick = useCallback(
     async (pick: BrowserPick) => {
       const to = targetRef.current;
@@ -253,19 +231,15 @@ export default function App() {
       }
       let ok = false;
       try {
-        const pending = to.sessionId === null ? pendingSessions.current.get(to.botId) : undefined;
-        const sessionId = to.sessionId ?? (await pending?.catch(() => null)) ?? null;
-        const call = api.sendMessage(to.botId, sessionId, pickBody(pick));
-        if (sessionId === null) void pendingSessions.current.track(to.botId, call.then((sent) => sent.session.id));
-        const sent = await call;
-        if (sessionId === null) followFirstSend(sent.session, false);
+        const sent = await api.sendMessage(to.botId, to.sessionId, pickBody(pick));
+        dispatch({ type: "ui_event", event: { type: "session_added", session: sent.session } });
         ok = true;
       } catch (e) {
         fail(e);
       }
       api.browserPickResult(ok).catch(fail);
     },
-    [fail, followFirstSend],
+    [fail],
   );
   const sendPickRef = useRef(sendPick);
   sendPickRef.current = sendPick;
@@ -338,7 +312,7 @@ export default function App() {
   }, [fail, checkProviders, loadBots, refreshSkills, refreshTasks, refreshWorkflows, refreshProjects, togglePick]);
 
   useEffect(() => {
-    if (page?.kind !== "board") setDrawer(null);
+    if (page?.kind !== "board") { setDrawer(null); setCreation(null); }
   }, [page]);
   useEffect(
     () => setDrawer((current) => current && drawerAfter(current, state.sessions, state.threads)),
@@ -391,7 +365,7 @@ export default function App() {
 
   const navigate: typeof setPage = (next) => { if (projectRef.current === projectId) setPage(next); };
   const session = page?.kind === "session" ? (state.sessions.find((s) => s.id === page.id) ?? null) : null;
-  const chatBotId = session ? session.bot_id : page?.kind === "newSession" ? page.botId : null;
+  const chatBotId = session?.bot_id ?? null;
   const bot = chatBotId ? (state.bots.find((b) => b.id === chatBotId) ?? null) : null;
   const editing = page?.kind === "edit" ? (state.bots.find((b) => b.id === page.id) ?? null) : null;
   const editingTask = page?.kind === "editTask" ? (tasks.find((task) => task.id === page.id) ?? null) : null;
@@ -403,7 +377,12 @@ export default function App() {
   const archivedThread = thread && hasArchivedEnd(thread, state.sessions) ? thread : null;
   const archiveOpen = page?.kind === "archive" || archivedSession !== null || archivedThread !== null;
   const home = (bots = state.bots): Page => (bots.length > 0 ? { kind: "board" } : { kind: "new" });
-  const blankChat = (botId: string): DrawerView => blankDrawer({ kind: "bot", id: botId });
+  const createTask = (parent?: WorkItem, executor?: TaskCreation["executor"]) => {
+    if (projectRef.current !== projectId) return;
+    navigate({ kind: "board" });
+    setDrawer(null);
+    setCreation({ id: ++creationSequence.current, parent, executor });
+  };
   const skillsTab: Page = { kind: "settings", tab: "skills" };
 
   const openFull = (view: DrawerView): boolean => {
@@ -420,22 +399,21 @@ export default function App() {
     if (drawer && openFull(drawer) && !browser.open) toggleBrowser();
   };
 
-  const chatOf = (chatBot: BotView, chatSession: SessionView | null, inDrawer: boolean) => {
-    const key = chatSession ? chatSession.id : newSessionKey(chatBot.id);
+  const chatOf = (chatBot: BotView, chatSession: SessionView, inDrawer: boolean) => {
+    const key = chatSession.id;
     return (
       <Chat
-        key={chatSession?.id ?? `new:${chatBot.id}`}
+        key={chatSession.id}
         bot={chatBot}
         session={chatSession}
-        label={chatSession ? sessionLabel(chatSession, state.sessions, state.bots, t) : null}
-        cascade={chatSession ? removalCount(state.sessions, chatSession.id) : 0}
-        onSent={(created) => followFirstSend(created)}
+        label={sessionLabel(chatSession, state.sessions, state.bots, t)}
+        cascade={removalCount(state.sessions, chatSession.id)}
+        onSent={() => {}}
         onRemoved={(ids) => {
           for (const id of ids) updateDraft(id, () => EMPTY_DRAFT);
           if (!inDrawer) navigate(home());
         }}
         onArchive={async () => {
-          if (!chatSession) return;
           if (inDrawer) {
             await api.archiveSession(chatSession.id);
             return;
@@ -448,8 +426,8 @@ export default function App() {
             setArchiving(null);
           }
         }}
-        focusComposer={chatSession === null || chatSession.id === followed}
-        messages={chatSession ? (state.messages[chatSession.id] ?? []) : []}
+        focusComposer={chatSession.id === followed}
+        messages={state.messages[chatSession.id] ?? []}
         onError={fail}
         onEdit={() => navigate({ kind: "edit", id: chatBot.id })}
         draft={drafts[key] ?? EMPTY_DRAFT}
@@ -513,20 +491,6 @@ export default function App() {
           onToggleBrowser={drawerBrowser}
         />
       ) : chatOf(shownBot, shown, true));
-    } else if (show.kind === "newSession") {
-      const shownBot = state.bots.find((b) => b.id === show.botId);
-      body = shownBot && chatOf(shownBot, null, true);
-    } else if (show.kind === "newRun") {
-      const workflow = workflows.find((w) => w.id === show.workflowId);
-      body = workflow && (
-        <WorkflowStart
-          key={workflow.id}
-          workflow={workflow}
-          bots={state.bots}
-          onStarted={(root) => followRunStart(root, workflow.id)}
-          onError={fail}
-        />
-      );
     }
     return (
       <OpenLinkContext.Provider value={drawerLink}>
@@ -535,12 +499,10 @@ export default function App() {
           taskContext={task && context?.(task)}
           drawer={view}
           bots={state.bots}
-          workflows={workflows}
           sessions={state.sessions}
           activity={data.activity}
           now={now}
           onShow={(next) => setDrawer((current) => current && { ...current, show: next })}
-          onPick={(target) => setDrawer(blankDrawer(target))}
           onOpenFull={() => void openFull(view)}
           onMarkDone={() => {
             if (task) {
@@ -572,10 +534,7 @@ export default function App() {
           archiveOpen={archiveOpen}
           settingsOpen={page?.kind === "settings" || page?.kind === "newSkill" || page?.kind === "editSkill"}
           onBoard={() => navigate({ kind: "board" })}
-          onBot={(botId) => {
-            navigate({ kind: "board" });
-            setDrawer(blankChat(botId));
-          }}
+          onBot={(botId) => createTask(undefined, { kind: "bot", id: botId })}
           onNewBot={() => navigate({ kind: "new" })}
           onWorkflows={() => navigate({ kind: "workflows" })}
           onTasks={() => navigate({ kind: "tasks" })}
@@ -618,10 +577,10 @@ export default function App() {
               paused={state.paused}
               limits={state.usageLimits}
               onTogglePause={() => void api.setPaused(!state.paused).catch(fail)}
-              onOpen={(task) => setDrawer(openTask(task))}
-              onNewTask={() =>
-                state.bots.length > 0 ? setDrawer(blankChat(state.bots[0].id)) : navigate({ kind: "new" })
-              }
+              onOpen={(task) => { setCreation(null); setDrawer(openTask(task)); }}
+              creation={creation}
+              onCreate={createTask}
+              onCloseCreation={() => setCreation(null)}
               onError={fail}
               drawer={drawer ? drawerOver(drawer) : undefined}
             />
@@ -634,7 +593,7 @@ export default function App() {
               onSaved={(created) => {
                 dispatch({ type: "bot_created", bot: created });
                 refreshSkills();
-                navigate({ kind: "newSession", botId: created.id });
+                createTask(undefined, { kind: "bot", id: created.id });
               }}
             />
           ) : editing ? (
@@ -655,7 +614,6 @@ export default function App() {
                 dispatch({ type: "bot_deleted", botId });
                 refreshSkills();
                 refreshTasks();
-                updateDraft(newSessionKey(botId), () => EMPTY_DRAFT);
                 for (const s of state.sessions) if (s.bot_id === botId) updateDraft(s.id, () => EMPTY_DRAFT);
                 navigate(home(state.bots.filter((b) => b.id !== botId)));
               }}
@@ -663,13 +621,10 @@ export default function App() {
           ) : page?.kind === "workflows" ? (
             <WorkflowsView
               workflows={workflows}
-              bots={state.bots}
+                  bots={state.bots}
               onNew={() => navigate({ kind: "newWorkflow" })}
               onEdit={(id) => navigate({ kind: "editWorkflow", id })}
-              onRun={(id) => {
-                navigate({ kind: "board" });
-                setDrawer(blankDrawer({ kind: "workflow", id }));
-              }}
+              onRun={(id) => createTask(undefined, { kind: "workflow", id })}
               onRequested={followWorkflowRequest}
               onImported={() => {
                 void loadBots(true);
@@ -799,7 +754,7 @@ export default function App() {
               browserOpen={browser.open}
               onToggleBrowser={toggleBrowser}
             />
-          ) : bot ? (
+          ) : bot && session ? (
             chatOf(bot, session, false)
           ) : thread ? (
             <ThreadView

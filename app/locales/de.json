@@ -877,6 +877,10 @@
     "extractedHint": "Beende deine Arbeit und schließe Sonata. Führe das Terminal-Installationsprogramm erneut mit --version {{version}} und demselben --dest-Pfad aus. Gespeicherte Daten bleiben erhalten."
   },
   "work": {
+    "loading": "Aufgaben werden geladen…",
+    "loadFailed": "Aufgaben konnten nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "selectExecutor": "Bot oder Workflow auswählen",
     "pending": "Ausstehend",
     "hidePending": "Ausstehende ausblenden",
     "showPending": "Ausstehende anzeigen ({{count}})",

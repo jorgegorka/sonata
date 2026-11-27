@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { BotView, Message, SessionView, ThreadSummary, UiEvent } from "./api";
+import type { BotView, Message, SessionView, ThreadSummary, UiEvent, WorkItem } from "./api";
 import App from "./App";
 
 const tauri = vi.hoisted(() => ({
@@ -48,7 +48,19 @@ const thread: ThreadSummary = {
   id: "handoff", participant_a: "master", participant_b: "worker", session_a: "task", session_b: "child",
   last_message_at: NOW,
 };
-const emit = (event: UiEvent) => tauri.listeners.forEach((handler) => handler({ payload: event }));
+const emit = (event: UiEvent) => {
+  if (event.type === "session_added" && !sessions.some((s) => s.id === event.session.id)) sessions.push(event.session);
+  tauri.listeners.forEach((handler) => handler({ payload: event }));
+};
+function listWorkItems(args: unknown): WorkItem[] {
+  const project = (args as { projectId?: string })?.projectId ?? "default";
+  return sessions.filter((s) => s.project_id === project && !s.opened_by).map((s) => ({
+    id: s.id, project_id: s.project_id, parent_id: null, title: s.title ?? s.id, instructions: "Saved work", state: s.archived_at ? "done" : "finished",
+    outcome: "succeeded", primary_session_id: s.id, session_ids: sessions.filter((m) => m.id === s.id || m.opened_by === s.id).map((m) => m.id),
+    workflow_run_id: null, orchestration_id: null, execution: null, manual_start: false, created_at: s.created_at,
+    finished_at: s.last_activity_at, archived_at: s.archived_at, result_message_id: null, depends_on: [],
+  }));
+}
 const called = (command: string) => tauri.calls.filter(([name]) => name === command).map(([, args]) => args);
 
 let root: Root;
@@ -86,6 +98,7 @@ describe("done tasks on the board", () => {
       list_projects: () => [{ id: "default", name: "Default", default_directory: null, default_provider: "claude", archived_at: null }],
       get_settings: () => ({ setup_done: true, language_resolved: "en" }),
       list_bots: () => [bot("master"), bot("worker")],
+      list_work_items: listWorkItems,
       list_sessions: () => sessions,
       list_bot_threads: () => [thread],
       get_paused: () => false,
@@ -98,8 +111,7 @@ describe("done tasks on the board", () => {
       session_glances: () => [],
       get_session_messages: (args) => [message((args as { sessionId: string }).sessionId)],
       get_thread_messages: () => [message("handoff")],
-      archive_session: () => archive(NOW),
-      restore_session: () => archive(null),
+      archive_work_item: (args) => archive((args as { archived: boolean }).archived ? NOW : null),
     };
     host = document.createElement("div");
     document.body.appendChild(host);
@@ -116,7 +128,7 @@ describe("done tasks on the board", () => {
     expect(button("Show done").getAttribute("aria-expanded")).toBe("false");
     expect(titles(column("finished"))).toEqual(["task"]);
     await click(button("Mark done", column("finished")));
-    expect(called("archive_session")).toEqual([{ sessionId: "task" }]);
+    expect(called("archive_work_item")).toEqual([{ projectId: "default", taskId: "task", archived: true }]);
     expect(titles(column("finished"))).toEqual([]);
 
     await click(button("Show done"));
@@ -140,14 +152,14 @@ describe("done tasks on the board", () => {
     expect(drawer().textContent).not.toContain("Retry");
 
     let finish!: () => void;
-    tauri.answers.restore_session = () => new Promise((resolve) => {
+    tauri.answers.archive_work_item = () => new Promise((resolve) => {
       finish = () => resolve(archive(null));
     });
     const restore = button("Restore", drawer());
     await click(restore);
     expect(restore.disabled).toBe(true);
     await click(restore);
-    expect(called("restore_session")).toEqual([{ projectId: "default", sessionId: "task" }]);
+    expect(called("archive_work_item").filter((args) => !(args as { archived: boolean }).archived)).toEqual([{ projectId: "default", taskId: "task", archived: false }]);
     await act(async () => finish());
     expect(drawer()).toBeNull();
     expect(titles(column("done"))).toEqual(["Previously done"]);
@@ -160,14 +172,14 @@ describe("done tasks on the board", () => {
 
   it("keeps the done card and allows another attempt when restoring fails", async () => {
     sessions = [session("task", { archived_at: NOW })];
-    tauri.answers.restore_session = () => Promise.reject(new Error("Restore failed"));
+    tauri.answers.archive_work_item = () => Promise.reject(new Error("Restore failed"));
     await mount();
     await click(button("Show done"));
     await click(button("Restore", column("done")));
     expect(host.querySelector('[role="alert"]')?.textContent).toContain("Restore failed");
     expect(titles(column("done"))).toEqual(["task"]);
     expect(button("Restore", column("done")).disabled).toBe(false);
-    tauri.answers.restore_session = () => archive(null);
+    tauri.answers.archive_work_item = () => archive(null);
     await click(button("Restore", column("done")));
     expect(titles(column("done"))).toEqual([]);
     expect(titles(column("finished"))).toEqual(["task"]);
@@ -200,6 +212,7 @@ describe("project selection", () => {
       get_settings: () => ({ setup_done: true, language_resolved: "en" }),
       list_projects: () => projects,
       list_bots: () => [bot("master"), { ...bot("second-master"), project_id: "second", handle: "master", provider: "codex" }],
+      list_work_items: listWorkItems,
       list_sessions: () => sessions, list_bot_threads: () => [], get_paused: () => false,
       usage_limits: () => [], detect_providers: () => [], list_skills: () => [], list_tasks: () => [], list_workflows: () => [],
       session_activity: () => [], session_glances: () => [], get_session_messages: () => [],

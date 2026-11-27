@@ -877,6 +877,10 @@
     "extractedHint": "Termina tu trabajo y cierra Sonata. Ejecuta de nuevo el instalador de terminal de Sonata con --version {{version}} y la misma ruta --dest que usaste antes. Se conservarán los datos guardados."
   },
   "work": {
+    "loading": "Cargando tareas…",
+    "loadFailed": "No se pudieron cargar las tareas.",
+    "retry": "Reintentar",
+    "selectExecutor": "Selecciona un bot o flujo de trabajo",
     "pending": "Pendiente",
     "hidePending": "Ocultar pendientes",
     "showPending": "Mostrar pendientes ({{count}})",

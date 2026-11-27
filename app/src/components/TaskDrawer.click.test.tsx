@@ -52,7 +52,6 @@ const [task] = buildTasks({ sessions, activity: {}, glances: {}, attentionSince:
 
 const handlers = {
   onShow: vi.fn(),
-  onPick: vi.fn(),
   onOpenFull: vi.fn(),
   onMarkDone: vi.fn(),
   onClose: vi.fn(),
@@ -68,7 +67,6 @@ async function mount(view: DrawerView, withTask = true) {
         task={withTask ? task : null}
         drawer={view}
         bots={bots}
-        workflows={[]}
         sessions={sessions}
         activity={{}}
         now={new Date("2026-11-04T12:00:00.000Z")}
@@ -143,16 +141,6 @@ describe("the task drawer's controls", () => {
     expect(handlers.onMarkDone).toHaveBeenCalledTimes(1);
     await click(button("Close"));
     expect(handlers.onClose).toHaveBeenCalledTimes(1);
-  });
-
-  it("a blank chat's bot picker picks the bot", async () => {
-    await mount({ root: null, show: { kind: "newSession", botId: "b1" } }, false);
-    const select = host.querySelector("select")!;
-    await act(async () => {
-      select.value = "bot:b3";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-    expect(handlers.onPick).toHaveBeenCalledWith({ kind: "bot", id: "b3" });
   });
 
   it("a hand-off opens its thread", async () => {

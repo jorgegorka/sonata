@@ -2,11 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { SessionView, ThreadSummary } from "./api";
 import { buildDoneTasks, buildTasks } from "./board";
 import {
-  blankDrawer,
   chatShown,
   drawerAfter,
-  followsInDrawer,
-  followsRunStart,
   fullChatOf,
   handoffsOf,
   openTask,
@@ -124,25 +121,9 @@ describe("drawerAfter", () => {
       view("m", "f"),
       { root: "m", show: { kind: "thread", id: "th" } },
       { root: "m", show: { kind: "handoffs" } },
-      { root: null, show: { kind: "newSession", botId: "b1" } },
     ] satisfies DrawerView[]) {
       expect(drawerAfter(drawer, sessions, threads)).toBe(drawer);
     }
-  });
-});
-
-describe("followsInDrawer", () => {
-  it("a first send follows only the drawer it came from", () => {
-    const created = s("n", { bot_id: "b1" });
-    expect(followsInDrawer({ root: null, show: { kind: "newSession", botId: "b1" } }, created)).toBe(true);
-    expect(followsInDrawer({ root: null, show: { kind: "newSession", botId: "b2" } }, created)).toBe(false);
-    expect(followsInDrawer(null, created)).toBe(false);
-  });
-
-  it("a drawer on a task's chat is not taken over by a first send", () => {
-    const created = s("n", { bot_id: "b1" });
-    expect(followsInDrawer(view("m", "m"), created)).toBe(false);
-    expect(followsInDrawer({ root: "m", show: { kind: "handoffs" } }, created)).toBe(false);
   });
 });
 
@@ -171,7 +152,6 @@ describe("chatShown", () => {
   });
 
   it("is none for a blank chat, a bot thread, or a drawer off the board", () => {
-    expect(chatShown({ kind: "board" }, { root: null, show: { kind: "newSession", botId: "b1" } })).toBeNull();
     expect(chatShown({ kind: "board" }, { root: "m", show: { kind: "thread", id: "th" } })).toBeNull();
     expect(chatShown({ kind: "thread", id: "th" }, null)).toBeNull();
     expect(chatShown({ kind: "archive" }, view("m", "f"))).toBeNull();
@@ -191,34 +171,8 @@ describe("threadShown", () => {
 describe("fullChatOf", () => {
   it("is the chat the drawer shows, and none for its Hand-offs", () => {
     expect(fullChatOf(view("m", "f"))).toEqual({ kind: "session", id: "f" });
-    expect(fullChatOf({ root: null, show: { kind: "newSession", botId: "b1" } })).toEqual({
-      kind: "newSession",
-      botId: "b1",
-    });
     expect(fullChatOf({ root: "m", show: { kind: "thread", id: "th" } })).toEqual({ kind: "thread", id: "th" });
     expect(fullChatOf({ root: "m", show: { kind: "handoffs" } })).toBeNull();
   });
 
-  it("is none for a workflow's run to start, which has no chat yet", () => {
-    expect(fullChatOf({ root: null, show: { kind: "newRun", workflowId: "w1" } })).toBeNull();
-  });
-});
-
-describe("a blank drawer", () => {
-  it("is a bot's blank chat, or a workflow's run to start", () => {
-    expect(blankDrawer({ kind: "bot", id: "b1" })).toEqual({ root: null, show: { kind: "newSession", botId: "b1" } });
-    expect(blankDrawer({ kind: "workflow", id: "w1" })).toEqual({
-      root: null,
-      show: { kind: "newRun", workflowId: "w1" },
-    });
-  });
-
-  it("a started run follows only the drawer it came from", () => {
-    const run = (workflowId: string): DrawerView => ({ root: null, show: { kind: "newRun", workflowId } });
-    expect(followsRunStart(run("w1"), "w1")).toBe(true);
-    expect(followsRunStart(run("w2"), "w1")).toBe(false);
-    expect(followsRunStart({ root: null, show: { kind: "newSession", botId: "b1" } }, "w1")).toBe(false);
-    expect(followsRunStart(view("m", "m"), "w1")).toBe(false);
-    expect(followsRunStart(null, "w1")).toBe(false);
-  });
 });

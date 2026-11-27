@@ -877,6 +877,10 @@
     "extractedHint": "Terminez votre travail et quittez Sonata. Relancez l’installateur de terminal de Sonata avec --version {{version}} et le même chemin --dest qu’auparavant. Vos données enregistrées seront conservées."
   },
   "work": {
+    "loading": "Chargement des tâches…",
+    "loadFailed": "Impossible de charger les tâches.",
+    "retry": "Réessayer",
+    "selectExecutor": "Choisissez un bot ou un workflow",
     "pending": "En attente",
     "hidePending": "Masquer les tâches en attente",
     "showPending": "Afficher les tâches en attente ({{count}})",

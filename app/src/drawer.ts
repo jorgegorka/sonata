@@ -1,24 +1,13 @@
 import type { SessionView, ThreadSummary } from "./api";
 import type { BoardTask } from "./board";
-import { followsFirstSend, type Selection } from "./selection";
+import { type Selection } from "./selection";
 import { hasArchivedEnd, isArchived } from "./state";
 
 export type DrawerShow = Selection | { kind: "handoffs" };
 export interface DrawerView {
-  root: string | null;
+  root: string;
   show: DrawerShow;
   archivedAt?: string;
-}
-
-export interface Recipient {
-  kind: "bot" | "workflow";
-  id: string;
-}
-
-export function blankDrawer(recipient: Recipient): DrawerView {
-  const { kind, id } = recipient;
-  const show: DrawerShow = kind === "bot" ? { kind: "newSession", botId: id } : { kind: "newRun", workflowId: id };
-  return { root: null, show };
 }
 
 export function openTask(task: BoardTask): DrawerView {
@@ -32,7 +21,6 @@ export function openTask(task: BoardTask): DrawerView {
 
 export function drawerAfter(drawer: DrawerView, sessions: SessionView[], threads: ThreadSummary[]): DrawerView | null {
   const { root, show } = drawer;
-  if (root === null) return drawer;
   const archived = drawer.archivedAt !== undefined;
   const live = (id: string) => sessions.some((s) => s.id === id &&
     (archived ? s.archived_at === drawer.archivedAt : !isArchived(s)));
@@ -44,15 +32,6 @@ export function drawerAfter(drawer: DrawerView, sessions: SessionView[], threads
     gone = thread === undefined || (!archived && hasArchivedEnd(thread, sessions));
   }
   return gone ? { ...drawer, show: { kind: "session", id: root } } : drawer;
-}
-
-export function followsInDrawer(drawer: DrawerView | null, created: SessionView): boolean {
-  return drawer !== null && drawer.root === null && followsFirstSend(drawer.show, created);
-}
-
-export function followsRunStart(drawer: DrawerView | null, workflowId: string): boolean {
-  const show = drawer?.root === null ? drawer.show : null;
-  return show?.kind === "newRun" && show.workflowId === workflowId;
 }
 
 export function handoffsOf(members: SessionView[], threads: ThreadSummary[]): ThreadSummary[] {
@@ -79,5 +58,5 @@ export function threadShown(page: { kind: string; id?: string } | null, drawer: 
 
 export function fullChatOf(drawer: DrawerView): Selection | null {
   const { show } = drawer;
-  return show.kind === "handoffs" || show.kind === "newRun" ? null : show;
+  return show.kind === "handoffs" ? null : show;
 }

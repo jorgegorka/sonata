@@ -83,7 +83,7 @@ impl Engine {
         Ok(new)
     }
 
-    fn check_runnable(&self, new: &NewWorkflow) -> Result<()> {
+    pub(super) fn check_runnable(&self, new: &NewWorkflow) -> Result<()> {
         let mut known = HashSet::new();
         for step in &new.def.steps {
             if !step.bot_id.is_empty()

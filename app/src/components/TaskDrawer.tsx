@@ -9,11 +9,10 @@ import {
   type SessionView,
   type ThreadSummary,
   type Visit,
-  type Workflow,
 } from "../api";
 import { isUnread, trailOf, trailView, type BoardTask } from "../board";
 import { avatarTextColor } from "../colors";
-import { fullChatOf, type DrawerShow, type DrawerView, type Recipient } from "../drawer";
+import { fullChatOf, type DrawerShow, type DrawerView } from "../drawer";
 import { handleOf, sessionLabel, threadName } from "../state";
 import { runMapState } from "../workflows";
 import SessionName from "./SessionName";
@@ -27,12 +26,10 @@ interface Props {
   task: BoardTask | null;
   drawer: DrawerView;
   bots: BotView[];
-  workflows: Workflow[];
   sessions: SessionView[];
   activity: Record<string, SessionActivity>;
   now: Date;
   onShow: (show: DrawerShow) => void;
-  onPick: (target: Recipient) => void;
   onOpenFull: () => void;
   onMarkDone: () => void;
   onClose: () => void;
@@ -44,7 +41,8 @@ interface Props {
 export default function TaskDrawer(props: Props) {
   const { task, drawer, bots, sessions, onOpenFull, onMarkDone, onClose, onError, children } = props;
   const { t } = useTranslation();
-  const title = task ? sessionLabel(task.root, sessions, bots, t) : t("board.newTask");
+  if (!task) return null;
+  const title = sessionLabel(task.root, sessions, bots, t);
   const process = task?.orchestration;
   const canMarkDone = task?.workItem ? task.workItem.state === "finished" : !process || (process.taskKey ? process.run.tasks.some((t) => t.spec.key === process.taskKey && isTaskTerminal(t)) : process.run.status !== "active");
   return (
@@ -52,7 +50,7 @@ export default function TaskDrawer(props: Props) {
       <header className="drawer-header">
         <div className="drawer-top">
           <h2 className="drawer-title" title={title}>
-            {task ? <SessionName key={task.root.id} session={task.root} label={title} onError={onError} /> : title}
+            <SessionName key={task.root.id} session={task.root} label={title} onError={onError} />
           </h2>
           <button
             className="icon-button drawer-icon"
@@ -81,7 +79,7 @@ export default function TaskDrawer(props: Props) {
             </svg>
           </button>
         </div>
-        {task ? <TaskLine {...props} task={task} /> : <RecipientPicker {...props} />}
+        {task && <TaskLine {...props} task={task} />}
       </header>
       {task?.workflow && (
         <RunPanel
@@ -170,47 +168,6 @@ function TaskLine({ task, drawer, bots, activity, now, onShow }: Props & { task:
         {stateText(task, now, t)}
       </span>
     </div>
-  );
-}
-
-const pickValue = ({ kind, id }: Recipient) => `${kind}:${id}`;
-
-function pickedOf(value: string): Recipient {
-  const at = value.indexOf(":");
-  return { kind: value.slice(0, at) === "workflow" ? "workflow" : "bot", id: value.slice(at + 1) };
-}
-
-function RecipientPicker({ drawer, bots, workflows, onPick }: Props) {
-  const { t } = useTranslation();
-  const { show } = drawer;
-  const value =
-    show.kind === "newSession"
-      ? pickValue({ kind: "bot", id: show.botId })
-      : show.kind === "newRun"
-        ? pickValue({ kind: "workflow", id: show.workflowId })
-        : "";
-  return (
-    <label className="drawer-bot">
-      <span className="muted">{t("board.pickBot")}</span>
-      <select value={value} onChange={(e) => onPick(pickedOf(e.target.value))}>
-        <optgroup label={t("board.pickBots")}>
-          {bots.map((b) => (
-            <option key={b.id} value={pickValue({ kind: "bot", id: b.id })}>
-              {b.display_name}
-            </option>
-          ))}
-        </optgroup>
-        {workflows.length > 0 && (
-          <optgroup label={t("board.pickWorkflows")}>
-            {workflows.map((w) => (
-              <option key={w.id} value={pickValue({ kind: "workflow", id: w.id })}>
-                {w.name}
-              </option>
-            ))}
-          </optgroup>
-        )}
-      </select>
-    </label>
   );
 }
 

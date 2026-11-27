@@ -2,7 +2,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { BotView, SessionActivity, SessionView } from "../api";
 import i18n from "../i18n";
-import Board from "./Board";
+import Board from "./WorkBoard";
+import { buildTasks } from "../board";
+import type { WorkItem } from "../api";
 import type { BoardData } from "./useBoardData";
 
 const bot = (id: string, handle: string, display_name: string): BotView => ({ project_id: "default",
@@ -46,16 +48,24 @@ const s = (id: string, bot_id: string, extra: Partial<SessionView> = {}): Sessio
 const nothing = () => {};
 const empty: BoardData = { activity: {}, glances: {}, attentionSince: {} };
 
+function itemsOf(sessions: SessionView[]): WorkItem[] {
+  return buildTasks({ sessions, activity: {}, glances: {}, attentionSince: {}, paused: false, limits: [], providers: {} }).map((task) => ({
+    id: task.id, project_id: "default", parent_id: null, title: `Session ${task.root.number}`, instructions: "", state: task.column === "finished" ? "finished" : "working",
+    outcome: null, primary_session_id: task.root.id, session_ids: task.members.map((s) => s.id), workflow_run_id: null, orchestration_id: null, execution: null,
+    manual_start: false, created_at: task.root.created_at, finished_at: task.root.last_activity_at, archived_at: null, result_message_id: null, depends_on: [],
+  }));
+}
 function board(sessions: SessionView[], data: BoardData = empty, paused = false): string {
   return renderToStaticMarkup(
     <Board
       bots={bots}
       sessions={sessions}
+      items={itemsOf(sessions)}
       paused={paused}
       limits={[]}
       onTogglePause={nothing}
       onOpen={nothing}
-      onNewTask={nothing}
+      creation={null} onCreate={nothing} onCloseCreation={nothing} onSaved={nothing}
       onError={nothing}
       data={data}
       now={NOW}
@@ -91,7 +101,7 @@ describe("the task board", () => {
 
   it("an empty board offers a new task", () => {
     const html = board([]);
-    expect(html).toContain("No tasks yet.");
+    expect(html).toContain("Nothing here");
     expect(count(html, ">New task</button>")).toBeGreaterThanOrEqual(1);
     expect(html).toContain("<h1>Tasks</h1>");
     expect(html).not.toContain("<article");
@@ -122,7 +132,7 @@ describe("the task board", () => {
     expect(finished).toContain("Older (2)");
     expect(finished).toContain(">Mark all done</button>");
     expect(finished.indexOf("Session 2")).toBeLessThan(finished.indexOf("Older (2)"));
-    expect(countOf(finished)).toBe("1");
+    expect(countOf(finished)).toBe("3");
   });
 
   it("lays the drawer over the board, with the board's tasks and time", () => {
@@ -131,11 +141,12 @@ describe("the task board", () => {
       <Board
         bots={bots}
         sessions={sessions}
+      items={itemsOf(sessions)}
         paused={false}
         limits={[]}
         onTogglePause={nothing}
         onOpen={nothing}
-        onNewTask={nothing}
+        creation={null} onCreate={nothing} onCloseCreation={nothing} onSaved={nothing}
         onError={nothing}
         data={empty}
         now={NOW}

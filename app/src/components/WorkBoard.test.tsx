@@ -1,13 +1,16 @@
 // @vitest-environment happy-dom
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { BotView, SessionView, WorkItem } from "../api";
 import { taskExecution, taskProgress } from "../workItems";
 import i18n from "../i18n";
 import WorkBoard from "./WorkBoard";
+import type { TaskCreation } from "./WorkItemForm";
 const calls = vi.hoisted(() => [] as [string, unknown][]);
 vi.mock("@tauri-apps/api/core", () => ({ invoke: (name: string, args: unknown) => { calls.push([name,args]); return Promise.resolve([]); } }));
+vi.mock("@tauri-apps/api/event", () => ({ listen: async () => () => {} }));
+vi.mock("@tauri-apps/api/webview", () => ({ getCurrentWebview: () => ({ onDragDropEvent: async () => () => {} }) }));
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 const bot: BotView = { id:"b", project_id:"default", handle:"worker", display_name:"Worker", color:"#456789", provider:"claude", model:null, instructions:"", config_version:1, skill_ids:[], created_at:"t", updated_at:"t", status:"idle" };
 const session = (id: string): SessionView => ({ id,project_id:"default",bot_id:"b",number:1,title:id,provider_session_id:null,session_config_version:null,opened_by:null,created_at:"2026-11-27T10:00:00Z",last_activity_at:"2026-11-27T10:00:00Z",archived_at:null,waiting_question_id:null,waiting_options:[],waiting_since:null,open_request_id:null,seen_at:null,status:"idle" });
@@ -16,9 +19,15 @@ const data = { activity:{},glances:{},attentionSince:{} };
 let root: Root | undefined, host: HTMLDivElement;
 beforeAll(() => i18n.changeLanguage("en"));
 afterEach(async () => { if (root) await act(async () => root!.unmount()); root=undefined; host?.remove(); calls.length=0; });
+function BoardWithCreation({ items }: { items: WorkItem[] }) {
+  const [creation, setCreation] = useState<TaskCreation | null>(null);
+  return <WorkBoard items={items} bots={[bot]} sessions={items.flatMap((w) => w.session_ids.map(session))} paused={false} limits={[]}
+    onTogglePause={() => {}} onOpen={() => {}} creation={creation} onCreate={(parent) => setCreation({ id: 1, parent })}
+    onCloseCreation={() => setCreation(null)} onSaved={() => {}} onError={(e) => { throw e; }} data={data} now={new Date("2026-11-27T11:00:00Z")} />;
+}
 async function mount(items: WorkItem[]) {
   host=document.createElement("div"); document.body.append(host); root=createRoot(host);
-  await act(async () => root!.render(<WorkBoard items={items} bots={[bot]} sessions={items.flatMap((w) => w.session_ids.map(session))} paused={false} limits={[]} onTogglePause={() => {}} onOpen={() => {}} onNewTask={() => {}} onError={(e) => { throw e; }} data={data} now={new Date("2026-11-27T11:00:00Z")} />));
+  await act(async () => root!.render(<BoardWithCreation items={items} />));
 }
 const button = (text: string) => [...host.querySelectorAll("button")].find((b) => b.textContent === text)!;
 async function fill(field: HTMLInputElement | HTMLTextAreaElement, value: string) {
@@ -47,7 +56,7 @@ describe("unified tasks", () => {
     expect(button("Create task").disabled).toBe(false);
     await act(async () => button("Create task").click());
     expect(calls).toContainEqual(["create_work_item", { input: {
-      parent_id: parent ? "parent" : null, title, instructions, manual_start: true, depends_on: [],
+      parent_id: parent ? "parent" : null, title, instructions, manual_start: true, depends_on: [], files: [],
       executor: { kind: "bot", handle: "worker" },
     } }]);
     expect(host.querySelector("form")).toBeNull();

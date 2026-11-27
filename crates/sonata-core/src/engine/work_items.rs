@@ -236,14 +236,28 @@ impl Engine {
             },
             orch::Executor::Workflow { name } => {
                 let w = self.store.get_workflow_by_name(name)?.ok_or_else(|| invalid("Workflow not found."))?;
+                self.check_runnable(&NewWorkflow {
+                    name: w.name.clone(),
+                    when_to_use: w.when_to_use.clone(),
+                    def: w.def.clone(),
+                })?;
                 Assignment::Workflow { workflow_id: w.id, name: w.name, definition: w.def }
             }
         };
-        let item = self.store.insert_pending_work_item(
+        let files = attachments::check(&input.files, Path::new("/")).map_err(Refusal::Attachment)?;
+        let id = new_id();
+        let input_dir = self.inner.cfg.paths.data_dir.join("task-inputs").join(self.store.project_key()).join(&id);
+        spec.files = attachments::snapshot_task_inputs(&files, &input_dir).map_err(Refusal::Attachment)?;
+        let inserted = self.store.insert_pending_work_item(
+            &id,
             &orch::Task::new(spec, assignment),
             input.parent_id.as_deref(),
             &input.depends_on,
-        )?;
+        );
+        if inserted.is_err() && !files.is_empty() {
+            let _ = std::fs::remove_dir_all(&input_dir);
+        }
+        let item = inserted?;
         if let Some(parent) = &input.parent_id {
             self.attach_pending_children(parent)?;
         } else if !item.manual_start {
@@ -343,10 +357,24 @@ impl Engine {
                 return Ok(());
             }
             let task = item.execution.ok_or_else(|| invalid("Task has no executor."))?;
+            let checked = attachments::check(&task.spec.files, Path::new("/")).map_err(Refusal::Attachment)?;
             let routed = match &task.assignment {
                 Assignment::Bot { bot_id } => {
-                    self.store.get_bot(bot_id)?.ok_or_else(|| invalid("The assigned bot no longer exists."))?;
-                    self.store.start_pending_work_item(id, Some(bot_id), None)?
+                    let bot =
+                        self.store.get_bot(bot_id)?.ok_or_else(|| invalid("The assigned bot no longer exists."))?;
+                    let copies = if checked.is_empty() {
+                        vec![]
+                    } else {
+                        attachments::copy_to_inbox(&checked, &self.inbox_bot_dir(&bot.handle)?, &new_id())
+                            .map_err(Refusal::Attachment)?
+                    };
+                    let result = self.store.start_pending_work_item(id, Some(bot_id), None, &copies);
+                    if !matches!(result, Ok(Some(_))) {
+                        for copy in copies {
+                            let _ = std::fs::remove_file(copy.path);
+                        }
+                    }
+                    result?
                 }
                 Assignment::Workflow { workflow_id, name, definition } => {
                     let run = WorkflowRun {
@@ -356,7 +384,7 @@ impl Engine {
                         name: name.clone(),
                         def: definition.clone(),
                         request: task.spec.instructions.clone(),
-                        request_files: vec![],
+                        request_files: task.spec.files.clone(),
                         opener_session: None,
                         root_session: None,
                         status: RunStatus::Running,
@@ -378,10 +406,16 @@ impl Engine {
                         name: name.clone(),
                         def: definition.clone(),
                         request: run.request,
-                        request_files: vec![],
+                        request_files: run.request_files,
                         opener_session: None,
                     };
-                    self.store.start_pending_work_item(id, None, Some((&new, &first)))?
+                    let result = self.store.start_pending_work_item(id, None, Some((&new, &first)), &[]);
+                    if !matches!(result, Ok(Some(_))) {
+                        for copy in &first.message.attachments {
+                            let _ = std::fs::remove_file(&copy.path);
+                        }
+                    }
+                    result?
                 }
             };
             if let Some(routed) = routed {

@@ -88,6 +88,38 @@ pub fn in_place(files: &[PathBuf]) -> Vec<Attachment> {
     files.iter().map(|f| Attachment { name: file_name(f), path: f.to_string_lossy().into_owned() }).collect()
 }
 
+/// Snapshot task inputs before the task is persisted. Numbered folders preserve
+/// original filenames, including files from different folders with the same name.
+pub fn snapshot_task_inputs(files: &[PathBuf], directory: &Path) -> Result<Vec<String>, AttachmentError> {
+    if files.is_empty() {
+        return Ok(vec![]);
+    }
+    let copy_error = |e: std::io::Error| AttachmentError::Copy {
+        path: directory.to_string_lossy().into_owned(),
+        error: e.to_string(),
+    };
+    std::fs::create_dir_all(directory.parent().expect("task input directory has a parent")).map_err(copy_error)?;
+    // Only remove a directory created by this call, never an existing snapshot.
+    std::fs::create_dir(directory).map_err(copy_error)?;
+    let result = (|| -> std::io::Result<Vec<String>> {
+        let mut paths = vec![];
+        for (index, file) in files.iter().enumerate() {
+            let folder = directory.join(index.to_string());
+            std::fs::create_dir(&folder)?;
+            let destination = folder.join(file_name(file));
+            let mut source = std::fs::File::open(file)?;
+            let mut target = std::fs::OpenOptions::new().write(true).create_new(true).open(&destination)?;
+            std::io::copy(&mut source, &mut target)?;
+            paths.push(destination.to_string_lossy().into_owned());
+        }
+        Ok(paths)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_dir_all(directory);
+    }
+    result.map_err(copy_error)
+}
+
 pub const RUNNABLE_EXTENSIONS: &[&str] = &[
     "app",
     "appimage",
@@ -231,5 +263,23 @@ mod tests {
             in_place(&[PathBuf::from("/Users/x/Bots/writer/report.md")]),
             vec![Attachment { name: "report.md".into(), path: "/Users/x/Bots/writer/report.md".into() }]
         );
+    }
+}
+
+#[cfg(test)]
+mod task_snapshot_tests {
+    use super::*;
+
+    #[test]
+    fn failed_snapshot_removes_partial_copies_and_does_not_overwrite_existing_snapshots() {
+        let temp = tempfile::tempdir().unwrap();
+        let good = temp.path().join("good.txt");
+        std::fs::write(&good, "Keep this").unwrap();
+        let snapshot = temp.path().join("tasks/task-id");
+        assert!(snapshot_task_inputs(&[good.clone(), temp.path().join("gone.txt")], &snapshot).is_err());
+        assert!(!snapshot.exists());
+        let saved = snapshot_task_inputs(std::slice::from_ref(&good), &snapshot).unwrap();
+        assert!(snapshot_task_inputs(&[good], &snapshot).is_err());
+        assert_eq!(std::fs::read_to_string(&saved[0]).unwrap(), "Keep this");
     }
 }

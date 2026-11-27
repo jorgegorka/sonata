@@ -11,11 +11,10 @@ import type {
   SessionView,
   ThreadSummary,
   UiEvent,
-  Workflow,
   WorkflowStep,
 } from "../api";
 import { buildDoneTasks, buildTasks } from "../board";
-import { blankDrawer, type DrawerView, type Recipient } from "../drawer";
+import { type DrawerView } from "../drawer";
 import i18n from "../i18n";
 import TaskDrawer, { HandoffList } from "./TaskDrawer";
 
@@ -105,16 +104,6 @@ const s = (id: string, bot_id: string, extra: Partial<SessionView> = {}): Sessio
 const NOW = new Date("2026-11-04T12:00:00.000Z");
 const nothing = () => {};
 
-const workflow = (id: string, name: string): Workflow => ({ project_id: "default",
-  id,
-  name,
-  when_to_use: "",
-  def: { version: 1, start: null, steps: [], start_pos: null, done_pos: null },
-  created_at: "t",
-  updated_at: "t",
-});
-const workflows = [workflow("w1", "Ticket to merge request"), workflow("w2", "Bug to fix")];
-
 const sessions = [
   s("m", "b1", { title: "Fix the login" }),
   s("f", "b2", { opened_by: "m", created_at: "2026-11-04T09:01:00.000Z" }),
@@ -131,9 +120,7 @@ function drawer(view: DrawerView, withTask = true, activity: Record<string, Sess
       sessions={sessions}
       activity={activity}
       now={NOW}
-      workflows={workflows}
       onShow={nothing}
-      onPick={nothing}
       onOpenFull={nothing}
       onMarkDone={nothing}
       onClose={nothing}
@@ -199,9 +186,7 @@ describe("the task drawer", () => {
         sessions={needing}
         activity={{}}
         now={NOW}
-        workflows={workflows}
         onShow={nothing}
-        onPick={nothing}
         onOpenFull={nothing}
         onMarkDone={nothing}
         onClose={nothing}
@@ -224,83 +209,6 @@ describe("the task drawer", () => {
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*aria-label="Open the full chat"/);
   });
 
-  it("a blank chat's drawer offers a bot picker", () => {
-    const html = drawer({ root: null, show: { kind: "newSession", botId: "b2" } }, false);
-    expect(html).toContain("<select");
-    for (const name of ["Master", "Feature", "Testing"]) {
-      expect(html).toMatch(new RegExp(`<option[^>]*>${name}</option>`));
-    }
-    expect(html).toMatch(/<option value="bot:b2" selected="">Feature<\/option>/);
-    expect(html).toContain("New task");
-    expect(html).not.toContain("Hand-offs");
-    expect(html).not.toContain("Mark done");
-    expect(html).not.toContain('class="trail"');
-    expect(html).toContain("Open the full chat");
-    expect(html).toContain("Close");
-  });
-});
-
-describe("the recipient picker", () => {
-  beforeAll(() => i18n.changeLanguage("en"));
-
-  it("the picker lists bots and workflows, and picking a workflow asks for a newRun", async () => {
-    const html = drawer({ root: null, show: { kind: "newSession", botId: "b2" } }, false);
-    const groups = [...html.matchAll(/<optgroup label="([^"]*)">([\s\S]*?)<\/optgroup>/g)];
-    expect(groups.map((g) => g[1])).toEqual(["Bots", "Workflows"]);
-    expect([...groups[0][2].matchAll(/value="([^"]*)"/g)].map((m) => m[1])).toEqual(["bot:b1", "bot:b2", "bot:b3"]);
-    expect([...groups[1][2].matchAll(/<option value="([^"]*)"[^>]*>([^<]*)</g)].map((m) => [m[1], m[2]])).toEqual([
-      ["workflow:w1", "Ticket to merge request"],
-      ["workflow:w2", "Bug to fix"],
-    ]);
-
-    const picked: Recipient[] = [];
-    const host = document.createElement("div");
-    document.body.appendChild(host);
-    const root = createRoot(host);
-    const view: DrawerView = { root: null, show: { kind: "newSession", botId: "b2" } };
-    await act(async () =>
-      root.render(
-        <TaskDrawer
-          task={null}
-          drawer={view}
-          bots={bots}
-          workflows={workflows}
-          sessions={sessions}
-          activity={{}}
-          now={NOW}
-          onShow={nothing}
-          onPick={(target) => picked.push(target)}
-          onOpenFull={nothing}
-          onMarkDone={nothing}
-          onClose={nothing}
-          onError={nothing}
-        >
-          <p>the chat</p>
-        </TaskDrawer>,
-      ),
-    );
-    const select = host.querySelector("select")!;
-    await act(async () => {
-      select.value = "workflow:w2";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-    await act(async () => {
-      select.value = "bot:b3";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-    expect(picked).toEqual([
-      { kind: "workflow", id: "w2" },
-      { kind: "bot", id: "b3" },
-    ]);
-    expect(blankDrawer(picked[0])).toEqual({ root: null, show: { kind: "newRun", workflowId: "w2" } });
-    expect(blankDrawer(picked[1])).toEqual({ root: null, show: { kind: "newSession", botId: "b3" } });
-    await act(async () => root.unmount());
-    host.remove();
-
-    const run = drawer({ root: null, show: { kind: "newRun", workflowId: "w1" } }, false);
-    expect(run).toMatch(/<option value="workflow:w1" selected="">Ticket to merge request<\/option>/);
-    expect(run).toMatch(/<button[^>]*disabled=""[^>]*aria-label="Open the full chat"/);
-  });
 });
 
 describe("the hand-offs list", () => {
@@ -425,8 +333,8 @@ describe("a workflow run in the drawer", () => {
       <TaskDrawer
         task={done}
         drawer={{ root: done.id, show: { kind: "session", id: done.id }, archivedAt: done.root.archived_at! }}
-        bots={bots} workflows={workflows} sessions={archived} activity={{}} now={NOW}
-        onShow={onShow} onPick={nothing} onOpenFull={nothing} onMarkDone={nothing}
+        bots={bots} sessions={archived} activity={{}} now={NOW}
+        onShow={onShow} onOpenFull={nothing} onMarkDone={nothing}
         onClose={nothing} onError={nothing}
       >
         <p>archived chat</p>
@@ -467,12 +375,10 @@ describe("a workflow run in the drawer", () => {
           task={withRun}
           drawer={{ root: "m", show: { kind: "session", id: "m" } }}
           bots={bots}
-          workflows={workflows}
           sessions={sessions}
           activity={{}}
           now={NOW}
           onShow={(show) => shown.push(show)}
-          onPick={nothing}
           onOpenFull={nothing}
           onMarkDone={nothing}
           onClose={nothing}
@@ -522,12 +428,10 @@ describe("a workflow run in the drawer", () => {
           task={waiting}
           drawer={{ root: "m", show: { kind: "session", id: "m" } }}
           bots={bots}
-          workflows={workflows}
           sessions={quiet}
           activity={{}}
           now={NOW}
           onShow={nothing}
-          onPick={nothing}
           onOpenFull={nothing}
           onMarkDone={nothing}
           onClose={nothing}
@@ -573,12 +477,10 @@ describe("a workflow run in the drawer", () => {
         task={held}
         drawer={{ root: "m", show: { kind: "session", id: "m" } }}
         bots={bots}
-        workflows={workflows}
         sessions={sessions}
         activity={{}}
         now={NOW}
         onShow={nothing}
-        onPick={nothing}
         onOpenFull={nothing}
         onMarkDone={nothing}
         onClose={nothing}
