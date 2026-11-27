@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+## 1.0.9 — 2026-11-27
+
+Signed and notarized Apple Silicon macOS DMG on the homepage, with a signed
+application archive for automatic updates. The Omarchy package remains 1.0.7;
+AppImage and DEB packages are still pending.
+
+### Improvements
+
+- Make task and subtask titles optional. When left blank, use the first nonempty
+  line of the description, shortened to 60 characters. Preserve custom titles
+  and the full description; continue requiring a nonblank description.
+- Explain optional titles in English, Spanish, French, and German.
+- Give Finished task sections a green background that is distinct from Running,
+  including dark mode and Omarchy themes.
+
+### Distribution
+
+- Publish the signed, notarized macOS installer and signed update archive for
+  1.0.9. Sonata 1.0.8 can offer this release through its startup update check.
+- Quit Sonata before replacing the app manually. Saved settings, projects, bots,
+  skills, and history stay in place.
+
 ## 1.0.8 — 2026-11-27
 
 Signed and notarized Apple Silicon macOS DMG on the homepage. The Omarchy
