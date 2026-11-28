@@ -1,7 +1,7 @@
 {
-  "version": "1.0.12",
-  "url": "https://jorgegorka.github.io/sonata/downloads/Sonata_1.0.12.app.tar.gz",
-  "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUakFGU0x5OVErUGZONDFQb3JiVDhSWjJzbENZRDAxS0JzRjRNMnpmb1drRHJ5b3MzMGF6aXhIOGtubUdLVHZJZFVLbDRSSFZrRndKckt1QnRtQllCakd5UEpTZlJLRWdjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1ODU4NTQzCWZpbGU6U29uYXRhXzEuMC4xMi5hcHAudGFyLmd6CXZlcnNpb246MS4wLjEyCklEV21wMGZkT255T1JUQVpmY0NoaWtaYm54UFhCbG8rK3ZKamgyUFRjVVF4V0kzZzZhWUZvTnJKdWtISk5NS2k1RVBCR3lOWHhuRldndWxvWXVQR0JBPT0K",
+  "version": "1.0.13",
+  "url": "https://jorgegorka.github.io/sonata/downloads/Sonata_1.0.13.app.tar.gz",
+  "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUakFGU0x5OVErUGRPOXBhZVlMOWdmOUNHZ1VaelB1SFRMb3FUdlNQdmFVY0lpcC9hZ1k5YWZXSDRoQnhnOVA5NWpxWUJGYndva2tNTWtCVWxHbGJmRmpWSG1WdmRmVndRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1ODYyNzQ0CWZpbGU6U29uYXRhXzEuMC4xMy5hcHAudGFyLmd6CXZlcnNpb246MS4wLjEzCmFkOW5WZkxjc0xFOUYzMnpMUmVlUTZkMG1VeFVQS0NZUjQydFp3RVh2VXU1NnB3MUNrcWlTYVNJUUJHU1JRVWwvNU1UQzBJNTBYTU44dEE1RnFsOUFBPT0K",
   "notes_url": "https://github.com/jorgegorka/sonata/blob/master/CHANGELOG.md",
-  "sha256": "fef3dce1f05c844d5f33a937df97231e50a961a33fc517052670f115ae9ed9a7"
+  "sha256": "ba0ded7252497fac27b0c63c5ee92140c671e3cd958a5f39f6068cb765e42660"
 }

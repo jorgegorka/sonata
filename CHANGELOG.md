@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+## 1.0.13 — 2026-11-28
+
+Signed and notarized Apple Silicon macOS DMG and signed automatic update archive.
+The Omarchy package remains 1.0.7; AppImage and DEB packages are still pending.
+
+### Interface
+
+- Extend the task dialog's Linear-style layout throughout Sonata, with shared
+  controls, icons, page headers, typography, spacing, and focus states. Keep
+  Sonata's purple/navy colors and existing navigation.
+- Open recurring tasks and projects in dialogs over their lists. Keep drafts
+  after failed saves, confirm before discarding edits, prevent duplicate saves,
+  and ignore late callbacks after changing projects.
+- Give bot and skill editors visible save footers, align management-list actions,
+  and arrange settings in compact rows. Stack the workflow canvas and inspector
+  in narrow windows.
+- Keep task questions, answer choices, dependencies, progress, and actions visible.
+  Move secondary conversation controls into a keyboard-accessible action menu.
+- Improve compact-window layouts and prevent new messages from scrolling the
+  surrounding drawer. Strengthen accent-button text contrast in dark and Omarchy
+  themes, with matching picker-window styling.
+
+### Distribution
+
+- Publish the signed macOS installer and updater for 1.0.13.
+- Quit Sonata before replacing the app manually; saved data stays in place.
+
 ## 1.0.12 — 2026-11-28
 
 Signed and notarized Apple Silicon macOS DMG and signed automatic update archive.
