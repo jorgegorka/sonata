@@ -1,3 +1,4 @@
+import { Icon } from "./ui";
 import { useProjectApi } from "../projectContext";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -121,13 +122,13 @@ export default function Composer({
         <ul className="pending-files">
           {draft.files.map((f) => (
             <li key={f} className="chip">
-              📎 {fileName(f)}
+              <Icon name="attach" /><span className="chip-label">{fileName(f)}</span>
               <button
                 className="icon-button"
                 aria-label={t("chat.removeFile", { name: fileName(f) })}
                 onClick={() => onDraftChange((d) => ({ ...d, files: d.files.filter((x) => x !== f) }))}
               >
-                ×
+                <Icon name="close" />
               </button>
             </li>
           ))}
@@ -148,8 +149,8 @@ export default function Composer({
       <div className="composer-row">
         <span className="muted">{dragging ? t("chat.dropHere") : t("chat.hint")}</span>
         <div className="actions">
-          <button onClick={() => void pickFiles()} aria-label={t("chat.attach")} title={t("chat.attach")}>
-            📎
+          <button className="icon-button ghost" onClick={() => void pickFiles()} aria-label={t("chat.attach")} title={t("chat.attach")}>
+            <Icon name="attach" />
           </button>
           <button
             className="primary"

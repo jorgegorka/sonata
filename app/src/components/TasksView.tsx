@@ -1,3 +1,4 @@
+import { PageHeader } from "./ui";
 import { useProjectApi } from "../projectContext";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -47,23 +48,21 @@ export default function TasksView({ tasks, bots, sessions, onNew, onEdit, onOpen
   }
 
   return (
-    <div className="settings">
-      <h1>{t("tasks.title")}</h1>
-      <p className="muted">{t("tasks.intro")}</p>
-      <div className="actions start">
+    <div className="page resource-page">
+      <PageHeader title={t("tasks.title")} description={t("tasks.intro")} actions={<>
         <button className="primary" onClick={onNew}>
           {t("tasks.new")}
         </button>
-      </div>
-      {tasks.length === 0 && <p className="muted">{t("tasks.empty")}</p>}
-      <ul className="skills-list">
+      </>} />
+      {tasks.length === 0 && <p className="empty-state">{t("tasks.empty")}</p>}
+      <ul className="resource-list">
         {sortTasks(tasks).map((task) => {
           const bot = bots.find((b) => b.id === task.bot_id);
           const last = lastRunText(t, task, sessions, i18n.language);
           const skip = skipText(t, task, i18n.language);
           return (
             <li key={task.id} className={task.enabled ? "task-row" : "task-row off"}>
-              <div className="skill-head">
+              <div className="resource-heading">
                 <strong>{task.name}</strong>
                 {bot && (
                   <span className="task-bot">

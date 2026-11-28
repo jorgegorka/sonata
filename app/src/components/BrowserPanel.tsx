@@ -1,3 +1,4 @@
+import { Icon, type IconName } from "./ui";
 import { useProjectApi } from "../projectContext";
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -136,9 +137,9 @@ export default function BrowserPanel({
     document.body.classList.remove("resizing");
   }
 
-  const iconButton = (key: string, glyph: string, onClick: () => void, disabled = false) => (
+  const iconButton = (key: string, glyph: IconName, onClick: () => void, disabled = false) => (
     <button className="icon-button" aria-label={t(key)} title={t(key)} onClick={onClick} disabled={disabled}>
-      {glyph}
+      <Icon name={glyph} />
     </button>
   );
 
@@ -156,12 +157,12 @@ export default function BrowserPanel({
       <div className="browser-body">
         <header className="browser-header">
           <strong className="browser-title">{panelTitle(state) ?? t("browser.title")}</strong>
-          {iconButton("browser.close", "×", onClose)}
+          {iconButton("browser.close", "close", onClose)}
         </header>
         <div className="browser-toolbar">
-          {iconButton("browser.back", "‹", () => void api.browserBack().catch(onError), !state.url)}
-          {iconButton("browser.forward", "›", () => void api.browserForward().catch(onError), !state.url)}
-          {iconButton("browser.reload", "↻", () => void api.browserReload().catch(onError), !state.url)}
+          {iconButton("browser.back", "back", () => void api.browserBack().catch(onError), !state.url)}
+          {iconButton("browser.forward", "forward", () => void api.browserForward().catch(onError), !state.url)}
+          {iconButton("browser.reload", "reload", () => void api.browserReload().catch(onError), !state.url)}
           <button
             className={picking ? "icon-button active" : "icon-button"}
             aria-pressed={picking}
@@ -170,7 +171,7 @@ export default function BrowserPanel({
             onClick={() => onPick(!picking)}
             disabled={pick.disabled}
           >
-            ⌖
+            <Icon name="target" />
           </button>
           <input
             type="text"
@@ -183,7 +184,7 @@ export default function BrowserPanel({
             onBlur={() => setDraft(null)}
             onKeyDown={onAddressKey}
           />
-          {iconButton("browser.openInBrowser", "↗", () => void openUrl(state.url).catch(onError), !state.url)}
+          {iconButton("browser.openInBrowser", "external", () => void openUrl(state.url).catch(onError), !state.url)}
           {state.loading && <div className="browser-progress" />}
         </div>
         {state.stalled && <p className="browser-note muted">{t("browser.stalled")}</p>}

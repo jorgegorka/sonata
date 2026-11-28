@@ -16,7 +16,7 @@ export default function SettingsPage({ tab, onTab, children }: Props) {
     ["skills", t("skills.title")],
   ];
   return (
-    <div className="settings">
+    <div className="page settings">
       <div className="tabs" role="tablist">
         {tabs.map(([id, label]) => (
           <button

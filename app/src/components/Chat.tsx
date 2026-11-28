@@ -12,6 +12,7 @@ import MessageItem, { senderName } from "./MessageItem";
 import PanelGlyph from "./PanelGlyph";
 import SessionName from "./SessionName";
 import TerminalView from "./TerminalView";
+import { ActionMenu, Icon } from "./ui";
 
 interface Props {
   bot: BotView;
@@ -53,14 +54,16 @@ export default function Chat({
   const api = useProjectApi();
   const { t } = useTranslation();
   const browserLabel = browserOpen ? t("browser.hide") : t("browser.show");
-  const endRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const status = session?.status ?? "offline";
   const panelOpen = session !== null && terminalOpen && status !== "needs_attention";
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Scroll only the transcript; scrollIntoView can move the surrounding drawer.
+    const transcript = messagesRef.current;
+    if (transcript) transcript.scrollTop = transcript.scrollHeight;
   }, [messages.length]);
 
   async function act(action: () => Promise<void>) {
@@ -132,13 +135,14 @@ export default function Chat({
             </button>
           )}
           {session && status === "working" && (
-            <button onClick={() => void api.stopTurn(session.id).catch(onError)}>■ {t("chat.stop")}</button>
+            <button className="ui-button" onClick={() => void api.stopTurn(session.id).catch(onError)}><Icon name="stop" />{t("chat.stop")}</button>
           )}
           {session && status !== "needs_attention" && (
             <button onClick={() => setTerminalOpen(!panelOpen)}>
               {panelOpen ? t("terminal.hide") : t("terminal.show")}
             </button>
           )}
+          <ActionMenu label={t("chat.actions")}>
           {session && status !== "offline" && (
             <button disabled={busy} onClick={() => void close()}>
               {t("chat.closeSession")}
@@ -160,6 +164,7 @@ export default function Chat({
           )}
           <button onClick={() => void api.openBotFolder(bot.id).catch(onError)}>{t("chat.showFolder")}</button>
           <button onClick={onEdit}>{t("chat.edit")}</button>
+          </ActionMenu>
           <button
             className="icon-button panel-toggle"
             onClick={onToggleBrowser}
@@ -170,7 +175,7 @@ export default function Chat({
           </button>
         </div>
       </header>
-      <div className="messages">
+      <div ref={messagesRef} className="messages">
         {messages.length === 0 && <p className="muted empty">{t("chat.empty", { name: bot.display_name })}</p>}
         {messages.map((m) => (
           <MessageItem
@@ -181,7 +186,6 @@ export default function Chat({
             onError={onError}
           />
         ))}
-        <div ref={endRef} />
       </div>
       {session && status === "needs_attention" && <AttentionCard session={session} onError={onError} />}
       {panelOpen && (

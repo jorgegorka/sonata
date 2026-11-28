@@ -104,8 +104,8 @@ describe("one task creation interface", () => {
       parent_id: null, title: "", instructions: "Review the change", executor: { kind: "workflow", name: "Review" }, manual_start: false, depends_on: [], files: [],
     } }]);
     await click(button("New bot"));
-    await fill(host.querySelector<HTMLInputElement>('form.create-bot input')!, "new-bot");
-    await act(async () => host.querySelector("form.create-bot")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    await fill(host.querySelector<HTMLInputElement>('form.editor-page input')!, "new-bot");
+    await act(async () => host.querySelector("form.editor-page")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
     expect(form().querySelector("select")?.value).toBe("bot:new-bot");
     expect(calls("send_message")).toEqual([]); expect(calls("start_workflow")).toEqual([]);
   });

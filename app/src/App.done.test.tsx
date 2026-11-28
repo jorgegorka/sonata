@@ -242,16 +242,16 @@ describe("project selection", () => {
   });
   it("uses the selected project's provider by default when creating a bot", async () => {
     await mount(); await select("second"); await click(button("New bot"));
-    const provider = host.querySelector<HTMLSelectElement>('form.create-bot select')!;
+    const provider = host.querySelector<HTMLSelectElement>('form.editor-page select')!;
     expect(provider.value).toBe("default");
     expect(provider.selectedOptions[0].textContent).toBe("Project default (codex)");
-    const name = host.querySelector<HTMLInputElement>('form.create-bot input[required]')!;
+    const name = host.querySelector<HTMLInputElement>('form.editor-page input[required]')!;
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(name, "Helper");
       name.dispatchEvent(new Event("input", { bubbles: true }));
     });
     tauri.answers.create_bot = () => ({ ...bot("helper"), project_id: "second", provider: "codex" });
-    await act(async () => { host.querySelector("form.create-bot")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
+    await act(async () => { host.querySelector("form.editor-page")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
     expect(called("create_bot")).toMatchObject([{ projectId: "second", input: { display_name: "Helper", provider: null } }]);
   });
   it("hides the selector for one project and keeps creation and restoration reachable", async () => {
@@ -267,7 +267,7 @@ describe("project selection", () => {
   });
   it("keeps a pending project creation bound to its form without changing a later selection", async () => {
     await mount(); await click(button("Add project"));
-    const name = host.querySelector<HTMLInputElement>('form.create-bot input[required]')!;
+    const name = host.querySelector<HTMLInputElement>('dialog form input[required]')!;
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(name, "New project");
       name.dispatchEvent(new Event("input", { bubbles: true }));
@@ -276,13 +276,21 @@ describe("project selection", () => {
     let finish!: () => void;
     const created = { ...projects[0], id: "third", name: "New project", default_directory: "/checkout/new" };
     tauri.answers.create_project = () => new Promise((resolve) => { finish = () => resolve(created); });
-    await act(async () => { host.querySelector("form.create-bot")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
+    await act(async () => { host.querySelector("dialog form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
     expect(called("create_project")).toEqual([{ input: { name: "New project", default_directory: "/checkout/new", default_provider: "claude" } }]);
     await select("second");
     tauri.answers.list_projects = () => [...projects, created];
     await act(async () => finish());
     expect(host.querySelector<HTMLSelectElement>('select[aria-label="Project"]')?.value).toBe("second");
     expect(titles(host)).toEqual(["Second card"]);
+  });
+  it("reopens project creation from the global action after dismissing it", async () => {
+    await mount(); await click(button("Add project"));
+    expect(host.querySelector("dialog")?.open).toBe(true);
+    await act(async () => host.querySelector("dialog")!.dispatchEvent(new Event("cancel", { cancelable: true })));
+    expect(host.querySelector("dialog")).toBeNull();
+    await click(button("Add project"));
+    expect(host.querySelector("dialog")?.open).toBe(true);
   });
   it("shows archive failures and can archive the last active project then restore it", async () => {
     let items = [projects[0]];

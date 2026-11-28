@@ -1,3 +1,4 @@
+import { EditorSection, PageHeader } from "./ui";
 import { useProjectApi } from "../projectContext";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -141,9 +142,9 @@ export default function SettingsView({ providers, onCheckProviders, onBotsChange
   if (!settings) return null;
   return (
     <>
-      {onPersonalize && <section><h2>{t("onboarding.personalize")}</h2><p className="muted">{t("onboarding.returnHint")}</p><div><button onClick={onPersonalize}>{t("onboarding.personalize")}</button></div></section>}
-      <section>
-        <h2>{t("settings.languageTitle")}</h2>
+      <PageHeader title={t("settings.title")} />
+      {onPersonalize && <EditorSection title={t("onboarding.personalize")}><p className="muted">{t("onboarding.returnHint")}</p><div><button onClick={onPersonalize}>{t("onboarding.personalize")}</button></div></EditorSection>}
+      <EditorSection title={t("settings.languageTitle")}>
         <label className="inline-label">
           {t("settings.language")}
           <select value={settings.language} onChange={(e) => void changeLanguage(e.target.value)}>
@@ -158,9 +159,8 @@ export default function SettingsView({ providers, onCheckProviders, onBotsChange
           </select>
         </label>
         <p className="muted">{t("settings.languageHint")}</p>
-      </section>
-      <section>
-        <h2>{t("updates.title")}</h2>
+      </EditorSection>
+      <EditorSection title={t("updates.title")}>
         <label className="updates-checkbox">
           <input type="checkbox" checked={settings.automatic_updates} disabled={updatesSaving}
             aria-describedby="automatic-updates-hint"
@@ -168,9 +168,8 @@ export default function SettingsView({ providers, onCheckProviders, onBotsChange
           {t("updates.automatic")}
         </label>
         <p className="muted" id="automatic-updates-hint">{t("updates.hint")}</p>
-      </section>
-      <section>
-        <h2>{t("settings.teamTitle")}</h2>
+      </EditorSection>
+      <EditorSection title={t("settings.teamTitle")}>
         <form className="inline-form" onSubmit={saveHopLimit}>
           <label>
             {t("settings.hopLimit")}
@@ -189,14 +188,12 @@ export default function SettingsView({ providers, onCheckProviders, onBotsChange
           {saved && <span className="muted">{t("settings.saved")}</span>}
         </form>
         <p className="muted">{t("settings.hopLimitHint")}</p>
-      </section>
-      <section>
-        <h2>{t("setup.toolsTitle")}</h2>
+      </EditorSection>
+      <EditorSection title={t("setup.toolsTitle")}>
         <ProviderChecks providers={providers} onCheck={onCheckProviders} />
         <HerdrCheck onError={onError} />
-      </section>
-      <section>
-        <h2>{t("settings.foldersTitle")}</h2>
+      </EditorSection>
+      <EditorSection title={t("settings.foldersTitle")}>
         <div className="folder-row">
           <strong>{t("settings.botsFolder")}</strong>
           <span className="path">{settings.bots_root}</span>
@@ -224,9 +221,8 @@ export default function SettingsView({ providers, onCheckProviders, onBotsChange
             ))}
         </div>
         <p className="muted">{t("settings.projectHint")}</p>
-      </section>
-      <section>
-        <h2>{t("config.title")}</h2>
+      </EditorSection>
+      <EditorSection title={t("config.title")}>
         <p className="muted">{t("projects.sharedSkills")}</p>
         <div className="folder-row">
           <button disabled={configBusy} onClick={() => void exportConfig()}>
@@ -252,7 +248,7 @@ export default function SettingsView({ providers, onCheckProviders, onBotsChange
         ) : (
           <p className="muted">{t("config.hint")}</p>
         )}
-      </section>
+      </EditorSection>
     </>
   );
 }

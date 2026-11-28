@@ -109,7 +109,7 @@ describe("the rail", () => {
   });
 
   it("the new entry calls onWorkflows and shows as open", async () => {
-    expect(rail([], { workflows: true })).toMatch(/class="[^"]*\bselected\b[^"]*"[^>]*aria-label="Workflows"[^>]*>⑂</);
+    expect(rail([], { workflows: true })).toMatch(/class="[^"]*\bselected\b[^"]*"[^>]*aria-label="Workflows"[^>]*>/);
     expect(rail([])).not.toContain("selected");
 
     const onWorkflows = vi.fn();

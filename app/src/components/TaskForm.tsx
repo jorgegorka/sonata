@@ -1,9 +1,10 @@
 import { useProjectApi } from "../projectContext";
-import { useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { type BotView, type Task } from "../api";
-import { errorMessage } from "../errors";
 import { defaultStart, formErrors, type TaskFormInput } from "../tasks";
+import { Button, Dialog, DialogHeader, Field } from "./ui";
+import { useFormGuard } from "./useFormGuard";
 
 interface Props {
   task?: Task;
@@ -15,125 +16,60 @@ interface Props {
 export default function TaskForm({ task, bots, onSaved, onCancel }: Props) {
   const api = useProjectApi();
   const { t } = useTranslation();
+  const id = useId();
   const [draft, setDraft] = useState<TaskFormInput>(() => {
     const at = task?.at ?? "09:00";
-    return {
-      name: task?.name ?? "",
-      bot_id: task?.bot_id ?? bots[0]?.id ?? "",
-      prompt: task?.prompt ?? "",
-      every_days: task?.every_days ?? 7,
-      at,
-      starts_on: defaultStart(task ?? null, new Date(), at),
-    };
+    return { name: task?.name ?? "", bot_id: task?.bot_id ?? bots[0]?.id ?? "", prompt: task?.prompt ?? "",
+      every_days: task?.every_days ?? 7, at, starts_on: defaultStart(task ?? null, new Date(), at) };
   });
+  const initial = useRef(draft);
+  const guard = useFormGuard(JSON.stringify(initial.current) !== JSON.stringify(draft), onCancel);
   const [startPicked, setStartPicked] = useState(false);
   const [shown, setShown] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const set = <K extends keyof TaskFormInput>(key: K, value: TaskFormInput[K]) => setDraft((d) => ({ ...d, [key]: value }));
-  const setAt = (at: string) =>
-    setDraft((d) => {
-      const follows = !task && !startPicked && !formErrors({ ...d, at }).at;
-      return { ...d, at, starts_on: follows ? defaultStart(null, new Date(), at) : d.starts_on };
-    });
+  const setAt = (at: string) => setDraft((d) => ({ ...d, at,
+    starts_on: !task && !startPicked && !formErrors({ ...d, at }).at ? defaultStart(null, new Date(), at) : d.starts_on,
+  }));
   const errors = formErrors(draft);
-  const problem = (field: keyof TaskFormInput) =>
-    shown && errors[field] ? (
-      <span className="error-text" role="alert">
-        {t(errors[field]!)}
-      </span>
-    ) : null;
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
+  const problem = (field: keyof TaskFormInput) => shown && errors[field]
+    ? <span className="error-text" role="alert">{t(errors[field]!)}</span> : null;
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (guard.locked) return;
     setShown(true);
-    setError(null);
-    if (Object.keys(errors).length > 0) return;
-    setBusy(true);
-    try {
-      const input = { ...draft, name: draft.name.trim(), starts_on: draft.starts_on };
-      onSaved(task ? await api.updateTask(task.id, input) : await api.createTask(input));
-    } catch (err) {
-      setError(errorMessage(t, err));
-      setBusy(false);
-    }
+    if (Object.keys(errors).length) return;
+    const input = { ...draft, name: draft.name.trim() };
+    void guard.save(() => task ? api.updateTask(task.id, input) : api.createTask(input), onSaved);
   }
-
-  return (
-    <form className="create-bot" onSubmit={submit} noValidate>
-      <h1>{task ? t("taskForm.editTitle", { name: task.name }) : t("taskForm.createTitle")}</h1>
-      <label>
-        {t("taskForm.name")}
-        <input
-          value={draft.name}
-          onChange={(e) => set("name", e.target.value)}
-          placeholder={t("taskForm.namePlaceholder")}
-          autoFocus
-        />
-        {problem("name")}
-      </label>
-      <label>
-        {t("taskForm.bot")}
-        <select value={draft.bot_id} onChange={(e) => set("bot_id", e.target.value)}>
-          {bots.length === 0 && <option value="">{t("taskForm.noBots")}</option>}
-          {bots.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.display_name} (@{b.handle})
-            </option>
-          ))}
-        </select>
-        {problem("bot_id")}
-      </label>
-      <label>
-        {t("taskForm.prompt")}
-        <textarea value={draft.prompt} onChange={(e) => set("prompt", e.target.value)} rows={8} />
-        <span className="muted">{t("taskForm.promptHint")}</span>
-        {problem("prompt")}
-      </label>
-      <div className="task-when">
-        <label>
-          {t("taskForm.every")}
-          <input
-            type="number"
-            min={1}
-            max={365}
-            value={Number.isNaN(draft.every_days) ? "" : draft.every_days}
-            onChange={(e) => set("every_days", e.target.value === "" ? Number.NaN : Number(e.target.value))}
-          />
-          <span className="muted">{t("taskForm.days")}</span>
-        </label>
-        <label>
-          {t("taskForm.at")}
-          <input type="time" value={draft.at} onChange={(e) => setAt(e.target.value)} />
-        </label>
-        <label>
-          {t("taskForm.startingOn")}
-          <input
-            type="date"
-            value={draft.starts_on}
-            onChange={(e) => {
-              setStartPicked(true);
-              set("starts_on", e.target.value);
-            }}
-          />
-        </label>
-      </div>
-      {problem("every_days")}
-      {problem("at")}
-      {problem("starts_on")}
-      {error && (
-        <div className="error" role="alert">
-          {error}
+  return <Dialog labelledBy={`${id}-heading`} onRequestClose={() => void guard.requestClose()} submitOnShortcut>
+    <form className="dialog-form" onSubmit={submit} noValidate aria-busy={guard.busy}>
+      <DialogHeader id={`${id}-heading`} icon="schedule" title={task ? t("taskForm.editTitle", { name: task.name }) : t("taskForm.createTitle")} locked={guard.locked} onClose={() => void guard.requestClose()} />
+      <div className="dialog-body form-stack">
+        <Field label={t("taskForm.name")} className="title-field" error={problem("name")}>
+          <input className="editor-title" data-autofocus value={draft.name} disabled={guard.locked} onChange={(e) => set("name", e.target.value)} placeholder={t("taskForm.namePlaceholder")} aria-invalid={shown && !!errors.name} />
+        </Field>
+        <Field label={t("taskForm.prompt")} hint={t("taskForm.promptHint")} error={problem("prompt")}>
+          <textarea className="editor-description" value={draft.prompt} disabled={guard.locked} onChange={(e) => set("prompt", e.target.value)} rows={5} aria-invalid={shown && !!errors.prompt} />
+        </Field>
+        <Field label={t("taskForm.bot")} error={problem("bot_id")}>
+          <select value={draft.bot_id} disabled={guard.locked} onChange={(e) => set("bot_id", e.target.value)} aria-invalid={shown && !!errors.bot_id}>
+            {bots.length === 0 && <option value="">{t("taskForm.noBots")}</option>}
+            {bots.map((bot) => <option key={bot.id} value={bot.id}>{bot.display_name} (@{bot.handle})</option>)}
+          </select>
+        </Field>
+        <div className="task-when">
+          <Field label={t("taskForm.every")} hint={t("taskForm.days")} error={problem("every_days")}>
+            <input type="number" min={1} max={365} value={Number.isNaN(draft.every_days) ? "" : draft.every_days} disabled={guard.locked} onChange={(e) => set("every_days", e.target.value === "" ? Number.NaN : Number(e.target.value))} aria-invalid={shown && !!errors.every_days} />
+          </Field>
+          <Field label={t("taskForm.at")} error={problem("at")}><input type="time" value={draft.at} disabled={guard.locked} onChange={(e) => setAt(e.target.value)} aria-invalid={shown && !!errors.at} /></Field>
+          <Field label={t("taskForm.startingOn")} error={problem("starts_on")}><input type="date" value={draft.starts_on} disabled={guard.locked} onChange={(e) => { setStartPicked(true); set("starts_on", e.target.value); }} aria-invalid={shown && !!errors.starts_on} /></Field>
         </div>
-      )}
-      <div className="actions">
-        <button type="button" onClick={onCancel}>
-          {t("taskForm.cancel")}
-        </button>
-        <button type="submit" className="primary" disabled={busy || bots.length === 0}>
-          {busy ? t(task ? "taskForm.saving" : "taskForm.creating") : t(task ? "taskForm.save" : "taskForm.create")}
-        </button>
+        {guard.error && <div className="error" role="alert">{guard.error}</div>}
       </div>
+      <footer className="dialog-footer actions">
+        <Button onClick={() => void guard.requestClose()} disabled={guard.locked}>{t("taskForm.cancel")}</Button>
+        <Button type="submit" variant="primary" disabled={guard.locked || bots.length === 0}>{guard.busy ? t(task ? "taskForm.saving" : "taskForm.creating") : t(task ? "taskForm.save" : "taskForm.create")}</Button>
+      </footer>
     </form>
-  );
+  </Dialog>;
 }

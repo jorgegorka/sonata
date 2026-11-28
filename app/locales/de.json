@@ -195,6 +195,7 @@
     "deleteConfirm": "{{name}} löschen? Ihr Ordner wandert in den Papierkorb."
   },
   "chat": {
+    "actions": "Gesprächsaktionen",
     "optionWithComment": "{{option}} mit Kommentar",
     "edit": "Bearbeiten",
     "showFolder": "Ordner zeigen",
@@ -908,5 +909,9 @@
     "discardMessage": "Der Entwurf und die ausgewählten Anhänge werden entfernt.",
     "discard": "Entwurf verwerfen",
     "keepEditing": "Weiter bearbeiten"
+  },
+  "editor": {
+    "discardTitle": "Änderungen verwerfen?",
+    "discardMessage": "Nicht gespeicherte Änderungen gehen verloren."
   }
 }

@@ -1,3 +1,4 @@
+import { Button, Icon } from "./components/ui";
 import UpdatePrompt from "./components/UpdatePrompt";
 import { useUpdates, updateIsVisible } from "./updates";
 import ProjectsView from "./components/ProjectsView";
@@ -68,7 +69,7 @@ import {
 
 type Page =
   | { kind: "board" }
-  | { kind: "projects"; adding: boolean }
+  | { kind: "projects"; adding: boolean; creationId?: number }
   | Selection
   | { kind: "new" }
   | { kind: "settings"; tab: SettingsTab }
@@ -107,6 +108,7 @@ export default function App() {
   const [drawer, setDrawer] = useState<DrawerView | null>(null);
   const [creation, setCreation] = useState<TaskCreation | null>(null);
   const creationSequence = useRef(0);
+  const projectCreationSequence = useRef(0);
   const [archiving, setArchiving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [allTasks, setTasks] = useState<Task[]>([]);
@@ -555,13 +557,13 @@ export default function App() {
               </label> : <strong>{project?.name ?? t("projects.none")}</strong>}
             </div>
             <div className="header-actions">
-              <button onClick={() => navigate({ kind: "projects", adding: true })}>{t("projects.add")}</button>
-              <button onClick={() => navigate({ kind: "projects", adding: false })}>{t("projects.manage")}</button>
+              <Button variant="ghost" onClick={() => navigate({ kind: "projects", adding: true, creationId: ++projectCreationSequence.current })}><Icon name="plus" />{t("projects.add")}</Button>
+              <Button variant="ghost" onClick={() => navigate({ kind: "projects", adding: false })}><Icon name="folder" />{t("projects.manage")}</Button>
             </div>
           </header>
           {banner}
           {page?.kind === "projects" || (projects !== null && !project) ? (
-            <ProjectsView key={page?.kind === "projects" ? String(page.adding) : "empty"} projects={projects ?? []} adding={page?.kind === "projects" && page.adding}
+            <ProjectsView key={page?.kind === "projects" ? `${page.adding}-${page.creationId ?? 0}` : "empty"} projects={projects ?? []} adding={page?.kind === "projects" && page.adding}
               onError={fail} onClose={() => navigate({ kind: "board" })}
               onChanged={(selected) => { void refreshProjects(projectRef.current === projectId ? selected : undefined); void loadBots(true); refreshTasks(); refreshWorkflows(); refreshSkills(); }} />
           ) : page?.kind === "onboarding" ? (
@@ -655,36 +657,17 @@ export default function App() {
                 navigate({ kind: "workflows" });
               }}
             />
-          ) : page?.kind === "tasks" ? (
-            <TasksView
-              tasks={tasks}
-              bots={state.bots}
-              sessions={state.sessions}
-              onNew={() => navigate({ kind: "newTask" })}
-              onEdit={(id) => navigate({ kind: "editTask", id })}
-              onOpenSession={(id) => navigate({ kind: "session", id })}
-              onError={fail}
-            />
-          ) : page?.kind === "newTask" ? (
-            <TaskForm
-              bots={state.bots}
-              onCancel={() => navigate({ kind: "tasks" })}
-              onSaved={() => {
-                refreshTasks();
-                navigate({ kind: "tasks" });
-              }}
-            />
-          ) : editingTask ? (
-            <TaskForm
-              key={editingTask.id}
-              task={editingTask}
-              bots={state.bots}
-              onCancel={() => navigate({ kind: "tasks" })}
-              onSaved={() => {
-                refreshTasks();
-                navigate({ kind: "tasks" });
-              }}
-            />
+          ) : page?.kind === "tasks" || page?.kind === "newTask" || page?.kind === "editTask" ? (
+            <>
+              <TasksView tasks={tasks} bots={state.bots} sessions={state.sessions}
+                onNew={() => setPage({ kind: "newTask" })}
+                onEdit={(id) => setPage({ kind: "editTask", id })}
+                onOpenSession={(id) => navigate({ kind: "session", id })} onError={fail} />
+              {(page.kind === "newTask" || editingTask) && <TaskForm key={editingTask?.id ?? "new"}
+                task={editingTask ?? undefined} bots={state.bots}
+                onCancel={() => setPage({ kind: "tasks" })}
+                onSaved={() => { refreshTasks(); setPage({ kind: "tasks" }); }} />}
+            </>
           ) : page?.kind === "newSkill" ? (
             <SkillForm
               onError={fail}

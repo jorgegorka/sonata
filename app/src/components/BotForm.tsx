@@ -1,3 +1,4 @@
+import { PageHeader } from "./ui";
 import { useProject } from "../projectContext";
 import { useProjectApi } from "../projectContext";
 import { useEffect, useState, type FormEvent } from "react";
@@ -113,8 +114,8 @@ export default function BotForm({ bot, providers, skills, taskCount = 0, onSaved
 
   const notes = bot ? editNotes(bot, draft) : [];
   return (
-    <form className="create-bot" onSubmit={submit}>
-      <h1>{bot ? t("botForm.editTitle", { name: bot.display_name }) : t("createBot.title")}</h1>
+    <form className="editor-page" onSubmit={submit}>
+      <PageHeader title={bot ? t("botForm.editTitle", { name: bot.display_name }) : t("createBot.title")} />
       {bot && (
         <p className="muted">
           @{bot.handle} · {t("botForm.handleFixed")}
@@ -123,6 +124,7 @@ export default function BotForm({ bot, providers, skills, taskCount = 0, onSaved
       <label>
         {t("createBot.name")}
         <input
+          className="editor-title"
           value={draft.display_name}
           onChange={(e) => set("display_name", e.target.value)}
           placeholder={t("createBot.namePlaceholder")}
@@ -219,7 +221,19 @@ export default function BotForm({ bot, providers, skills, taskCount = 0, onSaved
           {error}
         </div>
       )}
-      <div className="actions">
+
+      {bot && (
+        <section className="danger-zone">
+          <h2>{t("botForm.deleteTitle")}</h2>
+          <p className="muted">{t("botForm.deleteHint")}</p>
+          <div>
+            <button type="button" className="danger" disabled={busy} onClick={() => void remove()}>
+              {t("botForm.delete")}
+            </button>
+          </div>
+        </section>
+      )}
+      <footer className="editor-footer actions">
         {onCancel && (
           <button type="button" onClick={onCancel}>
             {t("createBot.cancel")}
@@ -232,18 +246,7 @@ export default function BotForm({ bot, providers, skills, taskCount = 0, onSaved
         >
           {busy ? t(bot ? "botForm.saving" : "createBot.creating") : t(bot ? "botForm.save" : "createBot.create")}
         </button>
-      </div>
-      {bot && (
-        <section className="danger-zone">
-          <h2>{t("botForm.deleteTitle")}</h2>
-          <p className="muted">{t("botForm.deleteHint")}</p>
-          <div>
-            <button type="button" className="danger" disabled={busy} onClick={() => void remove()}>
-              {t("botForm.delete")}
-            </button>
-          </div>
-        </section>
-      )}
+      </footer>
     </form>
   );
 }

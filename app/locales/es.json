@@ -195,6 +195,7 @@
     "deleteConfirm": "¿Eliminar {{name}}? Su carpeta irá a la Papelera."
   },
   "chat": {
+    "actions": "Acciones de la conversación",
     "optionWithComment": "{{option}} con comentario",
     "edit": "Editar",
     "showFolder": "Mostrar carpeta",
@@ -908,5 +909,9 @@
     "discardMessage": "Se eliminarán el borrador y los archivos adjuntos seleccionados.",
     "discard": "Descartar borrador",
     "keepEditing": "Seguir editando"
+  },
+  "editor": {
+    "discardTitle": "¿Descartar los cambios?",
+    "discardMessage": "Se perderán los cambios sin guardar."
   }
 }

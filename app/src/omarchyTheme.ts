@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { avatarTextColor } from "./colors";
+import { accentTextColor } from "./colors";
 import { TERMINAL_THEME } from "./terminal";
 
 export interface OmarchyPalette {
@@ -74,7 +74,7 @@ export function cssVars(palette: OmarchyPalette): Record<(typeof TOKENS)[number]
     "--muted": palette.muted,
     "--border": palette.border,
     "--accent": palette.accent,
-    "--accent-text": avatarTextColor(palette.accent),
+    "--accent-text": accentTextColor(palette.accent),
     "--mine": palette.mine,
     "--error": palette.red,
     "--needs-bg": mix(palette.background, palette.yellow, 0.18),

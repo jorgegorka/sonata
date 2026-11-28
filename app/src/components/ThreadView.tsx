@@ -32,10 +32,11 @@ export default function ThreadView({
 }: Props) {
   const { t } = useTranslation();
   const browserLabel = browserOpen ? t("browser.hide") : t("browser.show");
-  const endRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
+    const transcript = messagesRef.current;
+    if (transcript) transcript.scrollTop = transcript.scrollHeight;
   }, [messages.length]);
 
   const nameOf = (id: string) => bots.find((b) => b.id === id)?.display_name ?? t("thread.deletedBot");
@@ -67,7 +68,7 @@ export default function ThreadView({
           </button>
         </div>
       </header>
-      <div className="messages">
+      <div ref={messagesRef} className="messages">
         {messages.length === 0 && <p className="muted empty">{t("thread.empty")}</p>}
         {messages.map((m) => (
           <MessageItem
@@ -79,7 +80,6 @@ export default function ThreadView({
             readOnly={readOnly}
           />
         ))}
-        <div ref={endRef} />
       </div>
     </section>
   );

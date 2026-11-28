@@ -18,7 +18,7 @@
     --muted: #a3a1c9;
     --border: #2f2c5e;
     --accent: #7a73ff;
-    --accent-text: #ffffff;
+    --accent-text: #15132f;
     --error: #fb7185;
   }
 }
@@ -63,3 +63,8 @@ button {
   cursor: pointer;
 }
 button:disabled { opacity: 0.5; cursor: default; }
+
+/* Match the host application's compact controls. */
+button { font-size: 13px; font-weight: 500; border-radius: 6px; }
+input, textarea, select { border-radius: 6px; }
+:where(button, input, textarea, select):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }

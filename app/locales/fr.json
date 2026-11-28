@@ -195,6 +195,7 @@
     "deleteConfirm": "Supprimer {{name}} ? Son dossier ira dans la Corbeille."
   },
   "chat": {
+    "actions": "Actions de la conversation",
     "optionWithComment": "{{option}} avec commentaire",
     "edit": "Modifier",
     "showFolder": "Afficher le dossier",
@@ -908,5 +909,9 @@
     "discardMessage": "Le brouillon et les pièces jointes sélectionnées seront supprimés.",
     "discard": "Abandonner le brouillon",
     "keepEditing": "Continuer à modifier"
+  },
+  "editor": {
+    "discardTitle": "Abandonner les modifications ?",
+    "discardMessage": "Les modifications non enregistrées seront perdues."
   }
 }

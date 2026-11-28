@@ -195,6 +195,7 @@
     "deleteConfirm": "Delete {{name}}? Its folder goes to the Trash."
   },
   "chat": {
+    "actions": "Conversation actions",
     "optionWithComment": "{{option}} with comment",
     "edit": "Edit",
     "showFolder": "Show folder",
@@ -908,5 +909,9 @@
     "discardMessage": "Your draft and selected attachments will be removed.",
     "discard": "Discard draft",
     "keepEditing": "Keep editing"
+  },
+  "editor": {
+    "discardTitle": "Discard changes?",
+    "discardMessage": "Your unsaved changes will be lost."
   }
 }

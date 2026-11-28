@@ -1,3 +1,4 @@
+import { PageHeader } from "./ui";
 import { useProjectApi } from "../projectContext";
 import { useId, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -113,10 +114,8 @@ export default function WorkflowsView({ workflows, bots, onNew, onEdit, onRun, o
   }
 
   return (
-    <div className="settings">
-      <h1>{t("workflows.title")}</h1>
-      <p className="muted">{t("workflows.intro")}</p>
-      <div className="actions start workflow-actions">
+    <div className="page resource-page">
+      <PageHeader title={t("workflows.title")} description={t("workflows.intro")} actions={<>
         <button className="primary" onClick={onNew}>
           {t("workflows.new")}
         </button>
@@ -126,7 +125,7 @@ export default function WorkflowsView({ workflows, bots, onNew, onEdit, onRun, o
         <button disabled={configBusy} aria-describedby={exportAllHintId} onClick={() => void exportConfiguration()}>
           {t("config.exportAll")}
         </button>
-      </div>
+      </>} />
       <p id={exportAllHintId} className="muted">
         {t("config.exportAllHint")}
       </p>
@@ -150,8 +149,8 @@ export default function WorkflowsView({ workflows, bots, onNew, onEdit, onRun, o
           onImported={onImported}
         />
       )}
-      {workflows.length === 0 && <p className="muted">{t("workflows.empty")}</p>}
-      <ul className="skills-list">
+      {workflows.length === 0 && <p className="empty-state">{t("workflows.empty")}</p>}
+      <ul className="resource-list">
         {workflows.map((workflow) => {
           const botless = workflow.def.steps.filter((s) => !bots.some((b) => b.id === s.bot_id));
           return (

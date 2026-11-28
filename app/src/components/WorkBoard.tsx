@@ -1,3 +1,4 @@
+import { Button, Icon, PageHeader } from "./ui";
 import { useEffect, useState, type ReactNode } from "react";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useTranslation } from "react-i18next";
@@ -82,12 +83,12 @@ export default function WorkBoard(props: Props) {
     </article>;
   };
   return <div className="board">
-    <header className="board-header"><h1>{t("board.title")}</h1><div className="header-actions">
+    <div className="board-header"><PageHeader title={t("board.title")} actions={<>
       <button aria-expanded={showPending} aria-controls="work-pending" onClick={() => setShowPending(!showPending)}>{t(showPending ? "work.hidePending" : "work.showPending", { count: items.filter((w) => status(w) === "pending").length })}</button>
       <button aria-expanded={showDone} aria-controls="work-done" onClick={() => setShowDone(!showDone)}>{t(showDone ? "board.hideDone" : "board.showDone")}</button>
       <button onClick={props.onTogglePause}>{t(props.paused ? "board.resume" : "board.pause")}</button>
-      <button className="primary" onClick={() => props.onCreate()}>{t("board.newTask")}</button>
-    </div></header>
+      <Button variant="primary" onClick={() => props.onCreate()}><Icon name="plus" />{t("board.newTask")}</Button>
+    </>} /></div>
     {props.paused && <p className="board-note muted">{t("board.pausedNote")}</p>}
     {props.loading && <p role="status">{t("work.loading")}</p>}
     {props.loadError != null && <div className="error" role="alert">{t("work.loadFailed")} {errorMessage(t, props.loadError)} <button onClick={props.onRetry}>{t("work.retry")}</button></div>}
@@ -112,7 +113,7 @@ export default function WorkBoard(props: Props) {
     {props.creation ? <WorkItemForm key={props.creation.id} creation={props.creation} bots={bots}
       siblings={items.filter((w) => w.parent_id === props.creation?.parent?.id)}
       onClose={props.onCloseCreation} onSaved={(item) => { props.onSaved(item); props.onCloseCreation(); }} />
-      : selected ? <aside className="drawer" aria-label={selected.title}><header className="drawer-header"><h2>{selected.title}</h2><button onClick={() => setSelected(null)}>{t("board.close")}</button></header><div className="drawer-body work-details">{context(items.find((w) => w.id === selected.id) ?? selected, true)}</div></aside>
+      : selected ? <aside className="drawer" aria-label={selected.title}><header className="drawer-header"><div className="drawer-top"><h2 className="drawer-title">{selected.title}</h2><Button variant="ghost" className="icon-button" aria-label={t("board.close")} onClick={() => setSelected(null)}><Icon name="close" /></Button></div></header><div className="drawer-body work-details">{context(items.find((w) => w.id === selected.id) ?? selected, true)}</div></aside>
       : props.drawer?.([...executions.values()].filter((task): task is BoardTask => task !== null), now, boardData, (task) => task.workItem && <div className="work-details">{context(task.workItem, true)}</div>)}
   </div>;
 }

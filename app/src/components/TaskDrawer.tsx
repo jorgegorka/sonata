@@ -254,10 +254,10 @@ export function HandoffList({
   const { t } = useTranslation();
   if (threads.length === 0) return <p className="muted empty drawer-note">{t("board.noHandoffs")}</p>;
   return (
-    <ul className="skills-list drawer-list">
+    <ul className="resource-list drawer-list">
       {threads.map((th) => (
         <li key={th.id}>
-          <button className="skill-row" onClick={() => onOpen(th.id)}>
+          <button className="resource-row" onClick={() => onOpen(th.id)}>
             <strong>{threadName(th, sessions, bots, t)}</strong>
           </button>
         </li>

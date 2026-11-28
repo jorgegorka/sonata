@@ -1,3 +1,4 @@
+import { PageHeader, StatusBadge } from "./ui";
 import { useProjectApi } from "../projectContext";
 import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -29,20 +30,19 @@ export default function SkillsView({ skills, onNew, onOpen, onImported, onError 
   const bots = (handles: string[]) => handles.map((h) => `@${h}`).join(", ");
   return (
     <>
-      <p className="muted">{t("skills.intro")}</p>
-      <div className="actions start">
+      <PageHeader title={t("skills.title")} description={t("skills.intro")} actions={<>
         <button className="primary" onClick={onNew}>{t("skills.newSkill")}</button>
         <button onClick={() => void importFolder()}>{t("skills.import")}</button>
         <button onClick={() => void api.openSkillsFolder().catch(onError)}>{t("skills.showFolder")}</button>
-      </div>
-      {skills.length === 0 && <p className="muted">{t("skills.empty")}</p>}
-      <ul className="skills-list">
+      </>} />
+      {skills.length === 0 && <p className="empty-state">{t("skills.empty")}</p>}
+      <ul className="resource-list">
         {skills.map((s) => (
           <li key={s.id}>
-            <button className="skill-row" onClick={() => onOpen(s.id)}>
-              <span className="skill-head">
+            <button className="resource-row" onClick={() => onOpen(s.id)}>
+              <span className="resource-heading">
                 <strong>{s.name}</strong>
-                <span className="badge">{t(`skills.${s.source}`)}</span>
+                <StatusBadge>{t(`skills.${s.source}`)}</StatusBadge>
               </span>
               <span className="muted">{s.description}</span>
               <span className="muted">

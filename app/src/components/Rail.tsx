@@ -1,3 +1,4 @@
+import { Icon } from "./ui";
 import { useTranslation } from "react-i18next";
 import type { BotView, SessionView } from "../api";
 import { avatarTextColor } from "../colors";
@@ -43,7 +44,7 @@ export default function Rail({
   return (
     <nav className="sidebar collapsed">
       <button className={rowClass(boardOpen) + " rail-board"} onClick={onBoard} {...tip(t("sidebar.board"))}>
-        <BoardGlyph />
+        <Icon name="board" />
       </button>
       <ul>
         {bots.map((b) => {
@@ -64,41 +65,22 @@ export default function Rail({
         })}
       </ul>
       <button className="icon-button rail-new" onClick={onNewBot} {...tip(t("sidebar.newBot"))}>
-        +
+        <Icon name="plus" />
       </button>
       <div className="sidebar-footer">
         <button className={rowClass(workflowsOpen)} onClick={onWorkflows} {...tip(t("sidebar.workflows"))}>
-          ⑂
+          <Icon name="workflow" />
         </button>
         <button className={rowClass(tasksOpen)} onClick={onTasks} {...tip(t("sidebar.tasks"))}>
-          ↻
+          <Icon name="schedule" />
         </button>
         <button className={rowClass(archiveOpen)} onClick={onArchive} {...tip(t("sidebar.archive"))}>
-          ▤
+          <Icon name="archive" />
         </button>
         <button className={rowClass(settingsOpen)} onClick={onSettings} {...tip(t("sidebar.settings"))}>
-          ⚙
+          <Icon name="settings" />
         </button>
       </div>
     </nav>
-  );
-}
-
-function BoardGlyph() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 18 18"
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinejoin="round"
-    >
-      <rect x="2" y="3" width="4" height="12" rx="1" />
-      <rect x="7" y="3" width="4" height="8" rx="1" />
-      <rect x="12" y="3" width="4" height="10" rx="1" />
-    </svg>
   );
 }

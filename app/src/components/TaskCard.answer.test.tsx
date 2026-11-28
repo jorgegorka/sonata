@@ -234,8 +234,8 @@ describe("answer buttons", () => {
     await mount(finished, { t: { ...activity.t, question: null, last_reply: reply } });
     const chips = [...host.querySelectorAll<HTMLButtonElement>(".task-file")];
     expect(chips.map((b) => [b.tagName, b.textContent])).toEqual([
-      ["BUTTON", "📎 report.md"],
-      ["BUTTON", "📎 setup.sh"],
+      ["BUTTON", "report.md"],
+      ["BUTTON", "setup.sh"],
     ]);
     await click(chips[0]);
     await click(chips[1]);

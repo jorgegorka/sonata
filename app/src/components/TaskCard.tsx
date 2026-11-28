@@ -1,3 +1,4 @@
+import { Icon } from "./ui";
 import { useRef, useState, type ReactNode, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { answerBody } from "../answer";
@@ -316,7 +317,7 @@ function FinishedBody({ task, bots, activity, onOpen, onMarkDone, onError }: Pro
                 title={name}
                 onClick={() => void api.openAttachment(reply.message_id, i, opensPrograms(name)).catch(onError)}
               >
-                📎 {name}
+                <Icon name="attach" /><span>{name}</span>
               </button>
             </li>
           ))}

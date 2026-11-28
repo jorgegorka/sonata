@@ -1,3 +1,4 @@
+import { PageHeader } from "./ui";
 import { useProjectApi } from "../projectContext";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -84,12 +85,13 @@ export default function SkillForm({ skill, onSaved, onDeleted, onCancel, onError
 
   const inUse = skill ? skill.used_by.map((h) => `@${h}`).join(", ") : "";
   return (
-    <form className="create-bot" onSubmit={submit}>
-      <h1>{skill ? t("skills.editTitle", { name: skill.name }) : t("skills.createTitle")}</h1>
+    <form className="editor-page" onSubmit={submit}>
+      <PageHeader title={skill ? t("skills.editTitle", { name: skill.name }) : t("skills.createTitle")} />
       <p className="muted">{skill ? t("skills.folder", { slug: skill.slug }) : t("skills.folderHint")}</p>
       <label>
         {t("skills.name")}
         <input
+          className="editor-title"
           value={draft.name}
           onChange={(e) => set("name", e.target.value)}
           placeholder={t("skills.namePlaceholder")}
@@ -125,14 +127,7 @@ export default function SkillForm({ skill, onSaved, onDeleted, onCancel, onError
           {error}
         </div>
       )}
-      <div className="actions">
-        <button type="button" onClick={onCancel}>
-          {t("skills.cancel")}
-        </button>
-        <button type="submit" className="primary" disabled={busy || !loaded || !canSave(draft)}>
-          {busy ? t(skill ? "skills.saving" : "skills.creating") : t(skill ? "skills.save" : "skills.create")}
-        </button>
-      </div>
+
       {skill && (
         <section className="danger-zone">
           <h2>{t("skills.deleteTitle")}</h2>
@@ -144,6 +139,14 @@ export default function SkillForm({ skill, onSaved, onDeleted, onCancel, onError
           </div>
         </section>
       )}
+      <footer className="editor-footer actions">
+        <button type="button" onClick={onCancel}>
+          {t("skills.cancel")}
+        </button>
+        <button type="submit" className="primary" disabled={busy || !loaded || !canSave(draft)}>
+          {busy ? t(skill ? "skills.saving" : "skills.creating") : t(skill ? "skills.save" : "skills.create")}
+        </button>
+      </footer>
     </form>
   );
 }

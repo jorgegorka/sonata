@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it } from "vitest";
-import { avatarTextColor } from "./colors";
+import { accentTextColor } from "./colors";
 import { applyOmarchyTheme, consoleColors, cssVars, onConsoleColors, type OmarchyPalette } from "./omarchyTheme";
 import { TERMINAL_THEME } from "./terminal";
 
@@ -49,7 +49,7 @@ describe("omarchy theme", () => {
     expect(vars["--muted"]).toBe("#565f89");
     expect(vars["--border"]).toBe("#414868");
     expect(vars["--accent"]).toBe("#7aa2f7");
-    expect(vars["--accent-text"]).toBe(avatarTextColor("#7aa2f7"));
+    expect(vars["--accent-text"]).toBe(accentTextColor("#7aa2f7"));
     expect(vars["--mine"]).toBe("#292e42");
     expect(vars["--error"]).toBe("#f7768e");
     expect(vars["--alert"]).toBe("#f7768e");
@@ -68,7 +68,7 @@ describe("omarchy theme", () => {
     const vars = cssVars(latte);
     expect(vars["--bg"]).toBe("#eff1f5");
     expect(vars["--accent"]).toBe("#1e66f5");
-    expect(vars["--accent-text"]).toBe(avatarTextColor("#1e66f5"));
+    expect(vars["--accent-text"]).toBe(accentTextColor("#1e66f5"));
     expect(vars["--needs-bg"]).toBe("#ecdfce");
     expect(vars["--shadow"]).toBe("rgba(0, 0, 0, 0.14)");
     expect(vars["--card-shadow"]).toBe("rgba(0, 0, 0, 0.06)");
