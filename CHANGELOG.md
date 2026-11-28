@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+## 1.0.12 — 2026-11-28
+
+Signed and notarized Apple Silicon macOS DMG and signed automatic update archive.
+The Omarchy package remains 1.0.7; AppImage and DEB packages are still pending.
+
+### Task creation
+
+- Replace the task-creation drawer with a centered, Linear-style dialog: an
+  optional title, open description area, compact bot/workflow and start controls,
+  expandable subtask dependencies, and a fixed attachment/action bar.
+- Use the same dialog from the board, bot shortcuts, workflow Run, newly created
+  bots, and subtasks. Preserve file picking and drag-and-drop, automatic titles,
+  manual starts, dependencies, and drafts after failed creation.
+- Add Cmd/Ctrl+Enter submission, initial description focus, and confirmation
+  before discarding edited drafts. Escape closes expanded options first;
+  backdrop clicks preserve the draft.
+- Support light, dark, and Omarchy themes and English, Spanish, French, and German.
+
+### Distribution
+
+- Publish the signed macOS installer and updater for 1.0.12.
+- Quit Sonata before replacing the app manually; saved data stays in place.
+
 ## 1.0.11 — 2026-11-27
 
 Signed and notarized Apple Silicon macOS DMG and signed automatic update archive.

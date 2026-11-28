@@ -10,6 +10,7 @@ const bridge = vi.hoisted(() => ({
   answers: {} as Record<string, (args: any) => unknown>,
   listeners: new Set<(event: { payload: UiEvent }) => void>(),
   picked: ["/tmp/report.txt"],
+  ask: vi.fn<(...args: unknown[]) => Promise<boolean>>(),
   drop: null as ((event: { payload: { type: string; paths: string[] } }) => void) | null,
 }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: async (name: string, args: unknown) => {
@@ -19,7 +20,7 @@ vi.mock("@tauri-apps/api/event", () => ({ listen: async (name: string, listener:
   if (name === "ui-event") bridge.listeners.add(listener);
   return () => bridge.listeners.delete(listener);
 } }));
-vi.mock("@tauri-apps/plugin-dialog", () => ({ ask: async () => true, open: async () => bridge.picked }));
+vi.mock("@tauri-apps/plugin-dialog", () => ({ ask: bridge.ask, open: async () => bridge.picked }));
 vi.mock("@tauri-apps/api/webview", () => ({ getCurrentWebview: () => ({ onDragDropEvent: async (listener: typeof bridge.drop) => {
   bridge.drop = listener; return () => { if (bridge.drop === listener) bridge.drop = null; };
 } }) }));
@@ -36,6 +37,11 @@ const workflow = { id: "flow", project_id: "default", name: "Review", when_to_us
 let root: Root, host: HTMLElement, items: WorkItem[];
 const calls = (name: string) => bridge.calls.filter(([command]) => command === name).map(([, args]) => args);
 const form = () => host.querySelector<HTMLFormElement>(".work-form")!;
+const dialog = () => host.querySelector<HTMLDialogElement>("dialog.task-dialog")!;
+const cancel = () => act(async () => dialog().dispatchEvent(new Event("cancel", { cancelable: true })));
+const key = (value: string, modifiers: KeyboardEventInit = {}) => act(async () => {
+  form().querySelector("textarea")!.dispatchEvent(new KeyboardEvent("keydown", { key: value, bubbles: true, cancelable: true, ...modifiers }));
+});
 function button(text: string): HTMLButtonElement {
   const found = [...host.querySelectorAll("button")].find((b) => b.textContent?.trim() === text || b.getAttribute("aria-label") === text);
   expect(found, text).toBeDefined(); return found!;
@@ -58,6 +64,7 @@ const deferred = <T,>() => { let resolve!: (value: T) => void, reject!: (error: 
 
 beforeEach(() => {
   globalThis.localStorage?.clear(); items = []; bridge.calls = []; bridge.listeners.clear(); bridge.picked = ["/tmp/report.txt"];
+  bridge.ask.mockReset().mockResolvedValue(true);
   bridge.answers = {
     get_settings: () => ({ setup_done: true, language_resolved: "en" }),
     list_projects: () => ["default", "second"].map((id) => ({ id, name: id, default_directory: null, default_provider: "claude", archived_at: null })),
@@ -78,11 +85,18 @@ afterEach(async () => { await act(async () => root.unmount()); host.remove(); })
 describe("one task creation interface", () => {
   it("uses the shared form from the board, bot shortcut, workflow Run, and a newly created bot", async () => {
     await mount(); await click(button("New task"));
+    expect(dialog().open).toBe(true);
+    expect(host.querySelector("aside.drawer")).toBeNull();
+    expect(document.activeElement).toBe(form().querySelector("textarea"));
     expect(form().textContent).toContain("Title (optional)");
     expect(form().querySelector("select")?.value).toBe("bot:master");
+    await click(button("Close"));
     await click(host.querySelector<HTMLButtonElement>('button[aria-label^="worker ·"]')!);
+    expect(dialog().open).toBe(true);
     expect(form().querySelector("select")?.value).toBe("bot:worker");
+    await click(button("Close"));
     await click(button("Workflows")); await click(button("Run"));
+    expect(dialog().open).toBe(true);
     expect(form().querySelector("select")?.value).toBe("workflow:flow");
     expect(host.querySelector(".workflow-start-map")).toBeNull();
     await fill(form().querySelector("textarea")!, "Review the change"); await click(button("Create task"));
@@ -100,7 +114,10 @@ describe("one task creation interface", () => {
     items = [item("parent"), { ...item("sibling"), parent_id: "parent" }];
     await mount(); await click(button("Show Pending (2)"));
     await click(button("Add subtask"));
+    expect(dialog().open).toBe(true);
     expect(form().textContent).toContain("Parent: parent");
+    expect(form().querySelector("fieldset")).toBeNull();
+    await click(button("Depends on"));
     expect(form().querySelector("fieldset")?.textContent).toContain("sibling");
     await fill(form().querySelector("textarea")!, "Child instructions");
     await click(form().querySelector<HTMLInputElement>('fieldset input')!);
@@ -138,13 +155,99 @@ describe("one task creation interface", () => {
     const pending = deferred<WorkItem>(); bridge.answers.create_work_item = () => pending.promise;
     await mount(); await click(button("New task")); await fill(form().querySelector("textarea")!, "Do this");
     await click(button("Attach files"));
-    await click(button("Create task")); await click(button("Create task"));
+    const submit = button("Create task");
+    await click(submit); await click(submit);
+    expect(submit.disabled).toBe(true);
+    expect(button("Close").disabled).toBe(true);
+    await cancel(); await key("Enter", { metaKey: true });
+    expect(dialog().open).toBe(true);
+    expect(bridge.ask).not.toHaveBeenCalled();
     expect(calls("create_work_item")).toHaveLength(1);
     await act(async () => pending.reject(new Error("File unavailable")));
     expect(form().textContent).toContain("File unavailable");
     expect(form().querySelector("textarea")?.value).toBe("Do this");
     expect(form().querySelectorAll(".chip")).toHaveLength(1);
     await click(button("Remove report.txt")); expect(form().querySelectorAll(".chip")).toHaveLength(0);
+  });
+
+  it("closes an empty dialog and restores focus without asking", async () => {
+    await mount(); const trigger = button("New task"); trigger.focus();
+    await click(trigger); await cancel();
+    expect(dialog()).toBeNull(); expect(document.activeElement).toBe(trigger);
+    expect(bridge.ask).not.toHaveBeenCalled();
+  });
+
+  it("ignores backdrop clicks and preserves a draft when discard is cancelled", async () => {
+    await mount(); await click(button("New task"));
+    await fill(form().querySelector("textarea")!, "Keep my description");
+    await click(button("Attach files"));
+    await click(dialog()); expect(dialog().open).toBe(true);
+    expect(bridge.ask).not.toHaveBeenCalled();
+    bridge.ask.mockResolvedValueOnce(false);
+    await cancel();
+    expect(form().querySelector("textarea")?.value).toBe("Keep my description");
+    expect(form().querySelectorAll(".chip")).toHaveLength(1);
+    expect(bridge.ask).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ okLabel: "Discard draft", cancelLabel: "Keep editing" }));
+    await click(button("Close")); expect(dialog()).toBeNull();
+    expect(calls("create_work_item")).toEqual([]);
+  });
+
+  it("collapses properties before Escape can discard changed start settings", async () => {
+    await mount(); await click(button("New task"));
+    const trigger = button("Start automatically");
+    await click(trigger);
+    await click(form().querySelectorAll<HTMLInputElement>('input[type="radio"]')[1]);
+    await key("Escape");
+    expect(form().querySelector("fieldset")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    expect(bridge.ask).not.toHaveBeenCalled();
+    expect(trigger.textContent).toBe("Hold for manual start");
+    bridge.ask.mockResolvedValueOnce(false);
+    await cancel(); expect(bridge.ask).toHaveBeenCalledOnce(); expect(dialog().open).toBe(true);
+  });
+
+  it.each(["title", "attachment", "executor"])("confirms discarding a draft changed only by %s", async (changed) => {
+    await mount(); await click(button("New task"));
+    if (changed === "title") await fill(form().querySelector("input")!, "Draft title");
+    if (changed === "attachment") await click(button("Attach files"));
+    if (changed === "executor") await act(async () => {
+      const select = form().querySelector("select")!; select.value = "bot:worker";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await click(button("Close")); expect(bridge.ask).toHaveBeenCalledOnce(); expect(dialog()).toBeNull();
+  });
+
+  it("does not submit, attach, or open another confirmation while discarding", async () => {
+    const answer = deferred<boolean>(); bridge.ask.mockReturnValue(answer.promise);
+    await mount(); await click(button("New task")); await fill(form().querySelector("textarea")!, "Draft");
+    await cancel(); await cancel(); await key("Enter", { ctrlKey: true });
+    await act(async () => bridge.drop?.({ payload: { type: "drop", paths: ["/tmp/late.txt"] } }));
+    expect(bridge.ask).toHaveBeenCalledOnce(); expect(calls("create_work_item")).toEqual([]);
+    expect(form().querySelectorAll(".chip")).toHaveLength(0);
+    await act(async () => answer.resolve(false));
+    expect(button("Create task").disabled).toBe(false);
+  });
+
+  it.each(["metaKey", "ctrlKey"])("submits valid descriptions with %s+Enter, while ordinary Enter stays in the editor", async (modifier) => {
+    await mount(); await click(button("New task"));
+    await key("Enter", { [modifier]: true }); expect(calls("create_work_item")).toEqual([]);
+    await fill(form().querySelector("textarea")!, "Describe the work");
+    await key("Enter"); expect(calls("create_work_item")).toEqual([]);
+    await key("Enter", { [modifier]: true });
+    expect(calls("create_work_item")).toHaveLength(1); expect(dialog()).toBeNull();
+  });
+
+  it("can retry workflow loading and prevents starting a workflow with a missing bot", async () => {
+    bridge.answers.list_workflows = () => Promise.reject(new Error("Workflow load failed"));
+    await mount(); await click(button("New task"));
+    expect(form().textContent).toContain("Workflow load failed");
+    bridge.answers.list_workflows = () => [{ ...workflow, def: { ...workflow.def, steps: [{ ...workflow.def.steps[0], bot_id: "missing" }] } }];
+    await click(button("Retry"));
+    await act(async () => { const select = form().querySelector("select")!; select.value = "workflow:flow";
+      select.dispatchEvent(new Event("change", { bubbles: true })); });
+    await fill(form().querySelector("textarea")!, "Work");
+    expect(button("Create task").disabled).toBe(true);
+    expect(form().querySelector('[role="alert"]')).not.toBeNull();
   });
 
   it("does not let late reads or creates close a different project's form", async () => {

@@ -899,6 +899,14 @@
     "manual": "Attendre un démarrage manuel",
     "dependenciesLabel": "Dépend de",
     "create": "Créer la tâche",
-    "automaticReview": "Accepter automatiquement les résultats réussis des sous-tâches"
+    "automaticReview": "Accepter automatiquement les résultats réussis des sous-tâches",
+    "descriptionPlaceholder": "Décrivez la tâche…",
+    "automaticStart": "Démarrer automatiquement",
+    "startMode": "Mode de démarrage",
+    "creating": "Création…",
+    "discardTitle": "Abandonner cette tâche ?",
+    "discardMessage": "Le brouillon et les pièces jointes sélectionnées seront supprimés.",
+    "discard": "Abandonner le brouillon",
+    "keepEditing": "Continuer à modifier"
   }
 }

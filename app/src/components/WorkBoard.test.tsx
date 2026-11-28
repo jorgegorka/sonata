@@ -51,7 +51,8 @@ describe("unified tasks", () => {
     expect(form.textContent).toContain("Leave blank to use the beginning of the description.");
     await fill(form.querySelector("input")!, title);
     await fill(form.querySelector("textarea")!, instructions);
-    await act(async () => form.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
+    await act(async () => button("Start automatically").click());
+    await act(async () => form.querySelectorAll<HTMLInputElement>('input[type="radio"]')[1].click());
     expect(form.checkValidity()).toBe(true);
     expect(button("Create task").disabled).toBe(false);
     await act(async () => button("Create task").click());

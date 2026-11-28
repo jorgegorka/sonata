@@ -899,6 +899,14 @@
     "manual": "Auf manuellen Start warten",
     "dependenciesLabel": "Abhängig von",
     "create": "Aufgabe erstellen",
-    "automaticReview": "Erfolgreiche Ergebnisse von Teilaufgaben automatisch akzeptieren"
+    "automaticReview": "Erfolgreiche Ergebnisse von Teilaufgaben automatisch akzeptieren",
+    "descriptionPlaceholder": "Aufgabe beschreiben…",
+    "automaticStart": "Automatisch starten",
+    "startMode": "Startmodus",
+    "creating": "Wird erstellt…",
+    "discardTitle": "Diese Aufgabe verwerfen?",
+    "discardMessage": "Der Entwurf und die ausgewählten Anhänge werden entfernt.",
+    "discard": "Entwurf verwerfen",
+    "keepEditing": "Weiter bearbeiten"
   }
 }

@@ -899,6 +899,14 @@
     "manual": "Esperar inicio manual",
     "dependenciesLabel": "Depende de",
     "create": "Crear tarea",
-    "automaticReview": "Aceptar automáticamente los resultados satisfactorios de las subtareas"
+    "automaticReview": "Aceptar automáticamente los resultados satisfactorios de las subtareas",
+    "descriptionPlaceholder": "Describe la tarea…",
+    "automaticStart": "Iniciar automáticamente",
+    "startMode": "Modo de inicio",
+    "creating": "Creando…",
+    "discardTitle": "¿Descartar esta tarea?",
+    "discardMessage": "Se eliminarán el borrador y los archivos adjuntos seleccionados.",
+    "discard": "Descartar borrador",
+    "keepEditing": "Seguir editando"
   }
 }

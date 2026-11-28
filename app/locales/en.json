@@ -899,6 +899,14 @@
     "manual": "Hold for manual start",
     "dependenciesLabel": "Depends on",
     "create": "Create task",
-    "automaticReview": "Automatically accept successful subtask results"
+    "automaticReview": "Automatically accept successful subtask results",
+    "descriptionPlaceholder": "Describe the task…",
+    "automaticStart": "Start automatically",
+    "startMode": "Start mode",
+    "creating": "Creating…",
+    "discardTitle": "Discard this task?",
+    "discardMessage": "Your draft and selected attachments will be removed.",
+    "discard": "Discard draft",
+    "keepEditing": "Keep editing"
   }
 }
